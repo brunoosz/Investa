@@ -15,7 +15,7 @@ import { useQuotes } from "@/store/market";
 import { useSession, useUserData } from "@/store/session";
 import { useAsync } from "@/hooks/useAsync";
 import { useIndicators, useNews } from "@/hooks/useMarketData";
-import { AnimatedNumber, Card, ErrorState, LiveDot, ProgressBar, ProgressRing, SectionTitle, Skeleton } from "@/components/ui/primitives";
+import { AnimatedNumber, Card, ErrorState, LiveDot, Private, ProgressBar, ProgressRing, SectionTitle, Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/form";
 import { Chart, type HoverInfo, type SeriesSpec } from "@/components/charts/Chart";
@@ -44,7 +44,9 @@ function WeekCard() {
   return (
     <Card>
       <SectionTitle title="Sua semana" subtitle="Últimos 7 dias" action={<Link to="/gastos" className="text-[13px] text-primary font-medium">Gastos</Link>} />
-      <div className="text-[26px] font-bold tabular">{brl(w.spent)}</div>
+      <div className="text-[26px] font-bold tabular" data-private="">
+        {brl(w.spent)}
+      </div>
       <div className="text-[13px] text-muted">
         {diff === null ? "gastos lançados na semana" : `${diff >= 0 ? "+" : ""}${diff}% em relação à semana anterior`}
         {w.topCategory ? ` · mais em ${w.topCategory.category}` : ""}
@@ -56,7 +58,7 @@ function WeekCard() {
               <span className="truncate">
                 {d.name} <span className="text-muted">· {dateBR(d.date, { day: "2-digit", month: "short" })}</span>
               </span>
-              <span className="tabular font-medium shrink-0 ml-2">{brl(d.amount)}</span>
+              <Private className="tabular font-medium shrink-0 ml-2">{brl(d.amount)}</Private>
             </div>
           ))}
         </div>
@@ -88,22 +90,30 @@ function MoneyTodayCard() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-[13px] text-muted font-medium">Seu dinheiro hoje</div>
-          <div className="text-[34px] font-bold tracking-tight mt-0.5 tabular">{accounts.length ? brl(total) : "—"}</div>
+          <div className="text-[34px] font-bold tracking-tight mt-0.5 tabular" data-private="">
+            {accounts.length ? brl(total) : "—"}
+          </div>
           <div className="text-[13.5px] text-muted mt-0.5">
             {accounts.length ? `em ${accounts.length} ${accounts.length === 1 ? "conta" : "contas"} · ainda sem investimentos` : "Informe o saldo dos seus bancos para acompanhar aqui."}
           </div>
         </div>
         <div className="rounded-2xl bg-line/[0.05] px-4 py-3 min-w-[180px]">
           <div className="text-[12.5px] text-muted">Disponível para gastar no mês</div>
-          <div className={clsx("text-[20px] font-bold tabular", budget.available >= 0 ? "text-success" : "text-danger")}>{brl(budget.available)}</div>
-          {budget.perDay !== undefined && budget.available > 0 && <div className="text-[12px] text-muted">{brl(budget.perDay)} por dia</div>}
+          <div className={clsx("text-[20px] font-bold tabular", budget.available >= 0 ? "text-success" : "text-danger")} data-private="">
+            {brl(budget.available)}
+          </div>
+          {budget.perDay !== undefined && budget.available > 0 && (
+            <div className="text-[12px] text-muted">
+              <Private>{brl(budget.perDay)}</Private> por dia
+            </div>
+          )}
         </div>
       </div>
       {accounts.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {accounts.map((a) => (
             <span key={a.id} className="rounded-full bg-line/[0.06] px-3 py-1 text-[13px]">
-              {institutionLabel(a.institution)} <span className="tabular font-medium">{brl(a.balance)}</span>
+              {institutionLabel(a.institution)} <Private className="tabular font-medium">{brl(a.balance)}</Private>
             </span>
           ))}
         </div>
@@ -160,23 +170,30 @@ function PatrimonyCard() {
         <div>
           <div className="text-[13px] text-muted font-medium">{hover ? dateBR(hover.time * 1000, { day: "2-digit", month: "short", year: "numeric" }) : "Seu patrimônio"}</div>
           <div className="text-[34px] font-bold tracking-tight mt-0.5">
-            <AnimatedNumber value={shown} format={brl} />
+            <AnimatedNumber value={shown} format={brl} private />
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] mt-0.5">
             {!hover && (
               <span className={toneClass(summary.dayChange)}>
-                {summary.dayChange >= 0 ? "+" : ""}
-                {brl(summary.dayChange)} ({pct(summary.dayChangePct)}) hoje
+                <Private>
+                  {summary.dayChange >= 0 ? "+" : ""}
+                  {brl(summary.dayChange)} ({pct(summary.dayChangePct)})
+                </Private>{" "}
+                hoje
               </span>
             )}
             <span className={toneClass(diff)}>
-              {diff >= 0 ? "+" : ""}
-              {brl(diff)} {hover ? "sobre o investido" : `(${pct(summary.gainPct)}) no total`}
+              <Private>
+                {diff >= 0 ? "+" : ""}
+                {brl(diff)}
+                {hover ? "" : ` (${pct(summary.gainPct)})`}
+              </Private>{" "}
+              {hover ? "sobre o investido" : "no total"}
             </span>
           </div>
           {!hover && accountsTotal !== 0 && (
             <div className="text-[13px] text-muted mt-1">
-              + {brl(accountsTotal)} nos bancos · total <span className="text-fg font-semibold tabular">{brl(summary.value + accountsTotal)}</span>
+              + <Private>{brl(accountsTotal)}</Private> nos bancos · total <Private className="text-fg font-semibold tabular">{brl(summary.value + accountsTotal)}</Private>
             </div>
           )}
         </div>
@@ -200,7 +217,9 @@ function PatrimonyCard() {
             <ErrorState message={hist.error} onRetry={hist.reload} />
           </div>
         ) : (
-          <Chart series={series} height={260} formatter={fmt} onHover={setHover} />
+          <Private block>
+            <Chart series={series} height={260} formatter={fmt} onHover={setHover} />
+          </Private>
         )}
       </div>
       <div className="flex items-center gap-4 px-5 pb-4 text-[12px] text-muted">
@@ -232,12 +251,14 @@ function AllocationCard() {
             center={
               <div>
                 <div className="text-[12px] text-muted">{data.length} classes</div>
-                <div className="text-[15px] font-bold">{brl(summary.value).replace(/,\d+$/, "")}</div>
+                <div className="text-[15px] font-bold" data-private="">
+                  {brl(summary.value).replace(/,\d+$/, "")}
+                </div>
               </div>
             }
           />
           <div className="w-full">
-            <Legend data={data} format={(v) => brl(v).replace(/,\d+$/, "")} />
+            <Legend data={data} format={(v) => brl(v).replace(/,\d+$/, "")} private />
           </div>
         </div>
       ) : (
@@ -318,7 +339,7 @@ function GoalsCard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-semibold truncate">{g.name}</div>
-                    <div className="text-[12px] text-muted">
+                    <div className="text-[12px] text-muted" data-private="">
                       {brl(p.current)} de {brl(g.target)}
                     </div>
                   </div>
@@ -390,13 +411,14 @@ function FavoritesCard() {
             <button key={s} onClick={() => navigate(`/mercado/${encodeURIComponent(s)}`)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-line/[0.04] text-left">
               <AssetAvatar symbol={s} size={36} />
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-[14px]">{displaySymbol(s)}</div>
+                <div className="font-semibold text-[14px] truncate">{displaySymbol(s)}</div>
                 <div className="text-[12.5px] text-muted truncate">{q?.name ?? "…"}</div>
               </div>
-              <div className="text-right">
-                <div className="text-[14px] font-semibold tabular">{q ? quotePrice(q) : <Skeleton className="h-4 w-16" />}</div>
+              {/* No celular a variação fica embaixo do preço para sobrar espaço ao nome. */}
+              <div className="shrink-0 flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+                <div className="text-[14px] font-semibold tabular whitespace-nowrap">{q ? quotePrice(q) : <Skeleton className="h-4 w-16" />}</div>
+                <ChangePill value={q?.changePercent} size="sm" />
               </div>
-              <ChangePill value={q?.changePercent} size="sm" />
             </button>
           );
         })}
@@ -434,12 +456,12 @@ function NewsCard() {
               <div className="h-12 w-16 rounded-lg bg-primary/10 shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[13.5px] font-medium line-clamp-2 group-hover:text-primary transition">{n.title}</div>
-              <div className="text-[12px] text-muted mt-0.5">
+              <div className="text-[13.5px] font-medium line-clamp-2 break-words group-hover:text-primary transition">{n.title}</div>
+              <div className="text-[12px] text-muted mt-0.5 truncate">
                 {n.source} · {relativeTime(n.publishedAt)}
               </div>
             </div>
-            <ArrowUpRight size={15} className="text-muted shrink-0 opacity-0 group-hover:opacity-100" />
+            <ArrowUpRight size={15} className="hidden sm:block text-muted shrink-0 opacity-0 group-hover:opacity-100" />
           </button>
         ))}
       </div>
@@ -465,19 +487,21 @@ export function Inicio() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <PatrimonyCard />
         <AllocationCard />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mt-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4">
         <WeekCard />
         <LearningCard />
         <GoalsCard />
         <IndicatorsCard />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 mt-4">
+      {/* grid-cols-1 (minmax(0, 1fr)): sem isso a coluna cresce até caber o nome
+          inteiro do ativo e a variação some fora da tela no celular. */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mt-4">
         <FavoritesCard />
         <NewsCard />
       </div>

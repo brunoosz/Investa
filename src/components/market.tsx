@@ -1,19 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import clsx from "clsx";
 import type { AssetCategory, Quote, SearchResult } from "@shared/types";
-import { CATEGORIES, catalogAsset, displaySymbol } from "@shared/catalog";
+import { CATEGORIES, catalogAsset, displaySymbol, guessCategory } from "@shared/catalog";
 import { BANKS, OTHER_INSTITUTIONS } from "@shared/banks";
 import { api } from "@/lib/api";
 import { pct, quotePrice } from "@/lib/format";
 import { CATEGORY_COLORS } from "@/lib/portfolio";
 import { Spinner } from "@/components/ui/primitives";
 import { Select } from "@/components/ui/form";
+import { LocalLogo, logoSource, RemoteLogo } from "@/components/AssetLogo";
 
-export function AssetAvatar({ symbol, category, size = 40 }: { symbol: string; category?: AssetCategory; size?: number }) {
-  const cat = category ?? catalogAsset(symbol)?.category ?? "acoes";
-  const color = CATEGORY_COLORS[cat];
+function InitialsBadge({ symbol, category, size }: { symbol: string; category: AssetCategory; size: number }) {
+  const color = CATEGORY_COLORS[category];
   const label = displaySymbol(symbol).replace(/[^A-Z0-9]/gi, "").slice(0, 4);
   return (
     <div
@@ -23,6 +23,15 @@ export function AssetAvatar({ symbol, category, size = 40 }: { symbol: string; c
       {label}
     </div>
   );
+}
+
+export function AssetAvatar({ symbol, category, size = 40 }: { symbol: string; category?: AssetCategory; size?: number }) {
+  const cat = category ?? catalogAsset(symbol)?.category ?? guessCategory(symbol);
+  const source = useMemo(() => logoSource(symbol, cat), [symbol, cat]);
+  const fallback = <InitialsBadge symbol={symbol} category={cat} size={size} />;
+  if (!source) return fallback;
+  if (source.kind === "img") return <RemoteLogo src={source.src} plate={source.plate} size={size} fallback={fallback} />;
+  return <LocalLogo source={source} size={size} />;
 }
 
 export function ChangePill({ value, className, size = "md" }: { value: number | undefined; className?: string; size?: "sm" | "md" }) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BadgePercent, ExternalLink, Gamepad2, Link2, ShoppingBag, Sparkles, TrendingDown, TriangleAlert, Wallet } from "lucide-react";
@@ -9,7 +9,7 @@ import { brl } from "@/lib/format";
 import { toastError } from "@/store/ui";
 import { useAssistant } from "@/store/assistant";
 import { useAsync } from "@/hooks/useAsync";
-import { Badge, Card, PageHeader } from "@/components/ui/primitives";
+import { Badge, Card, PageHeader, Private } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, Select } from "@/components/ui/form";
 
@@ -20,9 +20,12 @@ const EXAMPLES = [
   "iPhone 15 128GB",
 ];
 
+// Saldo, renda e o que sobra no mês ficam borrados no modo privacidade; o preço da loja não.
+const mine = (v: number) => <Private>{brl(v)}</Private>;
+
 /** Leitura rápida sem IA: o preço está bom e cabe no mês? */
-function quickVerdict(d: DealCheck, installments: number): { tone: "success" | "warning" | "danger"; title: string; lines: string[] } {
-  const lines: string[] = [];
+function quickVerdict(d: DealCheck, installments: number): { tone: "success" | "warning" | "danger"; title: string; lines: ReactNode[] } {
+  const lines: ReactNode[] = [];
   // O orçamento é em reais: usa o preço convertido quando a loja cobra em outra moeda.
   const price = d.currentPriceBrl ?? (d.currency === "BRL" ? d.currentPrice : undefined);
   const perMonth = price ? price / Math.max(1, installments) : undefined;
@@ -32,12 +35,20 @@ function quickVerdict(d: DealCheck, installments: number): { tone: "success" | "
   if (perMonth !== undefined) {
     if (perMonth > free) {
       tone = "danger";
-      lines.push(`${installments > 1 ? `A parcela de ${brl(perMonth)}` : `O valor de ${brl(perMonth)}`} passa do que sobra no seu mês (${brl(Math.max(0, free))}, já descontando faturas em aberto).`);
+      lines.push(
+        <>
+          {installments > 1 ? `A parcela de ${brl(perMonth)}` : `O valor de ${brl(perMonth)}`} passa do que sobra no seu mês ({mine(Math.max(0, free))}, já descontando faturas em aberto).
+        </>
+      );
     } else if (perMonth > free * 0.5) {
       tone = "warning";
-      lines.push(`${installments > 1 ? "A parcela" : "A compra"} usa mais da metade do que sobra no mês (${brl(free)}).`);
+      lines.push(
+        <>
+          {installments > 1 ? "A parcela" : "A compra"} usa mais da metade do que sobra no mês ({mine(free)}).
+        </>
+      );
     } else {
-      lines.push(`Cabe no orçamento: sobram ${brl(free - perMonth)} no mês depois da compra.`);
+      lines.push(<>Cabe no orçamento: sobram {mine(free - perMonth)} no mês depois da compra.</>);
     }
   } else if (d.currentPrice) {
     lines.push(`O preço está em ${d.currency}. Informe quanto fica em reais para eu calcular se cabe no seu mês.`);
@@ -48,7 +59,11 @@ function quickVerdict(d: DealCheck, installments: number): { tone: "success" | "
     const afterInvoices = d.budget.accountsBalance - d.budget.invoicesOpen;
     if (installments <= 1 && price > afterInvoices) {
       tone = "danger";
-      lines.push(`Hoje você tem ${brl(d.budget.accountsBalance)} nas contas; pagando as faturas, sobram ${brl(afterInvoices)}. Não dá para pagar à vista sem faltar dinheiro.`);
+      lines.push(
+        <>
+          Hoje você tem {mine(d.budget.accountsBalance)} nas contas; pagando as faturas, sobram {mine(afterInvoices)}. Não dá para pagar à vista sem faltar dinheiro.
+        </>
+      );
     }
   }
 
@@ -244,8 +259,8 @@ export function ValeAPena() {
                 <div className="font-semibold text-[16px]">{verdict.title}</div>
               </div>
               <ul className="mt-3 space-y-2 text-[14px]">
-                {verdict.lines.map((l) => (
-                  <li key={l}>{l}</li>
+                {verdict.lines.map((l, i) => (
+                  <li key={i}>{l}</li>
                 ))}
               </ul>
             </Card>
@@ -257,25 +272,25 @@ export function ValeAPena() {
               <div className="mt-3 space-y-1.5 text-[14px]">
                 <div className="flex justify-between">
                   <span className="text-muted">Renda</span>
-                  <span className="tabular">{brl(result.budget.monthlyIncome)}</span>
+                  <span className="tabular" data-private="">{brl(result.budget.monthlyIncome)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">Disponível no mês</span>
-                  <span className="tabular">{brl(result.budget.available ?? result.budget.monthBalance)}</span>
+                  <span className="tabular" data-private="">{brl(result.budget.available ?? result.budget.monthBalance)}</span>
                 </div>
                 {result.budget.accountsBalance !== undefined && (
                   <div className="flex justify-between">
                     <span className="text-muted">Saldo nas contas</span>
-                    <span className="tabular">{brl(result.budget.accountsBalance)}</span>
+                    <span className="tabular" data-private="">{brl(result.budget.accountsBalance)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted">Faturas em aberto</span>
-                  <span className="tabular">{brl(result.budget.invoicesOpen)}</span>
+                  <span className="tabular" data-private="">{brl(result.budget.invoicesOpen)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">Reserva de emergência</span>
-                  <span className="tabular">{brl(result.budget.emergencyReserve)}</span>
+                  <span className="tabular" data-private="">{brl(result.budget.emergencyReserve)}</span>
                 </div>
               </div>
             </Card>

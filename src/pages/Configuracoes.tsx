@@ -33,7 +33,7 @@ import { brl, relativeTime } from "@/lib/format";
 import { isOwner, useSession, useUserData } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
 import { useAsync } from "@/hooks/useAsync";
-import { Avatar, Badge, Card, ListGroup, ListRow, PageHeader } from "@/components/ui/primitives";
+import { Avatar, Badge, Card, ListGroup, ListRow, PageHeader, Private, PrivateAmounts } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, PasswordInput, SegmentedControl, Toggle } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -41,6 +41,7 @@ import { ExpenseFields, IncomeFields, InvestFields, ProfileFields, RISK_LABEL, t
 import { ErrorBanner } from "@/pages/auth/Login";
 import { AppIcon } from "@/components/Logo";
 import { changeIconVariant, useIconVariant } from "@/lib/appIcon";
+import { TabBarSettings, usePhoneLayout } from "@/components/TabBarSettings";
 
 
 /** Cópia de todos os dados da conta num arquivo, para guardar fora do app ou restaurar. */
@@ -365,53 +366,71 @@ function PasswordSheet({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-/** Chave grátis de pesquisa (Tavily ou Brave) para o Assistente buscar na internet. */
+/** A pesquisa funciona sem chave; a chave da Tavily ou da Brave é opcional. */
 function SearchSettings({ info, onChange }: { info?: AiConfigInfo | null; onChange: () => void }) {
   const toast = useUi((s) => s.toast);
   const [key, setKey] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"save" | "test" | null>(null);
   const save = async () => {
     const k = key.trim();
     if (!k) return;
-    setBusy(true);
+    setBusy("save");
     try {
       const n = await api.ai.testSearch(k);
       await api.ai.setConfig({ searchKey: k });
       setKey("");
       onChange();
-      toast({ title: "Pesquisa na internet ligada", message: `Teste trouxe ${n} resultado(s). Vale para todas as contas.`, tone: "success" });
+      toast({ title: "Chave salva", message: `Teste trouxe ${n} resultado(s). Vale para todas as contas.`, tone: "success" });
     } catch (err) {
       toastError(err, "A chave não funcionou");
     } finally {
-      setBusy(false);
+      setBusy(null);
+    }
+  };
+  const test = async () => {
+    setBusy("test");
+    try {
+      const n = await api.ai.testSearch("");
+      toast({ title: "A pesquisa está funcionando", message: `Teste sem chave trouxe ${n} resultado(s).`, tone: "success" });
+    } catch (err) {
+      toastError(err, "A pesquisa não respondeu");
+    } finally {
+      setBusy(null);
     }
   };
   return (
     <div className="mt-5 pt-5 border-t border-line/10">
-      <div className="font-semibold">Pesquisa na internet</div>
-      <div className="text-[13px] text-muted mt-0.5">
-        A IA da NVIDIA não navega sozinha. Com uma chave grátis da Tavily (1.000 buscas por mês) ou da Brave Search, o Assistente pesquisa e mostra as fontes, inclusive no plano de
-        investimento.
+      <div className="flex items-center gap-2">
+        <span className="font-semibold">Pesquisa na internet</span>
+        <Badge tone="success">Ligada</Badge>
       </div>
-      {info?.hasSearch && (
+      <div className="text-[13px] text-muted mt-0.5">
+        Funciona sem chave: cada aparelho faz a própria busca, então não existe limite dividido entre as contas. O Assistente mostra as fontes, inclusive no plano de investimento.
+      </div>
+      <div className="text-[13px] font-medium mt-4">Chave da Tavily ou da Brave (opcional)</div>
+      <div className="text-[13px] text-muted mt-0.5">Deixa os resultados mais completos. Se a cota acabar, o app volta sozinho para a busca sem chave.</div>
+      {info?.searchPreview && (
         <div className="mt-2 text-[13px]">
-          <Badge tone="success">Ligada</Badge> <span className="text-muted ml-1">{info.searchProvider === "tavily" ? "Tavily" : "Brave"} · {info.searchPreview}</span>
+          <Badge tone="neutral">{info.searchProvider === "tavily" ? "Tavily" : "Brave"}</Badge> <span className="text-muted ml-1">{info.searchPreview}</span>
         </div>
       )}
       <div className="flex flex-col sm:flex-row gap-2 mt-3">
-        <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="tvly-… (Tavily) ou chave da Brave" type="password" autoComplete="off" />
-        <Button onClick={() => void save()} loading={busy} disabled={!key.trim()}>
+        <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="tvly-… ou chave da Brave" type="password" autoComplete="off" />
+        <Button onClick={() => void save()} loading={busy === "save"} disabled={!key.trim() || busy === "test"}>
           Testar e salvar
         </Button>
       </div>
       <div className="flex flex-wrap gap-2 mt-2">
+        <Button size="sm" variant="ghost" icon={Sparkles} loading={busy === "test"} disabled={busy === "save"} onClick={() => void test()}>
+          Testar pesquisa
+        </Button>
         <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => void api.openExternal("https://app.tavily.com/home")}>
           Criar chave na Tavily
         </Button>
         <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => void api.openExternal("https://api-dashboard.search.brave.com/app/keys")}>
           Criar chave na Brave
         </Button>
-        {info?.hasSearch && (
+        {info?.searchPreview && (
           <Button
             size="sm"
             variant="ghost"
@@ -421,7 +440,7 @@ function SearchSettings({ info, onChange }: { info?: AiConfigInfo | null; onChan
               onChange();
             }}
           >
-            Desligar pesquisa
+            Remover chave
           </Button>
         )}
       </div>
@@ -829,6 +848,7 @@ export function Configuracoes() {
   const [sheet, setSheet] = useState<"perfil" | "financeiro" | "senha" | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
   const aiRef = useRef<HTMLDivElement>(null);
+  const phone = usePhoneLayout();
 
   useEffect(() => {
     if (params.get("secao") === "ia") setTimeout(() => aiRef.current?.scrollIntoView({ behavior: "smooth" }), 250);
@@ -860,8 +880,8 @@ export function Configuracoes() {
 
         <Section title="Finanças">
           <ListGroup>
-            <ListRow icon={Wallet} iconColor="#34D399" title="Renda mensal" subtitle={`${brl(profile.salary)} de salário${profile.extraIncome ? ` + ${brl(profile.extraIncome)} extra` : ""}`} right={<span className="font-semibold tabular">{brl(totalIncome(profile))}</span>} onClick={() => setSheet("financeiro")} chevron />
-            <ListRow icon={PiggyBank} iconColor="#FBBF24" title="Gastos e investimentos" subtitle={`Gasta ${brl(totalExpenses(profile))} · investe ${brl(profile.monthlyInvest)} por mês`} onClick={() => setSheet("financeiro")} chevron />
+            <ListRow icon={Wallet} iconColor="#34D399" title="Renda mensal" subtitle={<PrivateAmounts text={`${brl(profile.salary)} de salário${profile.extraIncome ? ` + ${brl(profile.extraIncome)} extra` : ""}`} />} right={<Private className="font-semibold tabular">{brl(totalIncome(profile))}</Private>} onClick={() => setSheet("financeiro")} chevron />
+            <ListRow icon={PiggyBank} iconColor="#FBBF24" title="Gastos e investimentos" subtitle={<PrivateAmounts text={`Gasta ${brl(totalExpenses(profile))} · investe ${brl(profile.monthlyInvest)} por mês`} />} onClick={() => setSheet("financeiro")} chevron />
             <ListRow icon={UserRound} iconColor="#A78BFA" title="Perfil de investidor" subtitle="Usado pelo Assistente para personalizar sugestões" right={<Badge tone="secondary">{RISK_LABEL[profile.riskProfile]}</Badge>} onClick={() => setSheet("financeiro")} chevron />
           </ListGroup>
         </Section>
@@ -892,6 +912,12 @@ export function Configuracoes() {
           </Card>
           <IconPicker />
         </Section>
+
+        {phone && (
+          <Section title="Celular">
+            <TabBarSettings />
+          </Section>
+        )}
 
         <Section title="Segurança">
           <ListGroup>

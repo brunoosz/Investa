@@ -18,7 +18,6 @@ import type {
   CopomInfo,
   Holding,
   Indicators,
-  LeaderboardEntry,
   NewsItem,
   PortfolioHistoryPoint,
   PublicUser,
@@ -121,7 +120,6 @@ export const api = {
 
   portfolioHistory: (range: ChartRange, holdings?: Holding[]) => call<PortfolioHistoryPoint[]>("portfolio:history", { range, holdings }),
   banks: () => call<BanksData>("banks:get"),
-  leaderboard: () => call<LeaderboardEntry[]>("learning:leaderboard"),
 
   ai: {
     info: () => call<AiConfigInfo>("ai:info"),

@@ -226,6 +226,23 @@ export function ListRow({
   );
 }
 
+/** Valor pessoal (saldo, renda, gastos, carteira): fica borrado no modo privacidade. */
+export function Private({ children, className, block }: { children: ReactNode; className?: string; block?: boolean }) {
+  const Tag = block ? "div" : "span";
+  return (
+    <Tag data-private="" className={className}>
+      {children}
+    </Tag>
+  );
+}
+
+const AMOUNT = /((?:R\$|US\$|€)\s?[-−+]?\s?\d+(?:\.\d{3})*(?:,\d+)?)/;
+
+/** Texto pronto (ex.: notificação da semana) com valores pessoais: borra só os valores em dinheiro. */
+export function PrivateAmounts({ text }: { text: string }) {
+  return <>{text.split(AMOUNT).map((part, i) => (i % 2 ? <Private key={i}>{part}</Private> : part))}</>;
+}
+
 export function Stat({ label, value, sub, className }: { label: ReactNode; value: ReactNode; sub?: ReactNode; className?: string }) {
   return (
     <div className={className}>
@@ -239,7 +256,7 @@ export function Stat({ label, value, sub, className }: { label: ReactNode; value
 // Anima do valor mostrado até o novo valor. Se o valor mudar no meio da
 // animação (por exemplo, quando chegam as últimas cotações), recomeça de onde
 // parou e termina sempre exatamente no valor atual.
-export function AnimatedNumber({ value, format, className }: { value: number; format: (n: number) => string; className?: string }) {
+export function AnimatedNumber({ value, format, className, private: priv }: { value: number; format: (n: number) => string; className?: string; private?: boolean }) {
   const [display, setDisplay] = useState(value);
   const current = useRef(value);
   useEffect(() => {
@@ -268,7 +285,11 @@ export function AnimatedNumber({ value, format, className }: { value: number; fo
       clearTimeout(done);
     };
   }, [value]);
-  return <span className={clsx("tabular", className)}>{format(display)}</span>;
+  return (
+    <span className={clsx("tabular", className)} data-private={priv ? "" : undefined}>
+      {format(display)}
+    </span>
+  );
 }
 
 export function LiveDot({ className }: { className?: string }) {

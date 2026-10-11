@@ -358,36 +358,6 @@ export function parsePlanSteps(md: string, today = new Date()): PlanStep[] {
   return steps;
 }
 
-/** Rentabilidade anual estimada para cada estilo, a partir do CDI de hoje. */
-export function wealthRate(style: "seguro" | "equilibrado" | "crescimento", cdi: number): number {
-  const base = cdi > 0 ? cdi : 10;
-  return style === "seguro" ? base * 0.95 : style === "equilibrado" ? base + 1.5 : base + 3.5;
-}
-
-export interface WealthPoint {
-  month: number;
-  invested: number;
-  value: number;
-}
-
-/** Juros compostos com aporte mensal: evolução mês a mês e quando passa de cada marco. */
-export function wealthProjection(start: number, monthly: number, annualRate: number, years: number): { points: WealthPoint[]; milestones: { value: number; month: number }[] } {
-  const r = Math.pow(1 + annualRate / 100, 1 / 12) - 1;
-  const months = Math.max(1, Math.round(years * 12));
-  const points: WealthPoint[] = [{ month: 0, invested: start, value: start }];
-  let value = start;
-  let invested = start;
-  const marks = [100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000];
-  const milestones: { value: number; month: number }[] = [];
-  for (let m = 1; m <= months; m++) {
-    value = value * (1 + r) + monthly;
-    invested += monthly;
-    points.push({ month: m, invested: round2(invested), value: round2(value) });
-    for (const mk of marks) if (value >= mk && start < mk && !milestones.some((x) => x.value === mk)) milestones.push({ value: mk, month: m });
-  }
-  return { points, milestones };
-}
-
 export interface WeekSummary {
   /** Gasto nos últimos 7 dias (até hoje). */
   spent: number;

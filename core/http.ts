@@ -57,7 +57,7 @@ export function writeDiskCache(name: string, data: unknown): void {
     // sem disco: segue só com o cache em memória
   }
 }
-const BROWSER_HOSTS = new Set(["olinda.bcb.gov.br", "www.tesourodireto.com.br", "api.bcb.gov.br", "store.steampowered.com"]);
+const BROWSER_HOSTS = new Set(["olinda.bcb.gov.br", "www.tesourodireto.com.br", "api.bcb.gov.br", "store.steampowered.com", "html.duckduckgo.com", "lite.duckduckgo.com"]);
 
 /** Lojas: a rede do Chromium passa por mais bloqueios anti-robô do que a do Node. */
 const STORE_HOSTS = /(^|\.)(mercadolivre\.com\.br|mercadolibre\.com|meli\.la|amazon\.com\.br|amzn\.to|a\.co|shopee\.com\.br|aliexpress\.com|kabum\.com\.br|magazineluiza\.com\.br|epicgames\.com)$/i;

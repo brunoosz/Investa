@@ -12,7 +12,7 @@ import { useQuotes } from "@/store/market";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { useIndicators } from "@/hooks/useMarketData";
-import { AnimatedNumber, Badge, Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui/primitives";
+import { AnimatedNumber, Badge, Card, EmptyState, PageHeader, Private, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, NumberInput, SegmentedControl, Select } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -194,7 +194,10 @@ function VariableRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => vo
         <div className="min-w-0">
           <div className="font-semibold">{displaySymbol(h.symbol!)}</div>
           <div className="text-[12.5px] text-muted truncate">
-            {num(h.quantity, h.category === "cripto" ? 4 : 0)} × {money(h.avgPrice, v.currency)} · {institutionLabel(h.institution) || "—"}
+            <Private>
+              {num(h.quantity, h.category === "cripto" ? 4 : 0)} × {money(h.avgPrice, v.currency)}
+            </Private>{" "}
+            · {institutionLabel(h.institution) || "—"}
           </div>
         </div>
       </button>
@@ -208,9 +211,11 @@ function VariableRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => vo
       </div>
       <div className="hidden md:block text-right">
         <div className="text-[12px] text-muted">Rentabilidade</div>
-        <div className={clsx("tabular font-medium", toneClass(v.gain))}>{pct(v.gainPct)}</div>
+        <div className={clsx("tabular font-medium", toneClass(v.gain))} data-private="">
+          {pct(v.gainPct)}
+        </div>
       </div>
-      <div className="text-right">
+      <div className="text-right" data-private="">
         <div className="tabular font-semibold">{brl(v.value)}</div>
         <div className={clsx("text-[12.5px] tabular md:hidden", toneClass(v.gain))}>{pct(v.gainPct)}</div>
         <div className={clsx("text-[12.5px] tabular hidden md:block", toneClass(v.gain))}>
@@ -243,13 +248,15 @@ function FixedRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => void;
       </div>
       <div className="hidden md:block text-right">
         <div className="text-[12px] text-muted">Aplicado</div>
-        <div className="tabular font-medium">{brl(v.invested)}</div>
+        <Private block className="tabular font-medium">
+          {brl(v.invested)}
+        </Private>
       </div>
       <div className="hidden md:block text-right">
         <div className="text-[12px] text-muted">Taxa hoje</div>
         <div className="tabular font-medium">{v.annualRate !== undefined ? `${num(v.annualRate)}% a.a.` : "—"}</div>
       </div>
-      <div className="text-right">
+      <div className="text-right" data-private="">
         <div className="tabular font-semibold">{brl(v.value)}</div>
         <div className={clsx("text-[12.5px] tabular", toneClass(v.gain))}>
           +{brl(v.gain)} · líquido {brl(v.netValue)}
@@ -320,25 +327,31 @@ export function Carteira() {
             <Card>
               <div className="text-[13px] text-muted">Patrimônio</div>
               <div className="text-[24px] font-bold tracking-tight mt-1">
-                <AnimatedNumber value={summary.value} format={brl} />
+                <AnimatedNumber value={summary.value} format={brl} private />
               </div>
             </Card>
             <Card>
               <div className="text-[13px] text-muted">Total investido</div>
-              <div className="text-[24px] font-bold tracking-tight mt-1 tabular">{brl(summary.invested)}</div>
+              <div className="text-[24px] font-bold tracking-tight mt-1 tabular" data-private="">
+                {brl(summary.invested)}
+              </div>
             </Card>
             <Card>
               <div className="text-[13px] text-muted">Rentabilidade</div>
-              <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(summary.gain))}>{pct(summary.gainPct)}</div>
-              <div className={clsx("text-[13px] tabular", toneClass(summary.gain))}>
+              <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(summary.gain))} data-private="">
+                {pct(summary.gainPct)}
+              </div>
+              <div className={clsx("text-[13px] tabular", toneClass(summary.gain))} data-private="">
                 {summary.gain >= 0 ? "+" : ""}
                 {brl(summary.gain)}
               </div>
             </Card>
             <Card>
               <div className="text-[13px] text-muted">Variação hoje</div>
-              <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(summary.dayChange))}>{pct(summary.dayChangePct)}</div>
-              <div className={clsx("text-[13px] tabular", toneClass(summary.dayChange))}>
+              <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(summary.dayChange))} data-private="">
+                {pct(summary.dayChangePct)}
+              </div>
+              <div className={clsx("text-[13px] tabular", toneClass(summary.dayChange))} data-private="">
                 {summary.dayChange >= 0 ? "+" : ""}
                 {brl(summary.dayChange)}
               </div>
@@ -351,7 +364,7 @@ export function Carteira() {
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <Donut data={donut} size={180} center={<div className="text-[13px] text-muted">{portfolio.length} ativos</div>} />
                 <div className="flex-1 w-full">
-                  <Legend data={donut} format={(v) => brl(v)} />
+                  <Legend data={donut} format={(v) => brl(v)} private />
                 </div>
               </div>
             </Card>
@@ -360,6 +373,7 @@ export function Carteira() {
               <BarList
                 data={summary.byInstitution.map((b) => ({ key: b.institution, label: institutionLabel(b.institution) || "Não informado", value: b.value }))}
                 format={(v) => brl(v).replace(/,\d+$/, "")}
+                private
               />
             </Card>
           </div>
@@ -368,7 +382,9 @@ export function Carteira() {
             <Card padded={false} className="mb-4 overflow-hidden">
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <SectionTitle title="Renda variável" subtitle="Cotações reais (B3 com atraso de até 15 min)" />
-                <Badge tone="primary">{brl(variable.reduce((s, v) => s + v.value, 0))}</Badge>
+                <Badge tone="primary">
+                  <Private>{brl(variable.reduce((s, v) => s + v.value, 0))}</Private>
+                </Badge>
               </div>
               <div className="divide-y divide-line/[0.07]">
                 {variable.map((v) => (
@@ -382,7 +398,9 @@ export function Carteira() {
             <Card padded={false} className="overflow-hidden">
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <SectionTitle title="Renda fixa" subtitle={`Rendimento estimado com CDI ${ind?.cdi ? num(ind.cdi.value) + "%" : "—"} e IPCA ${ind?.ipca12m ? num(ind.ipca12m.value) + "%" : "—"} (Banco Central)`} />
-                <Badge tone="warning">{brl(fixed.reduce((s, v) => s + v.value, 0))}</Badge>
+                <Badge tone="warning">
+                  <Private>{brl(fixed.reduce((s, v) => s + v.value, 0))}</Private>
+                </Badge>
               </div>
               <div className="divide-y divide-line/[0.07]">
                 {fixed.map((v) => (

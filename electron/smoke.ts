@@ -6,6 +6,7 @@ import { fetchWithTimeout } from "../core/http";
 import { getTesouro } from "../core/tesouro";
 import { getNews } from "../core/news";
 import { getBanks, getCreditRates } from "../core/banks";
+import { parseDuckDuckGoHtml, parseDuckDuckGoLite, webSearch, wikipedia } from "../core/search";
 
 let failures = 0;
 
@@ -73,6 +74,18 @@ async function main(): Promise<void> {
     (r) => `período ${r.period}; ${r.modalities.map((m) => `${m.label}: ${m.rates.length} instituições (menor ${m.rates[0]?.institution} ${m.rates[0]?.rateMonth}% a.m.)`).join(" | ")}`
   );
   await step("Ranking de bancos", () => getBanks(), (r) => r.scores.slice(0, 5).map((s) => `${s.bankId}:${s.score}`).join(", "));
+
+  // Pesquisa sem chave (diagnóstico: o IP do CI pode ser bloqueado pelo DuckDuckGo, o do usuário não).
+  for (const url of ["https://html.duckduckgo.com/html/?q=tesouro%20selic&kl=br-pt", "https://lite.duckduckgo.com/lite/?q=tesouro%20selic&kl=br-pt"]) {
+    await step(`Pesquisa: ${new URL(url).host}`, async () => {
+      const res = await fetchWithTimeout(url, { headers: { Accept: "text/html" } }, 15_000);
+      const html = await res.text();
+      const found = url.includes("lite") ? parseDuckDuckGoLite(html, 3) : parseDuckDuckGoHtml(html, 3);
+      return `HTTP ${res.status}; ${found.length} resultado(s): ${found.map((r) => r.url).join(", ") || html.slice(0, 120)}`;
+    }, (r) => r);
+  }
+  await step("Pesquisa: Wikipédia", () => wikipedia("juros compostos", 2), (r) => r.map((x) => `${x.title} (${x.content.length} car.)`).join(", "));
+  await step("Pesquisa sem chave (completa)", () => webSearch(null, "como investir no tesouro direto", 4), (r) => `${r.length} resultado(s): ${r.map((x) => `${x.url} (${x.content.length} car.)`).join(", ")}`);
 
   await step("Steam: preço do jogo 1091500", async () => {
     const res = await fetchWithTimeout("https://store.steampowered.com/api/appdetails?appids=1091500&cc=br&l=portuguese", {}, 15_000);

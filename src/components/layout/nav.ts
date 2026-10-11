@@ -20,6 +20,8 @@ import {
 export interface NavItem {
   to: string;
   label: string;
+  /** Nome curto para a barra de baixo do celular. */
+  short?: string;
   icon: LucideIcon;
   managerOnly?: boolean;
   ownerOnly?: boolean;
@@ -56,7 +58,7 @@ export const NAV_GROUPS: { title?: string; items: NavItem[] }[] = [
   },
 ];
 
-export const SETTINGS_ITEM: NavItem = { to: "/configuracoes", label: "Configurações", icon: Settings };
+export const SETTINGS_ITEM: NavItem = { to: "/configuracoes", label: "Configurações", short: "Ajustes", icon: Settings };
 
 export const ALL_NAV: NavItem[] = [...NAV_GROUPS.flatMap((g) => g.items), SETTINGS_ITEM];
 

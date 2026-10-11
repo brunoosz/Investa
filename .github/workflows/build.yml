@@ -12,8 +12,9 @@ on:
       - ".github/workflows/media.yml"
   workflow_dispatch:
 
+# Só leitura por padrão; os jobs que publicam a release pedem escrita.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: investa-${{ github.ref }}
@@ -26,6 +27,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -51,6 +54,8 @@ jobs:
     name: Instalador Windows (.exe)
     runs-on: windows-latest
     timeout-minutes: 40
+    permissions:
+      contents: write
     # Nuvem (Supabase): Settings → Secrets and variables → Actions. Sem os
     # segredos, o app sai com contas só locais.
     env:
@@ -58,6 +63,8 @@ jobs:
       INVESTA_CLOUD_KEY: ${{ secrets.INVESTA_CLOUD_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -66,7 +73,7 @@ jobs:
       - name: Definir versão
         shell: bash
         run: |
-          VERSION="1.0.${{ github.run_number }}"
+          VERSION="1.0.$GITHUB_RUN_NUMBER"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - run: npm run build
@@ -109,13 +116,22 @@ jobs:
     timeout-minutes: 40
     # Publica na mesma release criada pelo job do Windows.
     needs: windows
+    permissions:
+      contents: write
     # Nuvem (Supabase): Settings → Secrets and variables → Actions. Sem os
     # segredos, o app sai com contas só locais.
     env:
       INVESTA_CLOUD_URL: ${{ secrets.INVESTA_CLOUD_URL }}
       INVESTA_CLOUD_KEY: ${{ secrets.INVESTA_CLOUD_KEY }}
+      # Chave de assinatura própria (recomendado). Sem estes segredos, o APK é
+      # assinado com a chave pública do repositório (android/app/investa.keystore).
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -128,9 +144,19 @@ jobs:
       - run: npm ci
       - name: Definir versão
         run: |
-          echo "VERSION=1.0.${{ github.run_number }}" >> "$GITHUB_ENV"
-          echo "VERSION_NAME=1.0.${{ github.run_number }}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "VERSION=1.0.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=1.0.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+      - name: Chave de assinatura do APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/investa-release.keystore"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/investa-release.keystore" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sem o segredo ANDROID_KEYSTORE_BASE64: o APK sai com a chave pública do repositório."
+          fi
       - run: npm run typecheck
       - run: npx vite build
       - run: npx cap sync android

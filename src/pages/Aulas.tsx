@@ -1,21 +1,19 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, Check, Crown, Flame, Lock, Medal, Play, Search, Star, Trophy, Zap } from "lucide-react";
+import { BookOpen, Check, Flame, Lock, Medal, Play, Search, Star, Trophy, Zap } from "lucide-react";
 import clsx from "clsx";
 import { COURSES } from "@shared/courses";
 import { GLOSSARY } from "@shared/glossary";
 import { BADGES, isApproved, isUnlocked, levelFor, LEVELS, moduleProgress, nextLesson, TOTAL_LESSONS } from "@shared/learning";
-import { api } from "@/lib/api";
 import { num } from "@/lib/format";
 import { iconFor } from "@/lib/icons";
 import { useUserData } from "@/store/session";
-import { useAsync } from "@/hooks/useAsync";
-import { Avatar, Badge, Card, PageHeader, ProgressBar, ProgressRing, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, PageHeader, ProgressBar, ProgressRing } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/form";
 
-type Tab = "trilha" | "conquistas" | "ranking" | "glossario";
+type Tab = "trilha" | "conquistas" | "glossario";
 
 const OFFSETS = [0, 56, 84, 56, 0, -56, -84, -56];
 
@@ -127,45 +125,6 @@ function Achievements() {
   );
 }
 
-function Ranking() {
-  const { data, loading } = useAsync("leaderboard", () => api.leaderboard(), { staleMs: 10_000 });
-  return (
-    <Card padded={false}>
-      <div className="px-5 pt-5 pb-2">
-        <div className="font-semibold">Ranking de XP</div>
-        <div className="text-[13px] text-muted">Quem mais aprendeu entre os usuários deste aplicativo.</div>
-      </div>
-      {loading && !data ? (
-        <div className="p-5 space-y-2">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-12" />
-          ))}
-        </div>
-      ) : (
-        <div className="pb-2">
-          {data?.map((e, i) => (
-            <div key={e.userId} className={clsx("flex items-center gap-3 px-5 py-3", e.isMe && "bg-primary/[0.08]")}>
-              <div className={clsx("w-8 text-center font-bold tabular", i === 0 ? "text-warning" : i === 1 ? "text-muted" : i === 2 ? "text-[#CD7F32]" : "text-muted/70")}>
-                {i < 3 ? <Crown size={18} className="mx-auto" /> : i + 1}
-              </div>
-              <Avatar name={e.name} hue={e.avatarHue} size={36} />
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold truncate">
-                  {e.name} {e.isMe && <span className="text-primary text-[12px]">(você)</span>}
-                </div>
-                <div className="text-[12.5px] text-muted">
-                  {levelFor(e.xp).current.name} · {e.completed}/{TOTAL_LESSONS} aulas
-                </div>
-              </div>
-              <div className="font-bold tabular">{num(e.xp, 0)} XP</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 function Glossary() {
   const [q, setQ] = useState("");
   const list = useMemo(() => {
@@ -260,7 +219,6 @@ export function Aulas() {
           options={[
             { value: "trilha", label: "Trilha", icon: Zap },
             { value: "conquistas", label: "Conquistas", icon: Medal },
-            { value: "ranking", label: "Ranking", icon: Crown },
             { value: "glossario", label: "Glossário", icon: BookOpen },
           ]}
         />
@@ -271,7 +229,6 @@ export function Aulas() {
 
       {tab === "trilha" && <Trail />}
       {tab === "conquistas" && <Achievements />}
-      {tab === "ranking" && <Ranking />}
       {tab === "glossario" && <Glossary />}
     </div>
   );

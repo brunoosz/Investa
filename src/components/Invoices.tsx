@@ -10,7 +10,7 @@ import { brl } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { useAssistant } from "@/store/assistant";
-import { Badge, Card, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, Toggle } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/Sheet";
@@ -155,7 +155,15 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
     <Card className={clsx("mb-4", tight && "border-danger/30")}>
       <SectionTitle
         title="Faturas dos cartões"
-        subtitle={list.length ? `${brl(total)} em ${list.length} ${list.length === 1 ? "cartão" : "cartões"} · ${brl(open)} em aberto` : "Informe quanto veio a fatura de cada cartão neste mês."}
+        subtitle={
+          list.length ? (
+            <>
+              <Private>{brl(total)}</Private> em {list.length} {list.length === 1 ? "cartão" : "cartões"} · <Private>{brl(open)}</Private> em aberto
+            </>
+          ) : (
+            "Informe quanto veio a fatura de cada cartão neste mês."
+          )
+        }
         action={
           <Button size="sm" variant="secondary" icon={Plus} onClick={() => setSheet({ open: true, item: null })}>
             <span className="sm:hidden">Adicionar</span>
@@ -175,7 +183,12 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
                   <div className="text-[12.5px] text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span>
                       {i.dueDay ? `Vence dia ${i.dueDay}` : "Sem vencimento"}
-                      {i.minimumPayment ? ` · mínimo ${brl(i.minimumPayment)}` : ""}
+                      {i.minimumPayment ? (
+                        <>
+                          {" "}
+                          · mínimo <Private>{brl(i.minimumPayment)}</Private>
+                        </>
+                      ) : null}
                     </span>
                     <button
                       type="button"
@@ -186,7 +199,9 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
                     </button>
                   </div>
                 </div>
-                <div className="font-semibold tabular text-[15px] text-right shrink-0">{brl(i.amount)}</div>
+                <div className="font-semibold tabular text-[15px] text-right shrink-0" data-private="">
+                  {brl(i.amount)}
+                </div>
                 <Button size="icon-sm" variant="ghost" icon={Pencil} aria-label="Editar fatura" onClick={() => setSheet({ open: true, item: i })} />
               </div>
             ))}
@@ -206,7 +221,7 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
         suggestions.size > 0 && (
           <div className="text-[13px] text-muted">
             Pelos seus lançamentos no crédito:{" "}
-            {[...suggestions.entries()].map(([bank, v]) => `${institutionLabel(bank)} ${brl(v)}`).join(" · ")}
+            <Private>{[...suggestions.entries()].map(([bank, v]) => `${institutionLabel(bank)} ${brl(v)}`).join(" · ")}</Private>
           </div>
         )
       )}
@@ -222,7 +237,7 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
             {tight ? <TriangleAlert size={18} className="shrink-0 mt-0.5" /> : <CreditCard size={18} className="shrink-0 mt-0.5 text-primary" />}
             <span className={tight ? "" : "text-fg"}>
               {tight
-                ? `As faturas em aberto passam da sua renda em ${brl(open - income)}. O Assistente monta um plano com os juros reais de cada saída.`
+                ? <>As faturas em aberto passam da sua renda em <Private>{brl(open - income)}</Private>. O Assistente monta um plano com os juros reais de cada saída.</>
                 : heavy
                   ? `As faturas levam ${Math.round(ratio * 100)}% da sua renda. Vale planejar os próximos meses.`
                   : "O Assistente pode revisar suas faturas e sugerir como pagar menos juros."}

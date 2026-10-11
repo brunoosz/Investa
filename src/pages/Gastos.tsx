@@ -34,7 +34,7 @@ import { api, uid } from "@/lib/api";
 import { brl, dateBR, pct } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
-import { Card, EmptyState, PageHeader, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Chip, Field, Input, MoneyInput, SegmentedControl, Select, Toggle } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -199,7 +199,7 @@ function EntryRow({ entry, onClick }: { entry: MonthEntry; onClick: () => void }
           {entry.totalInstallments > 1 ? ` · parcela ${entry.installment}/${entry.totalInstallments}` : ""}
         </div>
       </div>
-      <div className={clsx("font-semibold tabular", e.type === "receita" ? "text-success" : "")}>
+      <div className={clsx("font-semibold tabular", e.type === "receita" ? "text-success" : "")} data-private="">
         {e.type === "receita" ? "+" : "−"} {brl(entry.amount)}
       </div>
     </button>
@@ -306,12 +306,20 @@ export function Gastos() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Card>
           <div className="text-[13px] text-muted">Renda do mês</div>
-          <div className="text-[22px] font-bold tabular mt-1">{brl(summary.income + summary.extraIncome)}</div>
-          {summary.extraIncome > 0 && <div className="text-[12.5px] text-success">+ {brl(summary.extraIncome)} extras</div>}
+          <div className="text-[22px] font-bold tabular mt-1" data-private="">
+            {brl(summary.income + summary.extraIncome)}
+          </div>
+          {summary.extraIncome > 0 && (
+            <div className="text-[12.5px] text-success">
+              <Private>+ {brl(summary.extraIncome)}</Private> extras
+            </div>
+          )}
         </Card>
         <Card>
           <div className="text-[13px] text-muted">Comprometido</div>
-          <div className="text-[22px] font-bold tabular mt-1">{brl(budget.committed)}</div>
+          <div className="text-[22px] font-bold tabular mt-1" data-private="">
+            {brl(budget.committed)}
+          </div>
           <ProgressBar
             value={Math.min(1, budget.ratio)}
             className="mt-2"
@@ -319,19 +327,31 @@ export function Gastos() {
             color={budget.ratio > 1 ? "rgb(var(--danger))" : budget.ratio > 0.8 ? "rgb(var(--warning))" : undefined}
           />
           <div className="text-[12px] text-muted mt-1">
-            {pct(budget.ratio * 100, 0, false)} da renda · gastos {brl(budget.spentDirect)}
-            {budget.invoices > 0 ? ` + faturas ${brl(budget.invoices)}` : ""}
-            {budget.pendingBills > 0 ? ` + contas, planejados e caixinhas ${brl(budget.pendingBills)}` : ""}
+            {pct(budget.ratio * 100, 0, false)} da renda · gastos <Private>{brl(budget.spentDirect)}</Private>
+            {budget.invoices > 0 && (
+              <>
+                {" "}
+                + faturas <Private>{brl(budget.invoices)}</Private>
+              </>
+            )}
+            {budget.pendingBills > 0 && (
+              <>
+                {" "}
+                + contas, planejados e caixinhas <Private>{brl(budget.pendingBills)}</Private>
+              </>
+            )}
           </div>
         </Card>
         <Card>
           <div className="text-[13px] text-muted">Disponível para gastar</div>
-          <div className={clsx("text-[22px] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")}>{brl(budget.available)}</div>
+          <div className={clsx("text-[22px] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="">
+            {brl(budget.available)}
+          </div>
           <div className="text-[12.5px] text-muted">
             {budget.available < 0
-              ? `passou da renda em ${brl(-budget.available)}`
+              ? <>passou da renda em <Private>{brl(-budget.available)}</Private></>
               : budget.perDay !== undefined
-                ? `${brl(budget.perDay)} por dia até o fim do mês`
+                ? <><Private>{brl(budget.perDay)}</Private> por dia até o fim do mês</>
                 : planned > 0 && summary.spent > planned
                   ? "acima do planejado"
                   : "depois de gastos e faturas"}
@@ -339,7 +359,9 @@ export function Gastos() {
         </Card>
         <Card>
           <div className="text-[13px] text-muted">Parcelas futuras</div>
-          <div className="text-[22px] font-bold tabular mt-1">{brl(summary.futureInstallments.reduce((s, f) => s + f.total, 0))}</div>
+          <div className="text-[22px] font-bold tabular mt-1" data-private="">
+            {brl(summary.futureInstallments.reduce((s, f) => s + f.total, 0))}
+          </div>
           <div className="text-[12.5px] text-muted">nos próximos 6 meses</div>
         </Card>
       </div>
@@ -381,9 +403,9 @@ export function Gastos() {
               <SectionTitle title="Por categoria" />
               {donut.length ? (
                 <div className="flex flex-col items-center gap-4">
-                  <Donut data={donut} size={160} center={<div className="text-[14px] font-bold">{brl(summary.spent).replace(/,\d+$/, "")}</div>} />
+                  <Donut data={donut} size={160} center={<Private block className="text-[14px] font-bold">{brl(summary.spent).replace(/,\d+$/, "")}</Private>} />
                   <div className="w-full">
-                    <Legend data={donut} format={(v) => brl(v).replace(/,\d+$/, "")} />
+                    <Legend data={donut} format={(v) => brl(v).replace(/,\d+$/, "")} private />
                   </div>
                 </div>
               ) : (
@@ -393,7 +415,7 @@ export function Gastos() {
             {summary.byInstitution.length > 0 && (
               <Card>
                 <SectionTitle title="Por banco / cartão" />
-                <BarList data={summary.byInstitution.map((b) => ({ key: b.institution, label: institutionLabel(b.institution) || "Não informado", value: b.total }))} format={(v) => brl(v)} />
+                <BarList data={summary.byInstitution.map((b) => ({ key: b.institution, label: institutionLabel(b.institution) || "Não informado", value: b.total }))} format={(v) => brl(v)} private />
               </Card>
             )}
             {summary.futureInstallments.length > 0 && (
@@ -403,7 +425,7 @@ export function Gastos() {
                   {summary.futureInstallments.map((f) => (
                     <div key={f.ym} className="flex justify-between text-[14px]">
                       <span className="inline-block first-letter:uppercase text-muted">{ymLabel(f.ym)}</span>
-                      <span className="font-semibold tabular">{brl(f.total)}</span>
+                      <Private className="font-semibold tabular">{brl(f.total)}</Private>
                     </div>
                   ))}
                 </div>

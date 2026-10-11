@@ -111,6 +111,29 @@ await win.getByRole("button", { name: "Salvar", exact: true }).click();
 await wait(1500);
 
 await go("", "inicio", 7000);
+// Modo privacidade: borra só os valores pessoais; indicadores e cotações continuam visíveis.
+{
+  await win.getByRole("button", { name: "Esconder valores" }).click();
+  await wait(500);
+  const blur = await win.evaluate(() => {
+    const blurred = (el) => {
+      for (let a = el; a; a = a.parentElement) if (getComputedStyle(a).filter.includes("blur")) return true;
+      return false;
+    };
+    const values = (title) => {
+      const card = [...document.querySelectorAll("main .surface")].find((c) => c.textContent.includes(title));
+      return card ? [...card.querySelectorAll("*")].filter((e) => !e.children.length && /\d/.test(e.textContent)) : [];
+    };
+    const mine = values("Seu patrimônio");
+    const market = [...values("Indicadores hoje"), ...values("Ativos em destaque")];
+    return { mine: mine.length > 0 && blurred(mine[0]), market: market.filter(blurred).map((e) => e.textContent.trim()) };
+  });
+  console.log(`[privacidade] patrimônio borrado: ${blur.mine ? "sim" : "NÃO"} · mercado borrado: ${blur.market.length ? blur.market.join(", ") : "nada"}`);
+  if (!blur.mine) pageErrors.push("Modo privacidade não escondeu o patrimônio");
+  if (blur.market.length) pageErrors.push(`Modo privacidade escondeu dados do mercado: ${blur.market.slice(0, 3).join(", ")}`);
+  await shot("inicio-privacidade");
+  await win.getByRole("button", { name: "Mostrar valores" }).click();
+}
 await go("carteira", "carteira", 4000);
 await go("mercado", "mercado", 6000);
 await win.getByRole("button", { name: "Ações", exact: true }).click();
@@ -355,7 +378,7 @@ await tryStep("animacao-parada", async () => {
 // Celular e tablet: nenhuma tela pode ter texto saindo do card nem rolagem para o lado.
 const layoutIssues = [];
 const ROUTES = ["", "carteira", "mercado", "mercado/PETR4.SA", "aulas", "assistente", "simulador", "vale-a-pena", "plano", "logs", "objetivos", "gastos", "bancos", "alertas", "usuarios", "configuracoes"];
-for (const [label, width, height] of [["celular", 380, 800], ["tablet", 768, 1024]]) {
+for (const [label, width, height] of [["celular-pequeno", 360, 740], ["celular", 380, 800], ["tablet", 768, 1024]]) {
   await app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setContentSize(s.w, s.h), { w: width, h: height });
   await wait(600);
   for (const r of ROUTES) {
@@ -364,9 +387,15 @@ for (const [label, width, height] of [["celular", 380, 800], ["tablet", 768, 102
     const found = await win.evaluate(() => {
       const out = [];
       if (document.documentElement.scrollWidth > innerWidth + 1) out.push(`página rola para o lado (${document.documentElement.scrollWidth}px > ${innerWidth}px)`);
+      const main = document.querySelector("main").getBoundingClientRect();
       for (const card of document.querySelectorAll("main .surface")) {
         const box = card.getBoundingClientRect();
         if (!box.width) continue;
+        // O main esconde o que passa para o lado: um card mais largo que a tela
+        // fica cortado sem gerar rolagem (ex.: variação dos ativos no Início).
+        let scroller = false;
+        for (let a = card.parentElement; a && a.tagName !== "MAIN"; a = a.parentElement) if (["auto", "scroll"].includes(getComputedStyle(a).overflowX)) scroller = true;
+        if (!scroller && (box.right > main.right + 2 || box.left < main.left - 2)) out.push(`card "${card.textContent.trim().slice(0, 40)}" passa da tela`);
         for (const el of card.querySelectorAll("*")) {
           if (el.children.length || !el.textContent.trim()) continue;
           const r = el.getBoundingClientRect();
@@ -380,6 +409,15 @@ for (const [label, width, height] of [["celular", 380, 800], ["tablet", 768, 102
           if (r.width && (r.right > box.right + 2 || r.left < box.left - 2) && !clipped && style.position !== "absolute") {
             out.push(`"${el.textContent.trim().slice(0, 40)}" sai do card`);
           }
+        }
+      }
+      // Ativos em destaque: o nome pode encurtar, mas preço e variação aparecem inteiros.
+      const fav = [...document.querySelectorAll("main .surface")].find((c) => c.textContent.includes("Ativos em destaque"));
+      if (fav) {
+        const box = fav.getBoundingClientRect();
+        for (const pill of fav.querySelectorAll("button span.rounded-lg")) {
+          const p = pill.getBoundingClientRect();
+          if (p.right > Math.min(box.right, innerWidth) + 1) out.push(`variação "${pill.textContent.trim()}" cortada nos ativos em destaque`);
         }
       }
       return [...new Set(out)].slice(0, 8);
@@ -413,6 +451,22 @@ await tryStep("menu-mais", async () => {
 });
 await assertResponsive("celular");
 
+// Barra de baixo do celular: trocar Aulas por Gastos em Configurações e voltar ao padrão.
+{
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(380, 800));
+  await win.evaluate(() => (location.hash = "#/configuracoes"));
+  await wait(1500);
+  const tabs = () => win.locator("nav.sm\\:hidden").innerText();
+  await win.getByRole("button", { name: "Tirar Aulas da barra" }).click();
+  await win.getByRole("button", { name: "Pôr Gastos na barra" }).click();
+  await wait(400);
+  const changed = await tabs();
+  const ok = changed.includes("Gastos") && !changed.includes("Aulas") && changed.trim().endsWith("Mais");
+  console.log(`[barra-celular] ${changed.replace(/\s+/g, " ")}: ${ok ? "ok" : "NÃO"}`);
+  if (!ok) pageErrors.push("Configurações não mudou a barra de baixo do celular");
+  await win.getByRole("button", { name: "Padrão", exact: true }).click();
+  await wait(300);
+}
 console.log(`\nProblemas de layout (${layoutIssues.length}):\n${layoutIssues.join("\n")}`);
 console.log(`\nTela travada (${freezeIssues.length}):\n${freezeIssues.join("\n")}`);
 console.log(`\nErros no console (${consoleErrors.length}):\n${consoleErrors.slice(0, 20).join("\n")}`);

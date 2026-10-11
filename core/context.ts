@@ -3,7 +3,7 @@ import { displaySymbol, LIQUID_UNIVERSE } from "@shared/catalog";
 import { institutionLabel } from "@shared/banks";
 import { addMonthsYm, annualRate, pendingFor, currentYm, monthBudget, projectGoal, ratesFromIndicators, summarizeMonth, ymLabel } from "@shared/finance";
 import { getCopom, getIndicators } from "./bcb";
-import { getCreditRates } from "./banks";
+import { asksAboutDebt, creditRatesForAi, userCreditSection } from "./rates";
 import { getNews } from "./news";
 import { getTesouro, formatTesouroRate } from "./tesouro";
 import { getChart, getQuotes } from "./yahoo";
@@ -277,7 +277,7 @@ export const APP_GUIDE = `Telas do Investa e como usar:
 - Início: patrimônio, divisão da carteira, aulas, objetivos, indicadores do dia e notícias.
 - Carteira: botão "Adicionar investimento". Renda variável: buscar o ativo, quantidade e preço médio. Renda fixa: tipo (CDB, LCI, LCA, Tesouro, poupança, debênture), indexador (CDI, Selic, IPCA, prefixado), taxa, valor e data.
 - Mercado: abas por categoria (ações, FIIs, ETFs, BDRs, Tesouro Direto, renda fixa bancária, cripto, moedas, índices, commodities, ações dos EUA). "Personalizar" esconde ou adiciona ativos. Clicar num ativo abre o gráfico (1D a Máx, linha ou candles) e os indicadores; ali há "Favoritar", "Criar alerta", "Simular" e "Perguntar à IA".
-- Aulas: trilha de 30 aulas em 10 módulos. Cada aula termina com um quiz de 3 perguntas; é preciso acertar as 3 para liberar a próxima. Abas Conquistas, Ranking e Glossário.
+- Aulas: trilha de 30 aulas em 10 módulos. Cada aula termina com um quiz de 3 perguntas; é preciso acertar as 3 para liberar a próxima. Abas Conquistas e Glossário.
 - Assistente: esta conversa. Modos: Conversa livre, Professor, Minhas finanças, Analista de mercado, Vale a pena comprar? e Ajuda com o app.
 - Meu plano: questionário de 5 perguntas (objetivo, prazo, quanto por mês — pode ser R$ 1 —, quanto já tem e estilo seguro/equilibrado/crescimento), projeção com juros compostos e marcos, e "Montar meu plano": o Assistente monta um plano de investimento com fases, checklist com datas e PDF, usando livros de finanças e, se ligada, pesquisa na internet.
 - Objetivos: "Nova meta" com valor, prazo e onde o dinheiro está aplicado. "Ver projeção" mostra quanto terá no prazo e a comparação entre bancos.
@@ -312,7 +312,7 @@ export async function buildAiContext(input: ContextInput): Promise<string> {
     mode === "mercado" ? within(getNews(), wait) : Promise.reject(new Error("skip")),
     needsMarket ? within(getTesouro(), wait) : Promise.reject(new Error("skip")),
     symbols.length ? within(getQuotes(symbols, 30_000), 8_000) : Promise.resolve({} as Record<string, Quote>),
-    needsMoney ? within(getCreditRates(), wait) : Promise.reject(new Error("skip")),
+    needsMoney || asksAboutDebt(question) ? within(creditRatesForAi(), asksAboutDebt(question) ? 15_000 : wait) : Promise.reject(new Error("skip")),
   ]);
   const ind = indR.status === "fulfilled" ? indR.value : undefined;
   const quotes = quotesR.status === "fulfilled" ? quotesR.value : ({} as Record<string, Quote>);
@@ -389,7 +389,10 @@ export async function buildAiContext(input: ContextInput): Promise<string> {
     }
   }
 
-  if (creditR.status === "fulfilled") creditSection(lines, creditR.value);
+  if (creditR.status === "fulfilled") {
+    creditSection(lines, creditR.value);
+    userCreditSection(lines, data, creditR.value);
+  }
 
   if (mentioned.length) {
     lines.push("\n# Ativos citados na pergunta");

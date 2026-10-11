@@ -1,7 +1,17 @@
 -- Investa: contas e dados na nuvem (Supabase).
 -- Cole este arquivo inteiro em Supabase → SQL Editor → New query → Run.
 -- Pode rodar de novo sem problema: ele só cria o que ainda não existe e
--- atualiza as funções.
+-- atualiza funções e permissões. Para aplicar uma versão nova, rode de novo.
+--
+-- Regras de segurança:
+-- • Cada conta só lê e altera o próprio perfil e os próprios dados.
+-- • A lista de contas (Usuários) só mostra dados de cadastro, nunca dados
+--   financeiros, e só para o Dono e Administradores.
+-- • Ninguém muda o próprio cargo; só o Dono muda cargos.
+-- • Contas criadas pela tela de cadastro começam bloqueadas até o Dono liberar
+--   (Usuários → Desbloquear), porque contas liberadas recebem a chave da IA.
+--   Para deixar o cadastro livre:
+--     update public.app_settings set approve_new_accounts = false where id = 1;
 
 -- ---------------------------------------------------------------------------
 -- Tabelas
@@ -21,12 +31,13 @@ create table if not exists public.profiles (
 );
 create unique index if not exists profiles_username_key on public.profiles (lower(username));
 
--- Configuração da IA compartilhada por todas as contas (só o Dono altera).
+-- Configuração da IA compartilhada pelas contas liberadas (só o Dono altera).
 create table if not exists public.app_settings (
   id int primary key default 1 check (id = 1),
   ai jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
+alter table public.app_settings add column if not exists approve_new_accounts boolean not null default true;
 insert into public.app_settings (id) values (1) on conflict do nothing;
 
 -- ---------------------------------------------------------------------------
@@ -41,14 +52,25 @@ $$;
 -- outras sempre começam como Usuário, não importa o que o aplicativo mande.
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare
+  first_account boolean := not exists (select 1 from profiles);
+  approve boolean := coalesce((select approve_new_accounts from app_settings where id = 1), true);
+  login text := split_part(new.email, '@', 1);
+  uname text := coalesce(nullif(new.raw_user_meta_data->>'username', ''), login);
 begin
-  insert into profiles (id, username, name, email, role, avatar_hue)
+  -- O nome de usuário tem de ser o mesmo do login, senão alguém poderia
+  -- reservar o nome de outra pessoa.
+  if lower(uname) <> lower(login) then
+    uname := login;
+  end if;
+  insert into profiles (id, username, name, email, role, status, avatar_hue)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+    uname,
     coalesce(nullif(new.raw_user_meta_data->>'name', ''), 'Usuário'),
     nullif(new.raw_user_meta_data->>'contact_email', ''),
-    case when exists (select 1 from profiles) then 'usuario' else 'dono' end,
+    case when first_account then 'dono' else 'usuario' end,
+    case when first_account or not approve then 'ativo' else 'bloqueado' end,
     coalesce((new.raw_user_meta_data->>'avatar_hue')::int, 200)
   );
   return new;
@@ -88,6 +110,9 @@ begin
     end if;
   end if;
   if new.id <> auth.uid() then
+    if r is null or r = 'usuario' then
+      raise exception 'Sem permissão para alterar outra conta.';
+    end if;
     if new.data is distinct from old.data then
       raise exception 'Sem permissão para alterar os dados de outra conta.';
     end if;
@@ -108,17 +133,16 @@ create trigger profiles_guard before update on public.profiles
 alter table public.profiles enable row level security;
 alter table public.app_settings enable row level security;
 
+-- Cada conta vê e altera só a própria linha. O Dono e os Administradores
+-- gerenciam as outras pelas funções admin_* abaixo, que não expõem os dados.
 drop policy if exists "ler perfis" on public.profiles;
 create policy "ler perfis" on public.profiles for select to authenticated
-  using (id = auth.uid() or public.my_role() in ('dono', 'adm'));
+  using (id = (select auth.uid()));
 
 drop policy if exists "alterar perfis" on public.profiles;
 create policy "alterar perfis" on public.profiles for update to authenticated
-  using (
-    id = auth.uid()
-    or public.my_role() = 'dono'
-    or (public.my_role() = 'adm' and role = 'usuario')
-  );
+  using (id = (select auth.uid()))
+  with check (id = (select auth.uid()));
 
 drop policy if exists "ler configuracao" on public.app_settings;
 create policy "ler configuracao" on public.app_settings for select to authenticated
@@ -126,10 +150,58 @@ create policy "ler configuracao" on public.app_settings for select to authentica
 
 drop policy if exists "alterar configuracao" on public.app_settings;
 create policy "alterar configuracao" on public.app_settings for update to authenticated
-  using (public.my_role() = 'dono');
+  using (public.my_role() = 'dono')
+  with check (public.my_role() = 'dono');
+
+-- Contas novas são criadas só pelo cadastro (gatilho acima); ninguém apaga
+-- linhas direto. Visitantes sem login não acessam nada.
+revoke all on table public.profiles from anon;
+revoke all on table public.app_settings from anon;
+revoke insert, delete, truncate, references, trigger on table public.profiles from authenticated;
+revoke insert, delete, truncate, references, trigger on table public.app_settings from authenticated;
+grant select, update on table public.profiles to authenticated;
+grant select, update on table public.app_settings to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Ações de administração (rodam no servidor, com as regras acima)
+
+-- Lista de contas para a tela Usuários: só dados de cadastro.
+create or replace function public.admin_list_users()
+returns table (id uuid, username text, name text, email text, role text, status text, avatar_hue int, created_at timestamptz, last_login_at timestamptz, onboarded boolean)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.username, p.name, p.email, p.role, p.status, p.avatar_hue, p.created_at, p.last_login_at,
+         coalesce(p.data->'profile'->'onboarded' = 'true'::jsonb, false)
+  from profiles p
+  where public.my_role() in ('dono', 'adm')
+  order by p.created_at
+$$;
+
+-- Nome, e-mail, cargo e bloqueio. O gatilho profiles_guard confere as regras de cargo.
+create or replace function public.admin_update_user(target uuid, new_name text default null, new_email text default null, new_role text default null, new_status text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  r text := my_role();
+  t text;
+begin
+  select role into t from profiles where id = target;
+  if t is null then raise exception 'Usuário não encontrado.'; end if;
+  if not (target = auth.uid() or r = 'dono' or (r = 'adm' and t = 'usuario')) then
+    raise exception 'Você não pode alterar esta conta.';
+  end if;
+  update profiles set
+    name = coalesce(nullif(btrim(new_name), ''), name),
+    email = case when new_email is null then email else nullif(btrim(new_email), '') end,
+    role = coalesce(new_role, role),
+    status = coalesce(new_status, status)
+  where id = target;
+end $$;
+
+revoke all on function public.my_role() from public, anon;
+revoke all on function public.admin_list_users() from public, anon;
+revoke all on function public.admin_update_user(uuid, text, text, text, text) from public, anon;
+grant execute on function public.my_role() to authenticated;
+grant execute on function public.admin_list_users() to authenticated;
+grant execute on function public.admin_update_user(uuid, text, text, text, text) to authenticated;
 
 create or replace function public.admin_set_password(target uuid, new_password text) returns void
 language plpgsql security definer set search_path = public, extensions, auth as $$
@@ -166,18 +238,10 @@ begin
   delete from auth.users where id = target;
 end $$;
 
--- Ranking das aulas: só nome e progresso de cada conta, sem dados financeiros.
+-- O ranking das aulas mostrava quem mais usa o app; foi removido.
 drop function if exists public.leaderboard();
-create or replace function public.leaderboard() returns table (id uuid, name text, username text, avatar_hue int, learning jsonb)
-language sql stable security definer set search_path = public as $$
-  select p.id, p.name, p.username, p.avatar_hue, coalesce(p.data->'learning', '{}'::jsonb)
-  from profiles p
-  where p.status = 'ativo' and public.my_role() is not null
-$$;
 
 revoke all on function public.admin_set_password(uuid, text) from public, anon;
 revoke all on function public.admin_delete_user(uuid) from public, anon;
-revoke all on function public.leaderboard() from public, anon;
 grant execute on function public.admin_set_password(uuid, text) to authenticated;
 grant execute on function public.admin_delete_user(uuid) to authenticated;
-grant execute on function public.leaderboard() to authenticated;

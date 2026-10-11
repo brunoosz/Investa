@@ -478,6 +478,9 @@ export interface FocusExpectations {
   pibYear?: { year: number; value: number };
   dollarYear?: { year: number; value: number };
   nextMeeting?: { meeting: string; value: number };
+  /** Medianas ano a ano, do ano atual em diante: Selic no fim de cada ano e IPCA de cada ano. */
+  selicPath?: { year: number; value: number }[];
+  ipcaPath?: { year: number; value: number }[];
 }
 
 export interface CopomMeeting {
@@ -585,8 +588,9 @@ export interface AiConfigInfo {
   baseUrl?: string;
   source?: "app" | "arquivo" | "ambiente" | null;
   catalogUpdatedAt?: string;
-  /** Pesquisa na internet configurada (Tavily ou Brave). */
+  /** Pesquisa na internet disponível (funciona sem chave). */
   hasSearch?: boolean;
+  /** Chave opcional da pesquisa (Tavily ou Brave), se o Dono configurou. */
   searchProvider?: "tavily" | "brave";
   searchPreview?: string;
 }
@@ -628,16 +632,6 @@ export interface PortfolioHistoryPoint {
   time: number;
   value: number;
   invested: number;
-}
-
-export interface LeaderboardEntry {
-  userId: string;
-  name: string;
-  username: string;
-  xp: number;
-  completed: number;
-  avatarHue: number;
-  isMe: boolean;
 }
 
 export type ApiError = { code: string; message: string };

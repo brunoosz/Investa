@@ -31,20 +31,7 @@ function fit(el: HTMLElement): void {
   }
 }
 
-const MONEY = /(R\$|US\$|€)\s?[-−+]?\s?\d/;
-
-/** Modo privacidade: marca todo texto com valor em dinheiro para ser borrado. */
-function tagMoney(): void {
-  if (!document.documentElement.classList.contains("privacy")) return;
-  for (const el of document.querySelectorAll<HTMLElement>("main *, header *, [role=dialog] *")) {
-    if (el.dataset.money || el.children.length > 2) continue;
-    const own = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent ?? "").join("");
-    if (MONEY.test(own)) el.dataset.money = "1";
-  }
-}
-
 export function installAutoFit(): void {
-  window.addEventListener("investa:privacy", () => tagMoney());
   const resize = new ResizeObserver((entries) => {
     for (const e of entries) for (const el of (e.target as HTMLElement).querySelectorAll<HTMLElement>(SELECTOR)) fit(el);
   });
@@ -63,7 +50,6 @@ export function installAutoFit(): void {
   let queued = false;
   const scan = () => {
     queued = false;
-    tagMoney();
     const roots = [...dirty];
     dirty.clear();
     for (const root of roots) {

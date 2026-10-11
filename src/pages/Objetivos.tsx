@@ -11,7 +11,7 @@ import { GOAL_COLORS, GOAL_ICONS, iconFor } from "@/lib/icons";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { useIndicators } from "@/hooks/useMarketData";
-import { Badge, Card, EmptyState, PageHeader, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { BoxesCard } from "@/components/Boxes";
 import { Field, Input, MoneyInput, NumberInput, Select } from "@/components/ui/form";
@@ -233,12 +233,26 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
 
   const Icon = iconFor(goal.icon);
   return (
-    <Sheet open onClose={onClose} width="xl" title={goal.name} subtitle={`Meta de ${brl(goal.target)} até ${ymLabelShort(goal.deadline)} · ${p.months} meses`}>
+    <Sheet
+      open
+      onClose={onClose}
+      width="xl"
+      title={goal.name}
+      subtitle={
+        <>
+          Meta de <Private>{brl(goal.target)}</Private> até {ymLabelShort(goal.deadline)} · {p.months} meses
+        </>
+      }
+    >
       <div className="grid gap-4 md:grid-cols-3 mb-4">
         <div className="rounded-2xl bg-line/[0.04] p-4">
           <div className="text-[12.5px] text-muted">No prazo você terá</div>
-          <div className="text-[22px] font-bold tabular">{brl(p.valueAtDeadline)}</div>
-          <div className="text-[12.5px] text-muted">líquido de IR ≈ {brl(p.netValueAtDeadline)}</div>
+          <div className="text-[22px] font-bold tabular" data-private="">
+            {brl(p.valueAtDeadline)}
+          </div>
+          <div className="text-[12.5px] text-muted">
+            líquido de IR ≈ <Private>{brl(p.netValueAtDeadline)}</Private>
+          </div>
         </div>
         <div className="rounded-2xl bg-line/[0.04] p-4">
           <div className="text-[12.5px] text-muted">Rendimento médio estimado</div>
@@ -248,14 +262,22 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
         <div className={clsx("rounded-2xl p-4", p.reachesTarget ? "bg-success/10" : "bg-warning/10")}>
           <div className="text-[12.5px] text-muted">{p.reachesTarget ? "Você chega lá" : "Para chegar no prazo"}</div>
           <div className={clsx("text-[22px] font-bold tabular", p.reachesTarget ? "text-success" : "text-warning")}>
-            {p.reachesTarget ? (p.monthsToTarget !== null ? ymLabelShort(addMonthsYm(currentYm(), p.monthsToTarget)) : "no prazo") : `${brl(p.requiredMonthly)}/mês`}
+            {p.reachesTarget ? (p.monthsToTarget !== null ? ymLabelShort(addMonthsYm(currentYm(), p.monthsToTarget)) : "no prazo") : <Private>{brl(p.requiredMonthly)}/mês</Private>}
           </div>
-          <div className="text-[12.5px] text-muted">{p.reachesTarget ? "mantendo os aportes atuais" : `hoje você aplica ${brl(p.monthlyTotal)}/mês`}</div>
+          <div className="text-[12.5px] text-muted">
+            {p.reachesTarget ? (
+              "mantendo os aportes atuais"
+            ) : (
+              <>
+                hoje você aplica <Private>{brl(p.monthlyTotal)}/mês</Private>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      <div className="rounded-2xl border border-line/10 p-2 mb-2">
+      <Private block className="rounded-2xl border border-line/10 p-2 mb-2">
         <Chart series={series} height={260} formatter={fmt} />
-      </div>
+      </Private>
       <div className="flex items-center gap-4 text-[12px] text-muted mb-5 px-1">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: goal.color }} /> Projeção
@@ -283,7 +305,7 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
                 {typeLabel(a.type)} · {rateText(a)}
               </div>
             </div>
-            <div className="text-right text-[13px]">
+            <div className="text-right text-[13px]" data-private="">
               <div className="tabular">{brl(a.amount)} aplicado</div>
               <div className="text-muted tabular">+ {brl(a.monthly)}/mês</div>
             </div>
@@ -304,7 +326,7 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
                   <div className="font-medium text-[14px]">{c.bank.name}</div>
                   <div className="text-[12px] text-muted">{c.pctCDI}% do CDI</div>
                 </div>
-                <div className="text-right">
+                <div className="text-right" data-private="">
                   <div className="font-semibold tabular text-[14px]">{brl(c.net)}</div>
                   <div className={clsx("text-[12px] tabular", c.diff > 1 ? "text-success" : c.diff < -1 ? "text-danger" : "text-muted")}>
                     {Math.abs(c.diff) < 1 ? "igual ao seu plano" : `${c.diff > 0 ? "+" : ""}${brl(c.diff)}`}
@@ -361,11 +383,15 @@ export function Objetivos() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <Card>
             <div className="text-[13px] text-muted">Guardado nas metas</div>
-            <div className="text-[22px] font-bold tabular mt-1">{brl(totalSaved)}</div>
+            <div className="text-[22px] font-bold tabular mt-1" data-private="">
+              {brl(totalSaved)}
+            </div>
           </Card>
           <Card>
             <div className="text-[13px] text-muted">Aportes por mês</div>
-            <div className="text-[22px] font-bold tabular mt-1">{brl(totalMonthly)}</div>
+            <div className="text-[22px] font-bold tabular mt-1" data-private="">
+              {brl(totalMonthly)}
+            </div>
             {profile.monthlyInvest > 0 && (
               <div className={clsx("text-[12.5px]", totalMonthly > profile.monthlyInvest ? "text-warning" : "text-muted")}>
                 {pct((totalMonthly / profile.monthlyInvest) * 100, 0, false)} do que você pode investir
@@ -424,8 +450,12 @@ export function Objetivos() {
                 </div>
                 <div className="mt-4 flex items-end justify-between">
                   <div>
-                    <div className="text-[22px] font-bold tabular">{brl(p.current)}</div>
-                    <div className="text-[12.5px] text-muted">de {brl(g.target)}</div>
+                    <div className="text-[22px] font-bold tabular" data-private="">
+                      {brl(p.current)}
+                    </div>
+                    <div className="text-[12.5px] text-muted">
+                      de <Private>{brl(g.target)}</Private>
+                    </div>
                   </div>
                   <div className="text-[15px] font-bold tabular" style={{ color: g.color }}>
                     {Math.round(p.progress * 100)}%
@@ -435,17 +465,19 @@ export function Objetivos() {
                 <div className="mt-3">
                   {p.reachesTarget ? (
                     <Badge tone="success" icon={TrendingUp}>
-                      No caminho certo · {brl(p.valueAtDeadline).replace(/,\d+$/, "")} no prazo
+                      No caminho certo · <Private>{brl(p.valueAtDeadline).replace(/,\d+$/, "")}</Private> no prazo
                     </Badge>
                   ) : (
-                    <Badge tone="warning">Precisa de {brl(p.requiredMonthly).replace(/,\d+$/, "")}/mês para chegar</Badge>
+                    <Badge tone="warning">
+                      Precisa de <Private>{brl(p.requiredMonthly).replace(/,\d+$/, "")}</Private>/mês para chegar
+                    </Badge>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {g.allocations.map((a) => (
                     <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-line/[0.07] px-2.5 py-1 text-[12px]">
                       <Landmark size={12} className="text-muted" />
-                      {a.asset || typeLabel(a.type)} · {institutionLabel(a.institution) || "—"} · {brl(a.monthly).replace(/,\d+$/, "")}/mês
+                      {a.asset || typeLabel(a.type)} · {institutionLabel(a.institution) || "—"} · <Private>{brl(a.monthly).replace(/,\d+$/, "")}/mês</Private>
                     </span>
                   ))}
                 </div>

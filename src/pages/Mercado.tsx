@@ -38,7 +38,10 @@ function IndicatorStrip() {
         const q = quotes[s];
         return (
           <button key={s} onClick={() => navigate(`/mercado/${encodeURIComponent(s)}`)} className="surface px-4 py-3 min-w-[132px] shrink-0 text-left hover:border-line/20 transition">
-            <div className="text-[12px] text-muted">{catalogAsset(s)?.name ?? displaySymbol(s)}</div>
+            <div className="flex items-center gap-1.5 text-[12px] text-muted">
+              <AssetAvatar symbol={s} size={16} />
+              <span className="truncate">{catalogAsset(s)?.name ?? displaySymbol(s)}</span>
+            </div>
             {q ? (
               <>
                 <div className="font-semibold tabular mt-0.5">{s === "BTC-USD" ? `US$ ${num(q.price, 0)}` : quotePrice(q)}</div>

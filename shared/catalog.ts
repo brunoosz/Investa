@@ -170,6 +170,12 @@ export function guessCategory(symbol: string, quoteType?: string): AssetCategory
   if (t === "CURRENCY") return "moedas";
   if (t === "INDEX") return "indices";
   if (t === "FUTURE") return "commodities";
+  if (!t) {
+    if (/-(USD|BRL|USDT)$/.test(symbol)) return "cripto";
+    if (symbol.endsWith("=X")) return "moedas";
+    if (symbol.endsWith("=F")) return "commodities";
+    if (symbol.startsWith("^")) return "indices";
+  }
   if (symbol.endsWith(".SA")) {
     const base = symbol.slice(0, -3);
     if (/3[2-5]$/.test(base)) return "bdrs";

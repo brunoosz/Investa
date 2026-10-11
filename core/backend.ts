@@ -1,8 +1,9 @@
 // Todos os canais que a interface chama (window.investa.invoke). O Electron e
 // o app do celular criam este backend com o adaptador da sua plataforma.
-import type { AiChatRequest, AiEvent, AiMode, WealthAnswers, AppNotification, ApiResult, ChartRange, DealCheck, Holding, LeaderboardEntry, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
+import type { AiChatRequest, AiEvent, AiMode, WealthAnswers, AppNotification, ApiResult, ChartRange, DealCheck, Holding, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
 import { USER_DATA_KEYS } from "@shared/types";
-import { pendingFor, currentYm, monthBudget, monthsUntil, parsePlanSteps, ratesFromIndicators, summarizeMonth, wealthProjection, wealthRate } from "@shared/finance";
+import { pendingFor, currentYm, monthBudget, monthsUntil, parsePlanSteps, summarizeMonth } from "@shared/finance";
+import { compareProducts, explainPlan, planAllocation, planBrief, planMarket, planMonthlyFor, planPct, projectPlan } from "@shared/plan";
 import { modeInfo } from "@shared/ai";
 import type { Platform } from "./platform";
 import { Store } from "./store";
@@ -21,7 +22,7 @@ import { buildDocHtml, buildDocPdf, buildExcel, buildPdf, buildReportHtml, type 
 import { checkDeal, dealToText } from "./deals";
 import { CloudService } from "./cloud";
 import { clearItems, INBOX_KEY, markRead, removeItem, type Inbox } from "./inbox";
-import { BOOK_PRINCIPLES, resultsToContext, webSearch, type SearchResult } from "./search";
+import { BOOK_PRINCIPLES, resultsToContext, testSearch, webSearch, webSearchMany } from "./search";
 
 const VALID_RANGES: ChartRange[] = ["1D", "5D", "1M", "6M", "1A", "5A", "MAX"];
 const MODES: AiMode[] = ["geral", "professor", "app", "financas", "mercado", "compras"];
@@ -52,6 +53,18 @@ export function errorMessage(err: unknown): { code: string; message: string } {
     return { code: "NETWORK", message: "Não foi possível buscar os dados agora. Verifique sua conexão com a internet." };
   }
   return { code: "ERROR", message: msg || "Algo deu errado." };
+}
+
+/** Só abre fora do app endereços https comuns (sem usuário e senha embutidos). */
+export function safeExternalUrl(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length > 2048) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" || u.username || u.password) return null;
+    return u.href;
+  } catch {
+    return null;
+  }
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -465,42 +478,6 @@ export class Backend {
     );
     this.on("banks:get", () => getBanks());
 
-    this.on("learning:leaderboard", async (): Promise<LeaderboardEntry[]> => {
-      const me = this.uid();
-      if (this.cloud.enabled) {
-        const rows = await this.cloud.leaderboard(me).catch(() => null);
-        if (rows)
-          return rows
-            .map((r) => ({
-              userId: r.id,
-              name: r.name,
-              username: r.username,
-              xp: r.learning?.xp ?? 0,
-              completed: Object.values(r.learning?.completed ?? {}).filter((c) => c.approved).length,
-              avatarHue: r.avatar_hue,
-              isMe: r.id === me,
-            }))
-            .sort((x, y) => y.xp - x.xp)
-            .slice(0, 50);
-      }
-      return this.store.users
-        .filter((u) => u.status === "ativo")
-        .map((u) => {
-          const l = this.store.getData(u.id, "learning");
-          return {
-            userId: u.id,
-            name: u.name,
-            username: u.username,
-            xp: l.xp,
-            completed: Object.values(l.completed).filter((c) => c.approved).length,
-            avatarHue: u.avatarHue,
-            isMe: u.id === me,
-          };
-        })
-        .sort((x, y) => y.xp - x.xp)
-        .slice(0, 50);
-    });
-
     // ---- inteligência artificial ----
     this.on("ai:info", () => this.ai.info(this.isOwner()));
     this.on("ai:setConfig", (a: AiConfigPatch) => {
@@ -555,11 +532,10 @@ export class Backend {
             throw new AppError("AI_NO_KEY", "A IA ainda não foi configurada. Coloque a chave da Groq ou da NVIDIA em Configurações → Inteligência Artificial.");
           }
           let attachment = a.attachment;
-          const searchKey = a.web ? this.ai.searchKey() : null;
-          if (searchKey) {
+          if (a.web) {
             emit("context", "Pesquisando na internet…");
             const q = messages.filter((m) => m.role === "user").pop()?.content ?? "";
-            const results = await webSearch(searchKey, q.slice(0, 300), 5).catch(() => [] as SearchResult[]);
+            const results = await webSearch(this.ai.searchKey(), q.slice(0, 300), 5);
             const ctx = resultsToContext(results);
             if (ctx) attachment = `${attachment ?? ""}\n\n${ctx}\n\nNo fim da resposta, liste as fontes usadas como links Markdown.`;
           }
@@ -628,7 +604,15 @@ export class Backend {
       if (!item) throw new AppError("NOT_FOUND", "Gasto planejado não encontrado.");
       const months = monthsUntil(item.date);
       const date = item.date.split("-").reverse().join("/");
-      const ask = `Monte um plano para eu conseguir pagar "${item.description}" de ${item.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} em ${date} (faltam cerca de ${months} ${months === 1 ? "mês" : "meses"}) sem me endividar.${item.notes ? ` Observação: ${item.notes}.` : ""}
+      const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const weeks = Math.max(1, Math.floor((Date.parse(`${item.date}T12:00:00`) - Date.now()) / (7 * 86_400_000)));
+      let numbers = `${money(item.amount)} ÷ ${months} ${months === 1 ? "mês" : "meses"} = ${money(item.amount / months)} por mês (ou ${money(item.amount / weeks)} por semana, em ${weeks} ${weeks === 1 ? "semana" : "semanas"}).`;
+      const market = planMarket(await getIndicators().catch(() => undefined), undefined, months / 12);
+      if (market.live && months > 1) {
+        numbers += ` Deixando no Tesouro Selic ou num CDB de 100% do CDI (CDI de hoje: ${planPct(market.cdiNow)} a.a., Banco Central${market.cdiDate ? `, ${market.cdiDate}` : ""}), os juros ajudam: bastam ${money(planMonthlyFor(item.amount, months, market))} por mês, começando agora, já descontado o IR.`;
+      }
+      const ask = `Monte um plano para eu conseguir pagar "${item.description}" de ${money(item.amount)} em ${date} (faltam cerca de ${months} ${months === 1 ? "mês" : "meses"}) sem me endividar.${item.notes ? ` Observação: ${item.notes}.` : ""}
+Números calculados pelo app (use estes valores, não invente outros): ${numbers}
 Use meus dados reais (renda, disponível do mês, faturas, contas fixas, saldos, outros gastos planejados). Estrutura:
 1. Diagnóstico em 2 frases: dá ou não dá com o que sobra hoje.
 2. Quanto guardar por semana ou por mês e onde deixar o dinheiro até a data (algo com liquidez diária).
@@ -649,44 +633,52 @@ Máximo de 350 palavras.`;
       const userId = this.uid();
       const ans = a.answers;
       const style = (["seguro", "equilibrado", "crescimento"] as const).includes(ans?.style) ? ans.style : "equilibrado";
-      const years = Math.min(50, Math.max(1, Number(ans?.years) || 10));
-      const monthly = Math.max(0, Number(ans?.monthly) || 0);
-      const start = Math.max(0, Number(ans?.start) || 0);
+      const years = Math.min(50, Math.max(1, Math.round(Number(ans?.years) || 10)));
+      const monthly = Math.min(1e8, Math.max(0, Number(ans?.monthly) || 0));
+      const start = Math.min(1e10, Math.max(0, Number(ans?.start) || 0));
       const goal = String(ans?.goal ?? "").slice(0, 300) || "construir patrimônio";
-      const ind = await getIndicators().catch(() => undefined);
-      const rate = wealthRate(style, ratesFromIndicators(ind).cdi);
-      const proj = wealthProjection(start, monthly, rate, years);
-      const end = proj.points[proj.points.length - 1];
+      const [ind, tesouro] = await Promise.all([
+        getIndicators().catch(() => undefined),
+        Promise.race([getTesouro(), new Promise<undefined>((r) => setTimeout(r, 8_000, undefined))]).catch(() => undefined),
+      ]);
+      // Mesma conta da tela, para a IA não inventar valores.
+      const market = planMarket(ind, tesouro, years);
+      const alloc = planAllocation(style, years, goal);
+      const proj = projectPlan(start, monthly, alloc.parts, market);
+      const compare = compareProducts(start, monthly, market);
+      const brief = planBrief(start, monthly, alloc, market, proj, compare, explainPlan(start, monthly, alloc, market, proj, compare));
       const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-      const marks = proj.milestones.map((m) => `${money(m.value)} em ~${m.month} meses`).join("; ");
 
-      // Pesquisa na internet (se o Dono configurou a chave); sem chave, usa só a base de livros.
-      let results: SearchResult[] = [];
-      const key = this.ai.searchKey();
-      if (key) {
-        const styleWord = style === "seguro" ? "conservador renda fixa" : style === "equilibrado" ? "moderado diversificado" : "longo prazo ações e fundos imobiliários";
-        const queries = [
+      // Pesquisa na internet (com a chave do Dono, se houver; senão, a busca grátis). Se nada vier, usa só a base de livros.
+      const styleWord = style === "seguro" ? "conservador renda fixa" : style === "equilibrado" ? "moderado diversificado" : "longo prazo ações e fundos imobiliários";
+      const results = await webSearchMany(
+        this.ai.searchKey(),
+        [
           `plano para enriquecer investindo ${money(monthly)} por mês ${styleWord} passo a passo Brasil`,
           `como investir com pouco dinheiro começando do zero ${goal}`,
           `estratégias de milionários e livros de finanças para ${goal} investidor ${styleWord}`,
-        ];
-        const all = await Promise.all(queries.map((q) => webSearch(key, q, 4).catch(() => [] as SearchResult[])));
-        const seen = new Set<string>();
-        results = all.flat().filter((r) => !seen.has(r.url) && seen.add(r.url)).slice(0, 8);
-      }
-      const ask = `Monte meu PLANO DE INVESTIMENTO E DE RIQUEZA personalizado.
-Objetivo: ${goal}. Prazo: ${years} anos. Consigo guardar ${money(monthly)} por mês (começar pequeno é o que importa). Já tenho ${money(start)} guardados. Estilo: ${style}.${ans?.notes ? ` Observações: ${String(ans.notes).slice(0, 300)}.` : ""}
-Projeção calculada pelo app (juros compostos a ~${rate.toFixed(1).replace(".", ",")}% a.a., estimativa, não garantia): em ${years} anos ≈ ${money(end.value)} (investido ${money(end.invested)}). Marcos: ${marks || "nenhum marco no período"}.
-Use meus dados reais (renda, disponível do mês, faturas, contas fixas, reserva, perfil), os princípios dos livros abaixo${results.length ? " e os resultados da pesquisa na internet (cite [1], [2]…)" : ""}.
+        ],
+        4,
+        8
+      );
+      const ask = `Monte meu PLANO DE INVESTIMENTO E DE RIQUEZA personalizado e explique o porquê de cada escolha.
+Objetivo: ${goal}. Prazo: ${years} anos. Estilo: ${style}. Já tenho ${money(start)} para começar (valor único, colocado uma vez) e ${monthly > 0 ? `consigo guardar ${money(monthly)} por mês` : "por enquanto não vou guardar nada por mês"}.${ans?.notes ? ` Observações: ${String(ans.notes).slice(0, 300)}.` : ""}
+
+Os números abaixo foram calculados pelo app com dados reais de hoje (Banco Central, Boletim Focus e Tesouro Direto).
+REGRAS: use exatamente esses valores. Não calcule nem invente outras rentabilidades, taxas ou valores finais; se precisar de um número que não está aqui, fale de forma geral. Sempre diga se um valor é "no futuro" ou "em dinheiro de hoje".
+
+${brief}
+
+Use também meus dados reais (renda, disponível do mês, faturas, contas fixas, reserva, perfil), os princípios dos livros abaixo${results.length ? " e os resultados da pesquisa na internet (cite [1], [2]…)" : ""}.
 Estrutura:
 ## Onde você está — 2 a 3 frases com números.
-## Estratégia — por que esse caminho combina com o estilo "${style}" e com o objetivo.
-## Fases — 1) organizar e montar a reserva de emergência; 2) primeiros investimentos (mesmo com centavos ou R$ 1: Tesouro Selic, CDB com liquidez diária e garantia do FGC); 3) diversificar conforme o estilo; 4) acelerar (aumentar a renda e os aportes). Para cada fase: o que fazer, onde investir, quanto, e até quando.
-## Marcos — tabela com data aproximada e valor.
+## Por que este plano — em linguagem simples: por que essa carteira combina com o estilo "${style}", com o prazo e com o objetivo, e por que o resultado é esse (quanto sai do bolso, quanto vem de juros, quanto a inflação come).
+## Fases — 1) organizar e montar a reserva de emergência; 2) primeiros investimentos (mesmo com centavos ou R$ 1: Tesouro Selic, CDB com liquidez diária e garantia do FGC); 3) diversificar conforme a carteira acima; 4) acelerar (aumentar a renda e os aportes). Para cada fase: o que fazer, onde investir, quanto, até quando e por quê.
+## Marcos — copie a tabela "Evolução" acima, sem mudar os valores.
 ## Hábitos — 5 hábitos dos livros aplicados à minha realidade.
 ## Checklist — uma linha por passo, exatamente no formato "- [ ] DD/MM/AAAA: ação com valor", dos próximos 12 meses.
 ${results.length ? "## Fontes — liste as fontes da internet que você usou, com o número e o link." : ""}
-Seja realista, não prometa rentabilidade e não indique ativos específicos de risco como certeza. Máximo de 700 palavras.
+Seja realista, não prometa rentabilidade e não indique ativos específicos de risco como certeza. Máximo de 800 palavras, sem contar a tabela.
 
 ${BOOK_PRINCIPLES}
 
@@ -701,8 +693,7 @@ ${resultsToContext(results)}`;
     });
     this.on("search:test", async (a: { key: string }) => {
       this.requireOwner();
-      const results = await webSearch(String(a.key ?? ""), "como começar a investir com pouco dinheiro", 2);
-      return results.length;
+      return testSearch(String(a.key ?? ""));
     });
 
     this.on("plans:export", async (a: { title: string; subtitle?: string; markdown: string; fileName?: string }) => {
@@ -784,7 +775,8 @@ ${resultsToContext(results)}`;
       return { variant: this.store.app.appIcon ?? "dark", supported: !!p.setAppIcon };
     });
     this.on("shell:openExternal", (a: { url: string }) => {
-      if (/^https:\/\//.test(a.url)) p.openExternal(a.url);
+      const url = safeExternalUrl(a?.url);
+      if (url) p.openExternal(url);
       return true;
     });
   }

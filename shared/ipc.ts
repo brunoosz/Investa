@@ -41,7 +41,6 @@ export const INVOKE_CHANNELS = [
   "market:ipcaHistory",
   "portfolio:history",
   "banks:get",
-  "learning:leaderboard",
   "ai:info",
   "ai:setConfig",
   "ai:catalog",

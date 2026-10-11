@@ -1,16 +1,18 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, safeStorage, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, safeStorage, session, shell, Tray } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { INVOKE_CHANNELS } from "@shared/ipc";
-import { Backend } from "../core/backend";
+import { Backend, safeExternalUrl } from "../core/backend";
 import { setBrowserFetch } from "../core/http";
 import type { AiFileConfig, FileStore, Platform } from "../core/platform";
 
 const isDev = process.argv.includes("--dev");
 const DEV_URL = "http://localhost:5173";
+const APP_HTML = path.resolve(__dirname, "..", "dist", "index.html");
 
 if (process.env.INVESTA_USER_DATA) app.setPath("userData", process.env.INVESTA_USER_DATA);
 if (process.platform === "win32") {
@@ -147,7 +149,7 @@ function createPlatform(): Platform {
       shell.showItemInFolder(result.filePath);
       return { path: result.filePath };
     },
-    openExternal: (url) => void shell.openExternal(url),
+    openExternal: (url) => openOutside(url),
     // Abre a digitação por voz do Windows (Win+H), que escreve no campo focado em português.
     async voiceInput() {
       if (process.platform !== "win32") throw new Error("A digitação por voz está disponível no Windows e no celular.");
@@ -196,20 +198,27 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
+      devTools: !app.isPackaged,
       spellcheck: false,
     },
   });
 
   win.once("ready-to-show", () => win?.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    openOutside(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
     if (!isTrustedUrl(url)) {
       e.preventDefault();
-      if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+      openOutside(url);
     }
+  });
+  win.webContents.on("will-redirect", (e, url) => {
+    if (!isTrustedUrl(url)) e.preventDefault();
   });
   win.on("close", (e) => {
     if (quitting) return;
@@ -221,7 +230,7 @@ function createWindow(): void {
   });
 
   if (isDev) void win.loadURL(DEV_URL);
-  else void win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  else void win.loadFile(APP_HTML);
 }
 
 function trayImage(variant?: "dark" | "light") {
@@ -257,14 +266,47 @@ function showWindow(route?: string): void {
   if (route) send("navigate", route);
 }
 
+/** Só a tela do próprio app (dist/index.html) fala com o motor; outro arquivo local, não. */
 function isTrustedUrl(url: string): boolean {
-  return url.startsWith("file://") || (isDev && url.startsWith(DEV_URL));
+  if (isDev) return url === DEV_URL || url.startsWith(`${DEV_URL}/`);
+  if (!url.startsWith("file:")) return false;
+  try {
+    const u = new URL(url);
+    u.hash = "";
+    u.search = "";
+    const file = path.resolve(fileURLToPath(u));
+    return process.platform === "win32" ? file.toLowerCase() === APP_HTML.toLowerCase() : file === APP_HTML;
+  } catch {
+    return false;
+  }
 }
+
+/** Links externos abrem no navegador, e só se forem https. */
+function openOutside(url: string): void {
+  const safe = safeExternalUrl(url);
+  if (safe) void shell.openExternal(safe);
+}
+
+function hardenSession(): void {
+  // O app não usa câmera, microfone nem localização; só copia texto.
+  const allowed = new Set(["clipboard-sanitized-write"]);
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(allowed.has(permission)));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
+}
+
+app.on("web-contents-created", (_e, contents) => {
+  contents.on("will-attach-webview", (e) => e.preventDefault());
+  contents.setWindowOpenHandler(({ url }) => {
+    openOutside(url);
+    return { action: "deny" };
+  });
+});
 
 app.on("second-instance", () => showWindow());
 
 app.whenReady().then(() => {
   setBrowserFetch((url, init) => net.fetch(url, init));
+  hardenSession();
   backend = new Backend(createPlatform());
   for (const channel of INVOKE_CHANNELS) {
     ipcMain.handle(channel, (event, args) => {

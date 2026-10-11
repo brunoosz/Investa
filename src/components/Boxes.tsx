@@ -6,7 +6,7 @@ import { uid } from "@/lib/api";
 import { brl, dateBR } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
-import { Badge, Card, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, Toggle } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/Sheet";
@@ -106,7 +106,15 @@ export function BoxesCard() {
     <Card className="mb-4">
       <SectionTitle
         title="Caixinhas"
-        subtitle={boxes.length ? `${brl(total)} guardados · o valor do mês já sai do disponível para gastar` : "Guarde um pouco todo mês, sem pensar: o app separa no dia certo."}
+        subtitle={
+          boxes.length ? (
+            <>
+              <Private>{brl(total)}</Private> guardados · o valor do mês já sai do disponível para gastar
+            </>
+          ) : (
+            "Guarde um pouco todo mês, sem pensar: o app separa no dia certo."
+          )
+        }
         action={
           <Button size="sm" variant="secondary" icon={Plus} onClick={() => setSheet({ open: true, item: null })}>
             <span className="sm:hidden">Nova</span>
@@ -124,22 +132,24 @@ export function BoxesCard() {
                 <button type="button" className="w-full text-left" onClick={() => setSheet({ open: true, item: b })}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold truncate">{b.name}</div>
-                    {!b.active ? <Badge>Pausada</Badge> : b.target && b.balance >= b.target ? <Badge tone="success">Meta batida</Badge> : <Badge tone="primary">+{brl(b.monthly)} dia {b.day}</Badge>}
+                    {!b.active ? <Badge>Pausada</Badge> : b.target && b.balance >= b.target ? <Badge tone="success">Meta batida</Badge> : <Badge tone="primary"><Private>+{brl(b.monthly)}</Private> dia {b.day}</Badge>}
                   </div>
-                  <div className="text-[22px] font-bold tabular mt-1">{brl(b.balance)}</div>
+                  <div className="text-[22px] font-bold tabular mt-1" data-private="">
+                    {brl(b.balance)}
+                  </div>
                   {b.target > 0 && (
                     <>
                       <ProgressBar value={pct} height={6} className="mt-1" />
                       <div className="text-[12px] text-muted mt-1">
-                        {Math.round(pct * 100)}% de {brl(b.target)}
+                        {Math.round(pct * 100)}% de <Private>{brl(b.target)}</Private>
                       </div>
                     </>
                   )}
-                  {last && <div className="text-[12px] text-muted mt-1">Último movimento: {last.amount > 0 ? "+" : "−"}{brl(Math.abs(last.amount))} em {dateBR(last.date, { day: "2-digit", month: "short" })}</div>}
+                  {last && <div className="text-[12px] text-muted mt-1">Último movimento: <Private>{last.amount > 0 ? "+" : "−"}{brl(Math.abs(last.amount))}</Private> em {dateBR(last.date, { day: "2-digit", month: "short" })}</div>}
                 </button>
                 <div className="flex gap-2 mt-3">
                   <Button size="sm" variant="secondary" icon={Plus} onClick={() => move(b, b.monthly)}>
-                    {brl(b.monthly)}
+                    <Private>{brl(b.monthly)}</Private>
                   </Button>
                   <Button size="sm" variant="ghost" icon={Minus} disabled={b.balance <= 0} onClick={() => move(b, -Math.min(b.balance, b.monthly))}>
                     Retirar

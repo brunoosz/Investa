@@ -6,15 +6,17 @@ import clsx from "clsx";
 import type { AppNotification, PublicUser } from "@shared/types";
 import { api, platform } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
-import { applyRemoteData, isManager, useSession } from "@/store/session";
+import { applyRemoteData, useSession } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { Toaster } from "@/components/ui/Toaster";
 import { Sheet } from "@/components/ui/Sheet";
+import { PrivateAmounts } from "@/components/ui/primitives";
 import { LogoMark } from "@/components/Logo";
 import { NotificationIcon } from "@/components/NotificationIcon";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
-import { ALL_NAV, isActive } from "./nav";
+import { isActive } from "./nav";
+import { navFor, tabItems, useTabs } from "./tabBar";
 
 function NotificationsPopover({ onClose }: { onClose: () => void }) {
   const notifications = useSession((s) => s.notifications);
@@ -66,7 +68,7 @@ function NotificationsPopover({ onClose }: { onClose: () => void }) {
                 <div className={clsx("text-[13.5px] truncate", n.read ? "font-medium" : "font-semibold")}>{n.title}</div>
                 {!n.read && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
               </div>
-              <div className="text-[12.5px] text-muted line-clamp-2 mt-0.5">{n.message}</div>
+              <div className="text-[12.5px] text-muted line-clamp-2 mt-0.5">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</div>
               <div className="text-[11.5px] text-muted/70 mt-1">{relativeTime(n.createdAt)}</div>
             </div>
           </button>
@@ -130,10 +132,9 @@ function TitleBar({ onSearch }: { onSearch: () => void }) {
 
 const PRIVACY_KEY = "investa-privacidade";
 
-/** Modo privacidade: esconde os valores (útil em público). Fica salvo neste aparelho. */
+/** Modo privacidade: esconde os valores pessoais (útil em público). Fica salvo neste aparelho. */
 export function applyPrivacy(on: boolean): void {
   document.documentElement.classList.toggle("privacy", on);
-  window.dispatchEvent(new Event("investa:privacy"));
 }
 
 function PrivacyButton() {
@@ -171,18 +172,19 @@ function MobileNav() {
   const user = useSession((s) => s.user);
   const signOut = useSession((s) => s.signOut);
   const [more, setMore] = useState(false);
-  const main = ALL_NAV.filter((i) => ["/", "/mercado", "/aulas", "/assistente"].includes(i.to));
-  const rest = ALL_NAV.filter((i) => !main.includes(i) && (!i.managerOnly || isManager(user)) && (!i.ownerOnly || user?.role === "dono"));
+  const tabs = useTabs();
+  const main = tabItems(tabs, user);
+  const rest = navFor(user).filter((i) => !main.includes(i));
   return (
     <>
-      <nav className="sm:hidden glass border-t border-line/10 grid grid-cols-5 h-[64px] shrink-0">
+      <nav className="sm:hidden glass border-t border-line/10 grid h-[64px] shrink-0" style={{ gridTemplateColumns: `repeat(${main.length + 1}, minmax(0, 1fr))` }}>
         {main.map((item) => {
           const active = isActive(pathname, item.to);
           const Icon = item.icon;
           return (
-            <Link key={item.to} to={item.to} className={clsx("flex flex-col items-center justify-center gap-1 text-[10.5px] font-medium", active ? "text-primary" : "text-muted")}>
+            <Link key={item.to} to={item.to} className={clsx("min-w-0 flex flex-col items-center justify-center gap-1 text-[10.5px] font-medium", active ? "text-primary" : "text-muted")}>
               <Icon size={21} strokeWidth={active ? 2.3 : 1.9} />
-              {item.label}
+              <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
             </Link>
           );
         })}

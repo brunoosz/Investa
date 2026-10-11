@@ -275,10 +275,12 @@ select optgroup {
   color: rgb(var(--fg));
 }
 
-/* Modo privacidade: valores borrados até tocar no olho de novo. */
-html.privacy main :is(.tabular, div[class*="text-[2"], div[class*="text-[3"], span[class*="text-[2"]):not(h1, h2, h3),
-html.privacy main .surface [class*="font-semibold"].tabular,
-html.privacy [data-money] {
+/* Modo privacidade: só os valores pessoais (marcados com data-private) ficam
+   borrados. Indicadores, preços do mercado e aulas continuam visíveis. */
+[data-private] {
+  transition: filter 0.2s ease;
+}
+html.privacy [data-private] {
   filter: blur(7px);
   user-select: none;
 }

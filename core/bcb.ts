@@ -137,14 +137,39 @@ async function focusNextMeeting(): Promise<{ meeting: string; value: number; dat
   return next ? { meeting: next.Reuniao, value: next.Mediana, date: latest } : undefined;
 }
 
+/** Expectativas ano a ano de Selic e IPCA (usadas na projeção do "Meu plano"). */
+async function focusPaths(): Promise<{ selic: { year: number; value: number }[]; ipca: { year: number; value: number }[] }> {
+  return cached("bcb:focus-path", 6 * 3600_000, async () => {
+    const filter = encodeURIComponent("(Indicador eq 'Selic' or Indicador eq 'IPCA') and baseCalculo eq 0");
+    const url = `${OLINDA}/ExpectativasMercadoAnuais?$top=60&$filter=${filter}&$orderby=Data%20desc&$format=json`;
+    // Se a consulta filtrada falhar, usa a lista geral do Focus (já em cache).
+    const rows = await getJson<{ value: FocusAnnualRowFull[] }>(url, {}, 15_000)
+      .then((json) => json.value ?? [])
+      .catch(() => focusAnnualRows());
+    const year = new Date().getFullYear();
+    const pick = (indicator: string) => {
+      const list = rows.filter((r) => r.Indicador === indicator);
+      const latest = list[0]?.Data;
+      const out = new Map<number, number>();
+      for (const r of list) {
+        const y = Number(r.DataReferencia);
+        if (r.Data === latest && y >= year && Number.isFinite(r.Mediana) && !out.has(y)) out.set(y, r.Mediana);
+      }
+      return [...out].map(([y, value]) => ({ year: y, value })).sort((a, b) => a.year - b.year);
+    };
+    return { selic: pick("Selic"), ipca: pick("IPCA") };
+  });
+}
+
 export async function getFocus(): Promise<FocusExpectations> {
   return cached("bcb:focus", 6 * 3600_000, async () => {
-    const [ipcaR, selicR, pibR, dollarR, meetingR] = await Promise.allSettled([
+    const [ipcaR, selicR, pibR, dollarR, meetingR, pathR] = await Promise.allSettled([
       focusAnnual("IPCA"),
       focusAnnual("Selic"),
       focusAnnual("PIB Total"),
       focusAnnual("Câmbio"),
       focusNextMeeting(),
+      focusPaths(),
     ]);
     if (ipcaR.status === "rejected" && meetingR.status === "rejected") throw ipcaR.reason;
     const ipca = settled(ipcaR);
@@ -152,6 +177,7 @@ export async function getFocus(): Promise<FocusExpectations> {
     const pib = settled(pibR);
     const dollar = settled(dollarR);
     const meeting = settled(meetingR);
+    const path = settled(pathR);
     if (!ipca && !selic && !meeting) throw new Error("Boletim Focus indisponível");
     return {
       date: meeting?.date ?? new Date().toISOString().slice(0, 10),
@@ -160,6 +186,8 @@ export async function getFocus(): Promise<FocusExpectations> {
       pibYear: pib,
       dollarYear: dollar,
       nextMeeting: meeting ? { meeting: meeting.meeting, value: meeting.value } : undefined,
+      selicPath: path?.selic.length ? path.selic : undefined,
+      ipcaPath: path?.ipca.length ? path.ipca : undefined,
     };
   });
 }

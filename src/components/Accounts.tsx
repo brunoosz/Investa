@@ -8,7 +8,7 @@ import { uid } from "@/lib/api";
 import { brl, dateBR } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
-import { Card, SectionTitle } from "@/components/ui/primitives";
+import { Card, Private, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, Select, Toggle } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/Sheet";
@@ -171,7 +171,7 @@ function IncomeSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <div>
                   <div className="font-medium text-[14.5px]">Somar ao saldo</div>
                   <div className="text-[12.5px] text-muted">
-                    {institutionLabel(account.institution)} passa para {brl(round2(account.balance + (form.addToBalance ? form.amount : 0)))}.
+                    {institutionLabel(account.institution)} passa para <Private>{brl(round2(account.balance + (form.addToBalance ? form.amount : 0)))}</Private>.
                   </div>
                 </div>
                 <Toggle checked={form.addToBalance} onChange={(v) => setForm({ ...form, addToBalance: v })} label="Somar ao saldo" />
@@ -201,7 +201,15 @@ export function AccountsCard({ ym, summary }: { ym: string; summary: MonthSummar
     <Card className="mb-4">
       <SectionTitle
         title="Minhas contas"
-        subtitle={accounts.length ? `${brl(total)} em ${accounts.length} ${accounts.length === 1 ? "conta" : "contas"}` : "Opcional: informe quanto tem em cada banco para ver o que sobra depois das faturas."}
+        subtitle={
+          accounts.length ? (
+            <>
+              <Private>{brl(total)}</Private> em {accounts.length} {accounts.length === 1 ? "conta" : "contas"}
+            </>
+          ) : (
+            "Opcional: informe quanto tem em cada banco para ver o que sobra depois das faturas."
+          )
+        }
         action={
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" icon={HandCoins} onClick={() => setIncome(true)}>
@@ -225,11 +233,19 @@ export function AccountsCard({ ym, summary }: { ym: string; summary: MonthSummar
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[14.5px] truncate">{institutionLabel(a.institution) || "Conta"}</div>
                     <div className="text-[12.5px] text-muted truncate">
-                      {inv ? `Fatura em aberto ${brl(inv)} · sobra ${brl(a.balance - inv)}` : "Sem fatura em aberto neste mês"}
+                      {inv ? (
+                        <>
+                          Fatura em aberto <Private>{brl(inv)}</Private> · sobra <Private>{brl(a.balance - inv)}</Private>
+                        </>
+                      ) : (
+                        "Sem fatura em aberto neste mês"
+                      )}
                       {` · atualizado ${dateBR(a.updatedAt, { day: "2-digit", month: "short" })}`}
                     </div>
                   </div>
-                  <div className={clsx("font-semibold tabular text-[15px] text-right shrink-0", a.balance < 0 && "text-danger")}>{brl(a.balance)}</div>
+                  <div className={clsx("font-semibold tabular text-[15px] text-right shrink-0", a.balance < 0 && "text-danger")} data-private="">
+                    {brl(a.balance)}
+                  </div>
                 </button>
               );
             })}
@@ -237,15 +253,21 @@ export function AccountsCard({ ym, summary }: { ym: string; summary: MonthSummar
           <div className="grid grid-cols-3 gap-2 mt-3 text-center">
             <div className="rounded-2xl bg-line/[0.04] py-2.5">
               <div className="text-[12px] text-muted">Nas contas</div>
-              <div className="font-semibold tabular">{brl(total)}</div>
+              <Private block className="font-semibold tabular">
+                {brl(total)}
+              </Private>
             </div>
             <div className="rounded-2xl bg-line/[0.04] py-2.5">
               <div className="text-[12px] text-muted">Faturas em aberto</div>
-              <div className="font-semibold tabular">{brl(openTotal)}</div>
+              <Private block className="font-semibold tabular">
+                {brl(openTotal)}
+              </Private>
             </div>
             <div className={clsx("rounded-2xl py-2.5", free < 0 ? "bg-danger/10 text-danger" : "bg-success/10")}>
               <div className="text-[12px] text-muted">Livre de verdade</div>
-              <div className="font-semibold tabular">{brl(free)}</div>
+              <Private block className="font-semibold tabular">
+                {brl(free)}
+              </Private>
             </div>
           </div>
         </>
@@ -258,7 +280,7 @@ export function AccountsCard({ ym, summary }: { ym: string; summary: MonthSummar
 
       {extras.length > 0 && (
         <div className="mt-3 text-[13px] text-muted">
-          Entradas extras no mês: <span className="text-success font-medium">+{brl(extras.reduce((s, e) => s + e.amount, 0))}</span> ({extras.slice(0, 3).map((e) => e.expense.description).join(", ")}
+          Entradas extras no mês: <Private className="text-success font-medium">+{brl(extras.reduce((s, e) => s + e.amount, 0))}</Private> ({extras.slice(0, 3).map((e) => e.expense.description).join(", ")}
           {extras.length > 3 ? "…" : ""})
         </div>
       )}

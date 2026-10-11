@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowLeft, Bell, ChartCandlestick, ChartLine, Gamepad2, Sparkles, Star } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Bell, ChartCandlestick, ChartLine, CircleHelp, Gamepad2, Lightbulb, Sparkles, Star } from "lucide-react";
 import clsx from "clsx";
-import type { ChartRange, Quote } from "@shared/types";
+import type { AssetCategory, ChartRange, Quote } from "@shared/types";
 import { catalogAsset, displaySymbol, guessCategory } from "@shared/catalog";
+import { explainAsset, statHelp, type StatKey } from "@shared/assetInfo";
 import { api } from "@/lib/api";
 import { brl, brlCompact, compact, dateBR, isIndex, money, num, pct, quotePrice, relativeTime, timeBR, toneClass } from "@/lib/format";
 import { useQuotes } from "@/store/market";
@@ -27,29 +28,53 @@ const RANGES: { value: ChartRange; label: string }[] = [
   { value: "MAX", label: "Máx" },
 ];
 
-function StatItem({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+function HelpLabel({ label, help, open, onToggle, className }: { label: string; help: string; open: boolean; onToggle: () => void; className?: string }) {
+  return (
+    <button type="button" onClick={onToggle} title={help} aria-expanded={open} className={clsx("inline-flex items-center gap-1 text-left text-muted hover:text-fg transition", className)}>
+      {label}
+      <CircleHelp size={13} className={clsx("shrink-0 transition", open ? "text-primary" : "opacity-50")} />
+    </button>
+  );
+}
+
+function HelpText({ open, text }: { open: boolean; text: string }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+          <div className="pt-1.5 text-[12.5px] leading-snug text-muted">{text}</div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function StatItem({ label, value, help }: { label: string; value: React.ReactNode; help: string }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="py-2.5 border-b border-line/[0.07]">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[13.5px] text-muted">{label}</span>
+        <HelpLabel label={label} help={help} open={open} onToggle={() => setOpen((o) => !o)} className="text-[13.5px]" />
         <span className="font-semibold tabular text-[14px] text-right">{value}</span>
       </div>
-      {hint && <div className="text-[12px] text-muted/80 mt-1">{hint}</div>}
+      <HelpText open={open} text={help} />
     </div>
   );
 }
 
-function RangeBar({ low, high, value, label }: { low: number; high: number; value: number; label: string }) {
+function RangeBar({ low, high, value, label, help, format }: { low: number; high: number; value: number; label: string; help: string; format: (v: number) => string }) {
+  const [open, setOpen] = useState(false);
   const pos = high > low ? Math.max(0, Math.min(1, (value - low) / (high - low))) : 0.5;
   return (
     <div className="py-3">
-      <div className="flex justify-between text-[12.5px] text-muted mb-2">
-        <span>{label}</span>
+      <div className="flex justify-between gap-3 text-[12.5px] text-muted">
+        <HelpLabel label={label} help={help} open={open} onToggle={() => setOpen((o) => !o)} />
         <span className="tabular">
-          {num(low)} – {num(high)}
+          {format(low)} – {format(high)}
         </span>
       </div>
-      <div className="relative h-1.5 rounded-full bg-gradient-to-r from-danger/50 via-warning/50 to-success/50">
+      <HelpText open={open} text={help} />
+      <div className="relative mt-2 h-1.5 rounded-full bg-gradient-to-r from-danger/50 via-warning/50 to-success/50">
         <motion.div className="absolute -top-[5px] h-4 w-4 rounded-full bg-white shadow ring-2 ring-primary" initial={{ left: "50%" }} animate={{ left: `calc(${pos * 100}% - 8px)` }} />
       </div>
     </div>
@@ -77,6 +102,51 @@ function insights(q: Quote): string[] {
   if (q.dividendYield && q.dividendYield >= 6) out.push(`Dividend yield de ${num(q.dividendYield, 1)}% nos últimos 12 meses — bom pagador de proventos. Confira se é recorrente.`);
   if (q.priceToBook && q.priceToBook < 1) out.push(`P/VP de ${num(q.priceToBook)}: o mercado avalia abaixo do patrimônio contábil.`);
   return out;
+}
+
+function AboutAsset({ symbol, category, name, currency, price, usdBrl }: { symbol: string; category: AssetCategory; name?: string; currency: string; price?: number; usdBrl?: number }) {
+  const info = explainAsset(symbol, category, name, currency);
+  const rate = currency === "USD" && category !== "indices" ? usdBrl : undefined;
+  const conversions = info.conversions ?? (rate ? [{ label: info.unit ?? "em reais", factor: 1 }] : []);
+  return (
+    <Card>
+      <SectionTitle title="O que é isso?" subtitle={`${displaySymbol(symbol)} · ${categoryLabel(category)}`} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div>
+          <p className="text-[14px] leading-relaxed">{info.what}</p>
+          {info.tips.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {info.tips.map((t) => (
+                <li key={t} className="flex gap-2 text-[13.5px] text-muted">
+                  <Lightbulb size={15} className="text-warning shrink-0 mt-0.5" />
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-2xl bg-line/[0.05] p-4">
+          <div className="text-[11.5px] font-semibold uppercase tracking-wider text-muted mb-1.5">Como ler o preço</div>
+          <p className="text-[14px] leading-relaxed">{info.price}</p>
+          {rate && price !== undefined && conversions.length > 0 && (
+            <>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {conversions.map((c) => (
+                  <span key={c.label} className="rounded-xl bg-surface border border-line/10 px-3 py-1.5 text-[13px]">
+                    <span className="font-semibold tabular">≈ {brl(price * rate * c.factor)}</span> <span className="text-muted">{c.label}</span>
+                  </span>
+                ))}
+              </div>
+              <div className="text-[12px] text-muted mt-2">Convertido com o dólar a {brl(rate)}.</div>
+            </>
+          )}
+          <p className="text-[13px] text-muted mt-3 leading-snug">
+            <span className="font-semibold text-fg">Variação:</span> quanto o preço subiu ou caiu desde o último fechamento (no 1D) ou desde o começo do período escolhido no gráfico.
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export function Ativo() {
@@ -126,7 +196,10 @@ export function Ativo() {
     const ticker = displaySymbol(symbol);
     return n.title.includes(ticker) || (name.length >= 4 && n.title.toLowerCase().includes(name.toLowerCase()));
   });
-  const fx = currency !== "BRL" ? quotes[`${currency}BRL=X`]?.price : undefined;
+  const fx = currency !== "BRL" && !isIndex(symbol) ? quotes[`${currency}BRL=X`]?.price : undefined;
+  const unit = category === "indices" ? undefined : explainAsset(symbol, category, q?.name, currency).unit;
+  const priceText = (v: number | undefined) => (v === undefined ? "—" : quotePrice({ symbol, price: v, currency }));
+  const help = (k: StatKey) => statHelp(k, category);
 
   return (
     <div>
@@ -172,7 +245,10 @@ export function Ativo() {
           <div className="p-5 pb-2 flex flex-wrap items-end justify-between gap-3">
             <div>
               {shownPrice !== undefined ? (
-                <div className="text-[36px] font-bold tracking-tight tabular leading-none">{quotePrice({ symbol, price: shownPrice, currency })}</div>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="text-[36px] font-bold tracking-tight tabular leading-none">{quotePrice({ symbol, price: shownPrice, currency })}</span>
+                  {unit && <span className="text-[14px] font-medium text-muted">{unit}</span>}
+                </div>
               ) : (
                 <Skeleton className="h-9 w-48" />
               )}
@@ -233,18 +309,18 @@ export function Ativo() {
           <SectionTitle title="Estatísticas" />
           {q ? (
             <div>
-              <StatItem label="Abertura" value={money(q.open, currency)} />
-              <StatItem label="Fechamento anterior" value={money(q.previousClose, currency)} />
-              {q.dayLow && q.dayHigh ? <StatItem label="Mínima / máxima do dia" value={`${num(q.dayLow)} – ${num(q.dayHigh)}`} /> : null}
-              {q.volume ? <StatItem label="Volume" value={compact(q.volume)} /> : null}
-              {q.fiftyTwoWeekLow && q.fiftyTwoWeekHigh ? <RangeBar low={q.fiftyTwoWeekLow} high={q.fiftyTwoWeekHigh} value={q.price} label="Faixa de 52 semanas" /> : null}
-              {q.fiftyDayAverage ? <StatItem label="Média de 50 dias" value={money(q.fiftyDayAverage, currency)} /> : null}
-              {q.twoHundredDayAverage ? <StatItem label="Média de 200 dias" value={money(q.twoHundredDayAverage, currency)} /> : null}
-              {q.pe ? <StatItem label="P/L" value={num(q.pe, 2)} hint="Anos de lucro para pagar o preço da ação." /> : null}
-              {q.priceToBook ? <StatItem label="P/VP" value={num(q.priceToBook, 2)} hint="Preço sobre valor patrimonial." /> : null}
-              {q.dividendYield ? <StatItem label="Dividend yield (12m)" value={`${num(q.dividendYield)}%`} hint="Proventos pagos em relação ao preço." /> : null}
-              {q.eps ? <StatItem label="Lucro por ação" value={money(q.eps, currency)} /> : null}
-              {q.marketCap ? <StatItem label="Valor de mercado" value={currency === "BRL" ? brlCompact(q.marketCap) : `${currency} ${compact(q.marketCap)}`} /> : null}
+              {q.open ? <StatItem label="Abertura" value={priceText(q.open)} help={help("open")} /> : null}
+              <StatItem label="Fechamento anterior" value={priceText(q.previousClose)} help={help("prevClose")} />
+              {q.dayLow && q.dayHigh ? <StatItem label="Mínima / máxima do dia" value={`${fmt(q.dayLow)} – ${fmt(q.dayHigh)}`} help={help("dayRange")} /> : null}
+              {q.volume ? <StatItem label="Volume" value={category === "cripto" ? `US$ ${compact(q.volume)}` : compact(q.volume)} help={help("volume")} /> : null}
+              {q.fiftyTwoWeekLow && q.fiftyTwoWeekHigh ? <RangeBar low={q.fiftyTwoWeekLow} high={q.fiftyTwoWeekHigh} value={q.price} label="Faixa de 52 semanas" help={help("range52")} format={fmt} /> : null}
+              {q.fiftyDayAverage ? <StatItem label="Média de 50 dias" value={priceText(q.fiftyDayAverage)} help={help("ma50")} /> : null}
+              {q.twoHundredDayAverage ? <StatItem label="Média de 200 dias" value={priceText(q.twoHundredDayAverage)} help={help("ma200")} /> : null}
+              {q.pe ? <StatItem label="P/L" value={num(q.pe, 2)} help={help("pe")} /> : null}
+              {q.priceToBook ? <StatItem label="P/VP" value={num(q.priceToBook, 2)} help={help("pb")} /> : null}
+              {q.dividendYield ? <StatItem label="Dividend yield (12m)" value={`${num(q.dividendYield)}%`} help={help("dy")} /> : null}
+              {q.eps ? <StatItem label="Lucro por ação" value={money(q.eps, currency)} help={help("eps")} /> : null}
+              {q.marketCap ? <StatItem label="Valor de mercado" value={currency === "BRL" ? brlCompact(q.marketCap) : `${currency} ${compact(q.marketCap)}`} help={help("mcap")} /> : null}
             </div>
           ) : (
             <div className="space-y-3">
@@ -254,6 +330,10 @@ export function Ativo() {
             </div>
           )}
         </Card>
+      </div>
+
+      <div className="mt-4">
+        <AboutAsset symbol={symbol} category={category} name={catalogAsset(symbol)?.name ?? q?.name} currency={currency} price={lastPrice} usdBrl={quotes["USDBRL=X"]?.price} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 mt-4">
@@ -295,7 +375,7 @@ export function Ativo() {
               const invested = (holding.quantity ?? 0) * (holding.avgPrice ?? 0) * rate;
               const g = value - invested;
               return (
-                <div>
+                <div data-private="">
                   <div className="text-[28px] font-bold tabular">{brl(value)}</div>
                   <div className={clsx("tabular font-semibold", toneClass(g))}>
                     {g >= 0 ? "+" : ""}

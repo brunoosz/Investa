@@ -427,7 +427,7 @@ export class AiService {
     const groq = this.groqKey();
     const search = this.searchKey();
     const hasKey = !!r.key || !!groq;
-    if (!canManage) return { hasKey, canManage, hasSearch: !!search };
+    if (!canManage) return { hasKey, canManage, hasSearch: true };
     const first = this.targets()[0];
     return {
       hasKey,
@@ -444,7 +444,7 @@ export class AiService {
       groqPreview: groq ? preview(groq, 4) : undefined,
       groqChoice: this.stored.groqModel || "auto",
       primary: this.primary(),
-      hasSearch: !!search,
+      hasSearch: true,
       searchProvider: search ? searchProvider(search) : undefined,
       searchPreview: search ? preview(search, 5) : undefined,
     };

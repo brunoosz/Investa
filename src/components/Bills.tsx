@@ -7,7 +7,7 @@ import { uid } from "@/lib/api";
 import { brl } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
-import { Badge, Card, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, Private, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, Select, Toggle } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/Sheet";
@@ -134,7 +134,7 @@ export function BillsCard({ ym }: { ym: string }) {
         subtitle={
           active.length
             ? pending.length
-              ? `${brl(pendingTotal)} a pagar em ${ymLabel(ym)} · já entra no disponível`
+              ? <><Private>{brl(pendingTotal)}</Private> a pagar em {ymLabel(ym)} · já entra no disponível</>
               : `Todas pagas em ${ymLabel(ym)}`
             : "Aluguel, internet, assinaturas… O app avisa antes de vencer."
         }
@@ -178,7 +178,9 @@ export function BillsCard({ ym }: { ym: string }) {
                     </div>
                   </div>
                 </button>
-                <div className="font-semibold tabular text-[15px] shrink-0">{brl(b.amount)}</div>
+                <div className="font-semibold tabular text-[15px] shrink-0" data-private="">
+                  {brl(b.amount)}
+                </div>
                 {paid ? (
                   <Button size="sm" variant="ghost" onClick={() => unpay(b)} title="Desfazer pagamento">
                     Desfazer

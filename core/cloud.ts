@@ -256,10 +256,10 @@ export class CloudService {
         throw new AppError("WRONG_PASSWORD", "Usuário ou senha incorretos.");
       }
     }
-    const tokens = this.saveTokens(session.user.id, session);
-    const p = await this.profile(session.user.id, tokens.access);
+    const p = await this.profile(session.user.id, session.access_token);
     if (!p) throw new AppError("USER_NOT_FOUND", "Esta conta foi excluída.");
-    if (p.status === "bloqueado") throw new AppError("BLOCKED", "Esta conta está bloqueada. Fale com o dono do aplicativo.");
+    if (p.status === "bloqueado") throw new AppError("BLOCKED", "Esta conta está bloqueada ou aguardando liberação. Fale com o Dono do aplicativo.");
+    const tokens = this.saveTokens(session.user.id, session);
     const user = this.adopt(p, password, local.hash);
     if (migrated) {
       // Conta criada antes da nuvem: os dados deste aparelho sobem.
@@ -285,9 +285,11 @@ export class CloudService {
       if ((err as { cloudCode?: string }).cloudCode === "user_already_exists") throw new AppError("USERNAME_TAKEN", "Esse nome de usuário já está em uso. Escolha outro.");
       throw err;
     }
-    const tokens = this.saveTokens(session.user.id, session);
-    const p = await this.profile(session.user.id, tokens.access);
+    const p = await this.profile(session.user.id, session.access_token);
     if (!p) throw new AppError("CLOUD", "A conta foi criada, mas o perfil não apareceu. Confira se o supabase/schema.sql foi aplicado.");
+    // Contas novas podem precisar da liberação do Dono (supabase/schema.sql).
+    if (p.status === "bloqueado") throw new AppError("PENDING", "Conta criada! Agora peça ao Dono do app para liberar seu acesso. Depois é só entrar.");
+    this.saveTokens(session.user.id, session);
     return this.adopt(p, input.password, hash);
   }
 
@@ -446,9 +448,22 @@ export class CloudService {
 
   // ---- administração ----
 
+  /** Função do schema.sql; se o servidor ainda está na versão antiga, usa o caminho de antes. */
+  private async rpcOr<T>(fn: string, token: string, body: Record<string, unknown>, fallback: () => Promise<T>): Promise<T> {
+    try {
+      return await this.request<T>(`/rest/v1/rpc/${fn}`, { method: "POST", token, body });
+    } catch (err) {
+      if ((err as { cloudCode?: string }).cloudCode === "PGRST202") return fallback();
+      throw err;
+    }
+  }
+
   async listUsers(actorId: string): Promise<PublicUser[]> {
     const token = await this.token(actorId);
-    const rows = await this.request<CloudProfile[]>("/rest/v1/profiles?select=id,username,name,email,role,status,avatar_hue,created_at,last_login_at,onboarded:data->profile->onboarded&order=created_at", { token });
+    type Row = Omit<CloudProfile, "data" | "data_updated_at"> & { onboarded?: boolean };
+    const rows = await this.rpcOr<Row[]>("admin_list_users", token, {}, () =>
+      this.request<Row[]>("/rest/v1/profiles?select=id,username,name,email,role,status,avatar_hue,created_at,last_login_at,onboarded:data->profile->onboarded&order=created_at", { token })
+    );
     return rows.map((p) => ({
       id: p.id,
       name: p.name,
@@ -459,7 +474,7 @@ export class CloudService {
       createdAt: p.created_at,
       lastLoginAt: p.last_login_at ?? undefined,
       avatarHue: p.avatar_hue,
-      onboarded: !!(p as unknown as { onboarded?: boolean }).onboarded,
+      onboarded: !!p.onboarded,
     }));
   }
 
@@ -468,7 +483,8 @@ export class CloudService {
       if ((err as { cloudCode?: string }).cloudCode === "user_already_exists") throw new AppError("USERNAME_TAKEN", "Esse nome de usuário já está em uso. Escolha outro.");
       throw err;
     });
-    if (input.role && input.role !== "usuario") await this.updateUser(actorId, created.user.id, { role: input.role });
+    // Conta criada pelo Dono ou Administrador já entra liberada.
+    await this.updateUser(actorId, created.user.id, { status: "ativo", role: input.role && input.role !== "usuario" ? input.role : undefined });
   }
 
   async updateUser(actorId: string, id: string, patch: { name?: string; email?: string; role?: Role; status?: UserStatus }): Promise<void> {
@@ -478,8 +494,11 @@ export class CloudService {
     if (patch.email !== undefined) body.email = patch.email.trim() || null;
     if (patch.role) body.role = patch.role;
     if (patch.status) body.status = patch.status;
-    const rows = await this.request<unknown[]>(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", token, body, prefer: "return=representation" });
-    if (!rows.length) throw new AppError("FORBIDDEN", "Você não pode alterar esta conta.");
+    const args = { target: id, new_name: body.name ?? null, new_email: patch.email === undefined ? null : patch.email.trim(), new_role: body.role ?? null, new_status: body.status ?? null };
+    await this.rpcOr("admin_update_user", token, args, async () => {
+      const rows = await this.request<unknown[]>(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", token, body, prefer: "return=representation" });
+      if (!rows.length) throw new AppError("FORBIDDEN", "Você não pode alterar esta conta.");
+    });
   }
 
   async resetPassword(actorId: string, id: string, password: string): Promise<void> {
@@ -498,10 +517,6 @@ export class CloudService {
       throw new AppError("WRONG_PASSWORD", "A senha atual está incorreta.");
     }
     await this.request("/auth/v1/user", { method: "PUT", token: await this.token(userId), body: { password: next } });
-  }
-
-  async leaderboard(userId: string): Promise<{ id: string; name: string; username: string; avatar_hue: number; learning: UserDataMap["learning"] }[]> {
-    return this.request("/rest/v1/rpc/leaderboard", { method: "POST", token: await this.token(userId), body: {} });
   }
 
   // ---- configuração da IA (uma para todas as contas) ----

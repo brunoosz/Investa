@@ -10,7 +10,7 @@ import { brl, dateBR } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
 import { useAsync } from "@/hooks/useAsync";
-import { Badge, Card, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/Sheet";
@@ -174,7 +174,15 @@ export function PlannedCard() {
     <Card className="mb-4">
       <SectionTitle
         title="Gastos que vão vir"
-        subtitle={active.length ? `${brl(active.reduce((s, p) => s + p.amount, 0))} planejados · o do mês já sai do disponível` : "Projeto da faculdade, viagem, presente… O Assistente monta um plano com datas."}
+        subtitle={
+          active.length ? (
+            <>
+              <Private>{brl(active.reduce((s, p) => s + p.amount, 0))}</Private> planejados · o do mês já sai do disponível
+            </>
+          ) : (
+            "Projeto da faculdade, viagem, presente… O Assistente monta um plano com datas."
+          )
+        }
         action={
           <Button size="sm" variant="secondary" icon={Plus} onClick={() => setSheet({ open: true, item: null })}>
             <span className="sm:hidden">Adicionar</span>
@@ -199,11 +207,17 @@ export function PlannedCard() {
                       <div className="font-medium text-[14.5px] truncate">{p.description}</div>
                       <div className="text-[12.5px] text-muted flex flex-wrap items-center gap-x-2">
                         {late ? <Badge tone="warning">Data passou</Badge> : <span>{dateBR(p.date, { day: "2-digit", month: "short", year: "numeric" })}</span>}
-                        {!late && <span>guardar {brl(perMonth)}/mês</span>}
+                        {!late && (
+                          <span>
+                            guardar <Private>{brl(perMonth)}</Private>/mês
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
-                  <div className="font-semibold tabular text-[15px] shrink-0">{brl(p.amount)}</div>
+                  <div className="font-semibold tabular text-[15px] shrink-0" data-private="">
+                    {brl(p.amount)}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2.5 sm:pl-[52px]">
                   {p.plan ? (

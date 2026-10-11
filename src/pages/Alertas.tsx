@@ -10,7 +10,7 @@ import { useQuotes } from "@/store/market";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { useAsync } from "@/hooks/useAsync";
-import { Badge, Card, EmptyState, ListGroup, PageHeader, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, ListGroup, PageHeader, PrivateAmounts, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Chip, Field, Input, MoneyInput, NumberInput, Select, SegmentedControl, Textarea, Toggle } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -86,7 +86,7 @@ function Notifications() {
                   <div className="text-[12.5px] text-muted mt-0.5">
                     {dateBR(n.createdAt, { day: "2-digit", month: "short" })}, {timeBR(n.createdAt)} · {relativeTime(n.createdAt)}
                   </div>
-                  <p className="text-[14px] mt-1.5 text-fg/85">{n.message}</p>
+                  <p className="text-[14px] mt-1.5 text-fg/85">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</p>
                 </button>
                 <button onClick={() => void api.notifications.remove(n.id).then(setNotifications)} className="h-8 w-8 rounded-lg flex items-center justify-center text-muted opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:text-danger hover:bg-danger/10 transition" aria-label="Excluir">
                   <Trash size={15} />

@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: media-${{ github.ref }}
@@ -22,6 +22,9 @@ jobs:
     name: Prints e GIFs
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Grava as imagens novas no próprio branch.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

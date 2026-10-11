@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, BookOpen, ChartCandlestick, Search } from "lucide-react";
 import clsx from "clsx";
-import type { SearchResult } from "@shared/types";
+import type { AssetCategory, SearchResult } from "@shared/types";
 import { CATEGORIES, displaySymbol } from "@shared/catalog";
 import { ALL_LESSONS } from "@shared/learning";
 import { api } from "@/lib/api";
+import { AssetAvatar } from "@/components/market";
 import { isManager, useSession } from "@/store/session";
 import { OverlayFrame, useOverlay } from "@/components/ui/Overlay";
 import { ALL_NAV } from "./nav";
@@ -19,6 +20,7 @@ interface Item {
   icon: typeof Search;
   to: string;
   group: string;
+  asset?: { symbol: string; category: AssetCategory };
 }
 
 function norm(s: string): string {
@@ -71,6 +73,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       icon: ChartCandlestick,
       to: `/mercado/${encodeURIComponent(a.symbol)}`,
       group: "Ativos",
+      asset: { symbol: a.symbol, category: a.category },
     }));
     return [...assetItems, ...pages, ...lessons];
   }, [q, assets, user]);
@@ -130,7 +133,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                       onClick={() => go(item)}
                       className={clsx("w-full flex items-center gap-3 px-5 py-2.5 text-left", i === index && "bg-primary/10")}
                     >
-                      <Icon size={18} className={i === index ? "text-primary" : "text-muted"} />
+                      {item.asset ? <AssetAvatar symbol={item.asset.symbol} category={item.asset.category} size={22} /> : <Icon size={18} className={i === index ? "text-primary" : "text-muted"} />}
                       <span className="font-medium text-[14.5px]">{item.label}</span>
                       {item.hint && <span className="text-[13px] text-muted truncate">{item.hint}</span>}
                       <span className="flex-1" />
