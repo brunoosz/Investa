@@ -1,6 +1,8 @@
 import type { AlertRuntimeState, AppNotification, Holding, PriceAlert, Quote, UserSettings } from "@shared/types";
 import { displaySymbol } from "@shared/catalog";
+import { institutionLabel } from "@shared/banks";
 import { DAILY_TIPS } from "@shared/tips";
+import { invoiceDueDate } from "@shared/insight";
 import { billDueDate, currentYm, monthBudget, pendingFor, summarizeMonth, weekSummary, ymLabel } from "@shared/finance";
 import type { Store } from "./store";
 import { getQuotes } from "./yahoo";
@@ -258,7 +260,21 @@ export class AlertEngine {
   }
 
   private invoices(userId: string): void {
-    const ym = todayIsoSaoPaulo().slice(0, 7);
+    const today = todayIsoSaoPaulo();
+    const ym = today.slice(0, 7);
+    // Vencimento das faturas: 2 dias antes e no dia (as mesmas chaves que o celular agenda).
+    const accounts = this.store.getData(userId, "accounts");
+    for (const inv of this.store.getData(userId, "invoices")) {
+      // Sem dia na fatura, usa o vencimento do cartão daquele banco.
+      const due = invoiceDueDate({ ym: inv.ym, dueDay: inv.dueDay ?? accounts.find((a) => a.institution === inv.institution)?.card?.dueDay });
+      if (inv.paid || !due) continue;
+      const days = Math.round((Date.parse(`${due}T12:00:00`) - Date.parse(`${today}T12:00:00`)) / DAY);
+      if (days === 2 || days === 1) {
+        this.push(userId, { type: "carteira", tone: "info", title: `Fatura ${institutionLabel(inv.institution)} vence em ${days === 1 ? "1 dia" : "2 dias"}`, message: `${brl(inv.amount)} no dia ${Number(due.slice(8))}. Pague o total para fugir do rotativo.`, link: "/gastos" }, `fatura-${inv.id}-antes`);
+      } else if (days === 0) {
+        this.push(userId, { type: "carteira", tone: "info", title: `Fatura ${institutionLabel(inv.institution)} vence hoje`, message: `${brl(inv.amount)}. Já pagou? Marque em Gastos.`, link: "/gastos" }, `fatura-${inv.id}-hoje`);
+      }
+    }
     const profile = this.store.getData(userId, "profile");
     const open = this.store.getData(userId, "invoices").filter((i) => i.ym === ym && !i.paid);
     const total = open.reduce((s, i) => s + i.amount, 0);

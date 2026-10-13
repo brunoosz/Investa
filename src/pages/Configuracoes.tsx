@@ -26,7 +26,7 @@ import {
   Zap,
 } from "lucide-react";
 import clsx from "clsx";
-import type { AiCatalog, AiConfigInfo, FinancialProfile, UserSettings } from "@shared/types";
+import type { AiCatalog, AiConfigInfo, AiProviderHealth, FinancialProfile, UserSettings } from "@shared/types";
 import { ROLE_LABEL } from "@shared/types";
 import { api, uid } from "@/lib/api";
 import { brl, relativeTime } from "@/lib/format";
@@ -35,7 +35,8 @@ import { toastError, useUi } from "@/store/ui";
 import { useAsync } from "@/hooks/useAsync";
 import { Avatar, Badge, Card, ListGroup, ListRow, PageHeader, Private, PrivateAmounts } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, PasswordInput, SegmentedControl, Toggle } from "@/components/ui/form";
+import { Field, Input, PasswordInput, SegmentedControl, Select, Toggle } from "@/components/ui/form";
+import { insightHour, QUIET_END, QUIET_START } from "@shared/insight";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
 import { ExpenseFields, IncomeFields, InvestFields, ProfileFields, RISK_LABEL, totalExpenses, totalIncome } from "@/components/ProfileForm";
 import { ErrorBanner } from "@/pages/auth/Login";
@@ -477,6 +478,19 @@ function ChoiceRow({ selected, saving, onClick, title, sub, badge }: { selected:
   );
 }
 
+/** Como o provedor está indo neste aparelho: última resposta boa ou o último erro, se for mais novo. */
+function ProviderHealth({ h }: { h?: AiProviderHealth }) {
+  if (h?.error && (!h.okAt || h.error.at > h.okAt)) {
+    return (
+      <div className="text-[12.5px] text-danger mt-2 break-words">
+        Último erro ({relativeTime(h.error.at)}): {h.error.message}
+      </div>
+    );
+  }
+  if (h?.okAt) return <div className="text-[12.5px] text-muted mt-2">Respondeu {relativeTime(h.okAt)}.</div>;
+  return null;
+}
+
 /** Groq: chave grátis e respostas bem mais rápidas. */
 function GroqSettings({ info, groqModels, onChange }: { info?: AiConfigInfo | null; groqModels?: AiCatalog["groq"]; onChange: () => void }) {
   const toast = useUi((s) => s.toast);
@@ -499,12 +513,20 @@ function GroqSettings({ info, groqModels, onChange }: { info?: AiConfigInfo | nu
     }
     setBusy(true);
     try {
-      const r = await api.ai.test("groq", k);
+      let warning = "";
+      const r = await api.ai.test("groq", k).catch((err: { code?: string; message?: string }) => {
+        // Chave recusada: não salva. Outra falha (modelo, instabilidade): salva e avisa.
+        if (err?.code === "AI_AUTH" || err?.code === "AI_BLOCKED") throw err;
+        warning = err?.message ?? "";
+        return "";
+      });
       await api.ai.setConfig({ groqKey: k });
       setKey("");
       onChange();
-      toast({ title: "Groq conectada", message: r.slice(0, 120), tone: "success" });
+      if (warning) toast({ title: "Chave da Groq salva, mas o teste falhou", message: `${warning.slice(0, 160)} Veja os detalhes em Logs.`, tone: "info" });
+      else toast({ title: "Groq conectada", message: r.slice(0, 120), tone: "success" });
     } catch (err) {
+      onChange();
       toastError(err, "A chave não funcionou");
     } finally {
       setBusy(false);
@@ -537,6 +559,7 @@ function GroqSettings({ info, groqModels, onChange }: { info?: AiConfigInfo | nu
       </div>
       <div className="text-[13px] text-muted mt-0.5">Grátis e bem mais rápida; crie a chave em console.groq.com.</div>
       {has && info?.groqPreview && <div className="text-[13px] text-muted mt-2">Chave atual: {info.groqPreview}</div>}
+      <ProviderHealth h={info?.providers?.groq} />
       <div className="flex flex-col sm:flex-row gap-2 mt-3">
         <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder={has ? "Nova chave (gsk_…)" : "gsk_…"} type="password" autoComplete="off" />
         <Button onClick={() => void save()} loading={busy} disabled={!key.trim()}>
@@ -724,7 +747,8 @@ function AiSettings() {
           <p className="text-[13.5px] text-muted mt-1">
             Só você, como Dono, vê esta seção. As chaves ficam guardadas criptografadas e valem para todas as contas do app. Os outros usuários só veem o Assistente funcionando.
           </p>
-          {info.data?.hasKey && info.data.modelLabel && <p className="text-[12.5px] text-muted mt-1">Responde agora: {info.data.modelLabel}</p>}
+          {info.data?.hasKey && info.data.modelLabel && <p className="text-[12.5px] text-muted mt-1">Responde primeiro: {info.data.modelLabel}</p>}
+          {info.data?.lastUsedLabel && info.data.lastUsedLabel !== info.data.modelLabel && <p className="text-[12.5px] text-muted">Última resposta veio de: {info.data.lastUsedLabel}</p>}
         </div>
       </div>
       <div className="mt-5 space-y-4">
@@ -743,6 +767,7 @@ function AiSettings() {
               )}
             </div>
             <div className="text-[13px] text-muted mt-0.5">Muitos modelos grátis, porém mais lentos.{info.data?.hasGroq ? " Serve de reserva para a Groq." : ""}</div>
+            <ProviderHealth h={info.data?.providers?.nvidia} />
           </div>
           <Field label="Chave da API" hint={info.data?.keyPreview ? `Chave atual: ${info.data.keyPreview}` : "Começa com nvapi-"}>
             <PasswordInput icon={KeyRound} value={key} onChange={(e) => setKey(e.target.value)} placeholder={info.data?.hasNvidia ? "Deixe em branco para manter a chave atual" : "nvapi-..."} />
@@ -854,6 +879,7 @@ export function Configuracoes() {
     if (params.get("secao") === "ia") setTimeout(() => aiRef.current?.scrollIntoView({ behavior: "smooth" }), 250);
   }, [params]);
 
+  const mobileApp = appInfo.data?.kind === "mobile";
   const setSetting = (patch: Partial<UserSettings>) => update("settings", (s) => ({ ...s, ...patch }));
 
   return (
@@ -880,7 +906,7 @@ export function Configuracoes() {
 
         <Section title="Finanças">
           <ListGroup>
-            <ListRow icon={Wallet} iconColor="#34D399" title="Renda mensal" subtitle={<PrivateAmounts text={`${brl(profile.salary)} de salário${profile.extraIncome ? ` + ${brl(profile.extraIncome)} extra` : ""}`} />} right={<Private className="font-semibold tabular">{brl(totalIncome(profile))}</Private>} onClick={() => setSheet("financeiro")} chevron />
+            <ListRow icon={Wallet} iconColor="#34D399" title="Renda mensal" subtitle={<PrivateAmounts text={`${brl(profile.salary)} de salário${profile.extraIncome ? ` + ${brl(profile.extraIncome)} fixos` : ""}${profile.payDay ? ` · cai dia ${profile.payDay}` : ""}`} />} right={<Private className="font-semibold tabular">{brl(totalIncome(profile))}</Private>} onClick={() => setSheet("financeiro")} chevron />
             <ListRow icon={PiggyBank} iconColor="#FBBF24" title="Gastos e investimentos" subtitle={<PrivateAmounts text={`Gasta ${brl(totalExpenses(profile))} · investe ${brl(profile.monthlyInvest)} por mês`} />} onClick={() => setSheet("financeiro")} chevron />
             <ListRow icon={UserRound} iconColor="#A78BFA" title="Perfil de investidor" subtitle="Usado pelo Assistente para personalizar sugestões" right={<Badge tone="secondary">{RISK_LABEL[profile.riskProfile]}</Badge>} onClick={() => setSheet("financeiro")} chevron />
           </ListGroup>
@@ -927,12 +953,38 @@ export function Configuracoes() {
 
         <Section title="Notificações">
           <ListGroup>
-            <ToggleRow title="Notificações do Windows" subtitle="Avisos na área de notificações do sistema" checked={settings.desktopNotifications} onChange={(v) => setSetting({ desktopNotifications: v })} />
+            <ToggleRow
+              title={mobileApp ? "Notificações do celular" : "Notificações do Windows"}
+              subtitle={mobileApp ? "Contas, faturas, lembretes e dicas chegam mesmo com o app fechado" : "Avisos na área de notificações do sistema"}
+              checked={settings.desktopNotifications}
+              onChange={(v) => setSetting({ desktopNotifications: v })}
+            />
             <ToggleRow title="Alertas inteligentes da carteira" subtitle="Lucro, prejuízo e preço fora do normal" checked={settings.smartAlerts} onChange={(v) => setSetting({ smartAlerts: v })} />
             <ToggleRow title="Eventos do mercado" subtitle="Copom, IPCA, dólar e Ibovespa" checked={settings.marketEvents} onChange={(v) => setSetting({ marketEvents: v })} />
             <ToggleRow title="Dica do dia" subtitle="Uma dica de educação financeira por dia" checked={settings.dailyTip} onChange={(v) => setSetting({ dailyTip: v })} />
             <ToggleRow title="Resumo semanal" subtitle="Todo domingo: quanto gastou, o que vence e o disponível do mês" checked={settings.weeklySummary !== false} onChange={(v) => setSetting({ weeklySummary: v })} />
-            <ToggleRow title="Continuar em segundo plano" subtitle="Ao fechar, fica na bandeja e continua avisando" checked={settings.runInBackground} onChange={(v) => setSetting({ runInBackground: v })} />
+            <ToggleRow
+              title="Análise diária da IA (notificação)"
+              subtitle="Uma ideia por dia com base nas notícias e no seu perfil. Nada entre 22h e 8h."
+              checked={settings.aiInsight !== false}
+              onChange={(v) => setSetting({ aiInsight: v })}
+            />
+            {settings.aiInsight !== false && (
+              <div className="flex items-center gap-3 px-4 pb-3.5 -mt-1">
+                <div className="flex-1 text-[13px] text-muted">Horário da análise</div>
+                <Select className="!py-1.5 !text-[14px]" value={insightHour(settings)} onChange={(e) => setSetting({ aiInsightHour: Number(e.target.value) })} aria-label="Horário da análise">
+                  {Array.from({ length: QUIET_START - QUIET_END }, (_, i) => QUIET_END + i).map((h) => (
+                    <option key={h} value={h}>
+                      {h}h
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {isOwner(user) && (
+              <ToggleRow title="Erros da IA (Dono)" subtitle="Avisa quando a IA falhar, no máximo a cada 30 minutos" checked={settings.ownerAiAlerts !== false} onChange={(v) => setSetting({ ownerAiAlerts: v })} />
+            )}
+            {!mobileApp && <ToggleRow title="Continuar em segundo plano" subtitle="Ao fechar, fica na bandeja e continua avisando" checked={settings.runInBackground} onChange={(v) => setSetting({ runInBackground: v })} />}
           </ListGroup>
           <button className="text-[13px] text-primary font-semibold mt-2 px-1 inline-flex items-center gap-1" onClick={() => navigate("/alertas")}>
             <Bell size={14} /> Gerenciar alertas

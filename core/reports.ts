@@ -120,9 +120,9 @@ export async function buildExcel(input: ReportInput): Promise<Uint8Array> {
   header(resumo.addRow(["Resumo do mês", "Valor", ""]));
   const kpis: [string, number][] = [
     ["Renda mensal (perfil)", summary.income],
-    ["Receitas extras lançadas", summary.extraIncome],
+    ["Entradas extras (à parte da renda)", summary.extraIncome],
     ["Total gasto no mês", summary.spent],
-    ["Saldo do mês", summary.balance],
+    ["Sobra da renda fixa", summary.balance],
   ];
   for (const [k, v] of kpis) {
     const r = resumo.addRow([k, v]);
@@ -167,7 +167,7 @@ export async function buildExcel(input: ReportInput): Promise<Uint8Array> {
     const r = lanc.addRow({
       date: brDate(e.expense.date),
       desc: e.expense.description,
-      type: e.expense.type === "receita" ? "Receita" : "Despesa",
+      type: e.expense.type === "receita" ? "Entrada extra" : "Despesa",
       cat: e.expense.category,
       method: PAYMENT_LABEL[e.expense.method],
       bank: institutionLabel(e.expense.institution),
@@ -264,7 +264,7 @@ export function buildReportHtml(input: ReportInput): string {
 <h1>Relatório de gastos — ${ymLabel(summary.ym)}</h1><div class="sub">${esc(input.userName)} · gerado em ${new Date().toLocaleString("pt-BR")}</div></div>
 <div class="wrap">
 <div class="kpis">
-  <div class="kpi"><span>Renda do mês</span><strong>${brl(summary.income + summary.extraIncome)}</strong></div>
+  <div class="kpi"><span>Renda fixa do mês</span><strong>${brl(summary.income)}</strong>${summary.extraIncome ? `<span>+ ${brl(summary.extraIncome)} extras à parte</span>` : ""}</div>
   <div class="kpi"><span>Total gasto</span><strong class="neg">${brl(summary.spent)}</strong></div>
   <div class="kpi"><span>Saldo</span><strong class="${summary.balance >= 0 ? "pos" : "neg"}">${brl(summary.balance)}</strong></div>
   <div class="kpi"><span>Lançamentos</span><strong>${summary.entries.length}</strong></div>
@@ -311,7 +311,7 @@ export async function buildPdf(input: ReportInput): Promise<Uint8Array> {
   y = 124;
   doc.setTextColor(11, 15, 26);
   const kpis: [string, string][] = [
-    ["Renda do mês", brl(summary.income + summary.extraIncome)],
+    ["Renda fixa do mês", brl(summary.income)],
     ["Total gasto", brl(summary.spent)],
     ["Saldo", brl(summary.balance)],
     ["Lançamentos", String(summary.entries.length)],

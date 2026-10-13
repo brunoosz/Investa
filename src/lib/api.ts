@@ -1,5 +1,6 @@
 import type {
   AiLogEntry,
+  DailyInsight,
   SavingPlan,
   WealthAnswers,
   WealthPlan,
@@ -140,6 +141,8 @@ export const api = {
     testSearch: (key: string) => call<number>("search:test", { key }),
     logs: () => call<AiLogEntry[]>("ai:logs"),
     clearLogs: () => call<boolean>("ai:logs:clear"),
+    insight: () => call<DailyInsight | null>("insight:get"),
+    refreshInsight: () => call<DailyInsight | null>("insight:refresh"),
     cancel: (requestId: string) => call<boolean>("ai:cancel", { requestId }),
   },
 

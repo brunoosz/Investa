@@ -226,3 +226,18 @@ export function Chip({ active, children, onClick, icon: Icon }: { active?: boole
     </button>
   );
 }
+
+/** Dia do mês (1 a 31). */
+export function DayInput({ value, onChange, placeholder }: { value?: number; onChange: (v: number | undefined) => void; placeholder?: string }) {
+  return (
+    <Input
+      inputMode="numeric"
+      value={value ?? ""}
+      onChange={(e) => {
+        const n = Number(e.target.value.replace(/\D/g, "").slice(0, 2));
+        onChange(n >= 1 ? Math.min(31, n) : undefined);
+      }}
+      placeholder={placeholder}
+    />
+  );
+}

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import type { Expense, PaymentMethod } from "@shared/types";
-import { addMonthsYm, pendingFor, currentYm, monthBudget, EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_LABEL, summarizeMonth, ymLabel, type MonthEntry, localIsoDate } from "@shared/finance";
+import { addMonthsYm, cardsUsage, pendingFor, currentYm, mandatoryTotal, monthBudget, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_KINDS, incomeKindLabel, PAYMENT_LABEL, summarizeMonth, ymLabel, type MonthEntry, localIsoDate } from "@shared/finance";
 import { institutionLabel } from "@shared/banks";
 import { api, uid } from "@/lib/api";
 import { brl, dateBR, pct } from "@/lib/format";
@@ -44,6 +44,7 @@ import { InvoicesCard } from "@/components/Invoices";
 import { AccountsCard } from "@/components/Accounts";
 import { BillsCard } from "@/components/Bills";
 import { PlannedCard } from "@/components/Planned";
+import { MonthCalendarCard } from "@/components/MonthCalendar";
 import { useAssistant } from "@/store/assistant";
 import { useAsync } from "@/hooks/useAsync";
 
@@ -63,6 +64,8 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
   Presentes: Gift,
   "Salário extra": Briefcase,
   Freelance: Briefcase,
+  Trabalho: Briefcase,
+  "Presente/família": Gift,
 };
 
 function catColor(category: string): string {
@@ -77,7 +80,8 @@ function emptyExpense(type: Expense["type"] = "despesa"): Expense {
     description: "",
     amount: 0,
     date: localIsoDate(),
-    category: type === "despesa" ? "Alimentação" : "Freelance",
+    category: type === "despesa" ? "Alimentação" : "Trabalho",
+    incomeKind: type === "receita" ? "trabalho" : undefined,
     method: type === "despesa" ? "credito" : "pix",
     institution: "",
     installments: 1,
@@ -87,6 +91,9 @@ function emptyExpense(type: Expense["type"] = "despesa"): Expense {
 function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; initial: Expense | null; onClose: () => void; onDelete: (e: Expense) => void }) {
   const update = useSession((s) => s.update);
   const toast = useUi((s) => s.toast);
+  const accounts = useUserData("accounts");
+  const invoices = useUserData("invoices");
+  const expenses = useUserData("expenses");
   const [e, setE] = useState<Expense>(initial ?? emptyExpense());
   const [lastOpen, setLastOpen] = useState(false);
   if (open !== lastOpen) {
@@ -94,6 +101,12 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
     if (open) setE(initial ? { ...initial } : emptyExpense());
   }
   const cats = e.type === "despesa" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  // Limite do cartão sem contar a própria compra (ao editar).
+  const card =
+    e.type === "despesa" && e.method === "credito" && e.institution
+      ? cardsUsage(accounts.filter((a) => a.institution === e.institution), invoices, expenses.filter((x) => x.id !== e.id))[0]
+      : undefined;
+  const overLimit = !!card && e.amount > card.available;
   const valid = e.description.trim() && e.amount > 0 && e.date;
   const save = () => {
     const item = { ...e, description: e.description.trim(), installments: e.method === "credito" ? e.installments : 1 };
@@ -129,11 +142,14 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
           onChange={(t) => setE({ ...emptyExpense(t), id: e.id, description: e.description, amount: e.amount, date: e.date })}
           options={[
             { value: "despesa", label: "Gasto" },
-            { value: "receita", label: "Receita extra" },
+            { value: "receita", label: "Entrada extra" },
           ]}
         />
-        <Field label="Descrição">
-          <Input autoFocus value={e.description} onChange={(ev) => setE({ ...e, description: ev.target.value })} placeholder={e.type === "despesa" ? "Ex.: Tênis novo" : "Ex.: Freela de design"} />
+        {e.type === "receita" && (
+          <div className="text-[12.5px] text-muted -mt-1">Dinheiro avulso, fora do salário. Aparece à parte e não aumenta sua renda do mês.</div>
+        )}
+        <Field label={e.type === "despesa" ? "Descrição" : "Motivo"}>
+          <Input autoFocus value={e.description} onChange={(ev) => setE({ ...e, description: ev.target.value })} placeholder={e.type === "despesa" ? "Ex.: Tênis novo" : "Ex.: presente da vó, freela de design…"} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={e.installments > 1 ? "Valor total da compra" : "Valor"}>
@@ -143,13 +159,19 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
             <Input type="date" value={e.date} onChange={(ev) => setE({ ...e, date: ev.target.value })} />
           </Field>
         </div>
-        <Field label="Categoria">
+        <Field label={e.type === "despesa" ? "Categoria" : "De onde veio?"}>
           <div className="flex flex-wrap gap-1.5">
-            {cats.map((c) => (
-              <Chip key={c} active={e.category === c} icon={CATEGORY_ICON[c]} onClick={() => setE({ ...e, category: c })}>
-                {c}
-              </Chip>
-            ))}
+            {e.type === "despesa"
+              ? cats.map((c) => (
+                  <Chip key={c} active={e.category === c} icon={CATEGORY_ICON[c]} onClick={() => setE({ ...e, category: c })}>
+                    {c}
+                  </Chip>
+                ))
+              : INCOME_KINDS.map((k) => (
+                  <Chip key={k.id} active={e.category === k.label || e.incomeKind === k.id} icon={CATEGORY_ICON[k.label]} onClick={() => setE({ ...e, category: incomeKindLabel(k.id), incomeKind: k.id })}>
+                    {k.label}
+                  </Chip>
+                ))}
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -176,6 +198,11 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
               ))}
             </Select>
           </Field>
+        )}
+        {card && (
+          <div className={clsx("rounded-2xl px-4 py-3 text-[13px]", overLimit ? "bg-danger/10 text-danger" : "bg-line/[0.04] text-muted")} data-testid="limit-hint">
+            {overLimit ? "Passa do limite! " : ""}Limite disponível no {institutionLabel(card.institution)}: <Private>{brl(card.available)}</Private> de <Private>{brl(card.limit)}</Private>.
+          </div>
         )}
       </div>
     </Sheet>
@@ -226,6 +253,7 @@ export function Gastos() {
   const plannedList = useUserData("planned");
   const boxes = useUserData("boxes");
   const budget = useMemo(() => monthBudget(summary, invoices, ym, new Date(), pendingFor(bills, plannedList, ym, boxes)), [summary, invoices, bills, plannedList, boxes, ym]);
+  const mandatory = mandatoryTotal(bills);
   const donut = summary.byCategory.map((c) => ({ label: c.category, value: c.total, color: catColor(c.category) }));
 
   const grouped = useMemo(() => {
@@ -306,14 +334,18 @@ export function Gastos() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Card>
           <div className="text-[13px] text-muted">Renda do mês</div>
-          <div className="text-[22px] font-bold tabular mt-1" data-private="">
-            {brl(summary.income + summary.extraIncome)}
+          <div className="text-[22px] font-bold tabular mt-1" data-private="" data-testid="income-month">
+            {brl(summary.income)}
           </div>
-          {summary.extraIncome > 0 && (
-            <div className="text-[12.5px] text-success">
-              <Private>+ {brl(summary.extraIncome)}</Private> extras
-            </div>
-          )}
+          <div className="text-[12.5px] text-muted">
+            {summary.extraIncome > 0 ? (
+              <>
+                salário · <Private className="text-success">+ {brl(summary.extraIncome)}</Private> extras à parte
+              </>
+            ) : (
+              "salário e renda fixa"
+            )}
+          </div>
         </Card>
         <Card>
           <div className="text-[13px] text-muted">Comprometido</div>
@@ -344,7 +376,7 @@ export function Gastos() {
         </Card>
         <Card>
           <div className="text-[13px] text-muted">Disponível para gastar</div>
-          <div className={clsx("text-[22px] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="">
+          <div className={clsx("text-[22px] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="" data-testid="available-month">
             {brl(budget.available)}
           </div>
           <div className="text-[12.5px] text-muted">
@@ -366,6 +398,18 @@ export function Gastos() {
         </Card>
       </div>
 
+      <div className="mb-4 rounded-2xl bg-primary/[0.06] px-4 py-3 text-[13px] text-muted">
+        <span className="text-fg font-medium">Salário não é saldo livre.</span> Disponível = salário − gastos obrigatórios
+        {mandatory > 0 && (
+          <>
+            {" "}
+            (<Private>{brl(mandatory)}</Private>)
+          </>
+        )}{" "}
+        − contas − faturas − caixinhas − o que já gastou. Entradas extras ficam à parte.
+      </div>
+
+      <MonthCalendarCard ym={ym} />
       <AccountsCard ym={ym} summary={summary} />
       <InvoicesCard ym={ym} summary={summary} />
       <BillsCard ym={ym} />

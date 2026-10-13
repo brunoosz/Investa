@@ -2,6 +2,7 @@
 // desktop (processo principal do Electron) e no celular (dentro do WebView do
 // Capacitor). Tudo o que depende do sistema passa por esta interface.
 import type { AppNotification, UserSettings } from "@shared/types";
+import type { ScheduledNotice } from "@shared/insight";
 
 /** Arquivos pequenos do app. A leitura é síncrona: no celular os arquivos são carregados antes de abrir o motor. */
 export interface FileStore {
@@ -20,6 +21,24 @@ export interface AiFileConfig {
   groqApiKey?: string;
   model?: string;
   baseUrl?: string;
+}
+
+/** O que o trabalho em segundo plano do Android precisa para a análise diária. */
+export interface BackgroundConfig {
+  enabled: boolean;
+  /** Notificações do sistema ligadas. */
+  notify: boolean;
+  hour: number;
+  owner: boolean;
+  groqKey?: string;
+  groqModels: string[];
+  nvidiaKey?: string;
+  nvidiaModels: string[];
+  nvidiaBaseUrl: string;
+  systemPrompt: string;
+  profile: string;
+  /** Dia (AAAA-MM-DD) cuja análise já foi feita em outro lugar. */
+  doneDate?: string;
 }
 
 export interface ReportFile {
@@ -51,6 +70,10 @@ export interface Platform {
   /** Mostra a notificação do sistema, se fizer sentido na plataforma. */
   notify?(n: AppNotification, settings: UserSettings): void;
   aiFileConfig?(): AiFileConfig | null;
+  /** Celular: agenda no sistema os avisos com hora marcada (chegam com o app fechado). */
+  scheduleNotices?(items: ScheduledNotice[]): void;
+  /** Celular: configura a análise diária que o Android faz em segundo plano. */
+  configureBackground?(cfg: BackgroundConfig): void;
   saveReport(report: ReportFile): Promise<{ path: string } | null>;
   openExternal(url: string): void;
   setTheme?(theme: "dark" | "light"): void;

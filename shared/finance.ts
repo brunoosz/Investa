@@ -1,4 +1,5 @@
-import type { AllocationType, Expense, FixedType, Goal, GoalAllocation, Indicators, Invoice, Bill, PlannedExpense, PlanStep, RateType, SavingBox } from "./types";
+import type { AllocationType, BankAccount, Expense, FinancialProfile, FixedType, Goal, GoalAllocation, IncomeKind, Indicators, Invoice, Bill, PlannedExpense, PlanStep, RateType, SavingBox } from "./types";
+import { institutionLabel } from "./banks";
 
 export interface Rates {
   cdi: number;
@@ -216,9 +217,13 @@ export function round2(v: number): number {
 
 export interface MonthSummary {
   ym: string;
+  /** Renda fixa do mês (salário + outra renda fixa do perfil). Nunca inclui entradas avulsas. */
   income: number;
+  /** Entradas avulsas lançadas no mês (freela, presente, venda…), à parte da renda. */
   extraIncome: number;
+  extrasByKind: { kind: IncomeKind; total: number }[];
   spent: number;
+  /** Renda fixa − gastos (as entradas avulsas ficam de fora). */
   balance: number;
   byCategory: { category: string; total: number }[];
   byInstitution: { institution: string; total: number }[];
@@ -233,6 +238,8 @@ export function summarizeMonth(expenses: Expense[], ym: string, salary: number, 
   const spent = round2(spentEntries.reduce((s, e) => s + e.amount, 0));
   const extraIncome = round2(incomeEntries.reduce((s, e) => s + e.amount, 0));
   const income = round2(salary + extra);
+  const kinds = new Map<IncomeKind, number>();
+  for (const e of incomeEntries) kinds.set(incomeKindOf(e.expense), (kinds.get(incomeKindOf(e.expense)) ?? 0) + e.amount);
   const cat = new Map<string, number>();
   const inst = new Map<string, number>();
   for (const e of spentEntries) {
@@ -251,8 +258,9 @@ export function summarizeMonth(expenses: Expense[], ym: string, salary: number, 
     ym,
     income,
     extraIncome,
+    extrasByKind: [...kinds.entries()].map(([kind, total]) => ({ kind, total: round2(total) })).sort((a, b) => b.total - a.total),
     spent,
-    balance: round2(income + extraIncome - spent),
+    balance: round2(income - spent),
     byCategory: [...cat.entries()].map(([category, total]) => ({ category, total: round2(total) })).sort((a, b) => b.total - a.total),
     byInstitution: [...inst.entries()].map(([institution, total]) => ({ institution, total: round2(total) })).sort((a, b) => b.total - a.total),
     entries,
@@ -261,8 +269,10 @@ export function summarizeMonth(expenses: Expense[], ym: string, salary: number, 
 }
 
 export interface MonthBudget {
-  /** Salário + renda extra do perfil + entradas extras lançadas. */
+  /** Salário + outra renda fixa do perfil. Entradas avulsas ficam em `extras`. */
   income: number;
+  /** Entradas avulsas do mês: aparecem à parte e não entram no disponível. */
+  extras: number;
   /** Gastos no débito, Pix, dinheiro, boleto... e no crédito de bancos sem fatura informada. */
   spentDirect: number;
   /** Soma das faturas do mês (pagas e em aberto). */
@@ -402,11 +412,11 @@ export function monthBudget(summary: MonthSummary, invoices: Invoice[], ym: stri
   );
   const invoiceTotal = round2(monthInvoices.reduce((s, i) => s + i.amount, 0));
   const invoicesOpen = round2(monthInvoices.filter((i) => !i.paid).reduce((s, i) => s + i.amount, 0));
-  const income = round2(summary.income + summary.extraIncome);
+  const income = round2(summary.income);
   // Contas fixas ainda não pagas já estão comprometidas (as pagas viram lançamento).
   const committed = round2(spentDirect + invoiceTotal + pendingBills);
   const available = round2(income - committed);
-  const out: MonthBudget = { income, spentDirect, invoices: invoiceTotal, invoicesOpen, pendingBills: round2(pendingBills), committed, available, ratio: income > 0 ? committed / income : committed > 0 ? 1 : 0 };
+  const out: MonthBudget = { income, extras: summary.extraIncome, spentDirect, invoices: invoiceTotal, invoicesOpen, pendingBills: round2(pendingBills), committed, available, ratio: income > 0 ? committed / income : committed > 0 ? 1 : 0 };
   const cur = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   if (ym === cur) {
     const last = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -431,7 +441,135 @@ export const EXPENSE_CATEGORIES = [
   "Compras", "Assinaturas", "Contas", "Viagem", "Pets", "Presentes", "Outros",
 ];
 
-export const INCOME_CATEGORIES = ["Salário extra", "Freelance", "Vendas", "Rendimentos", "Reembolso", "Outros"];
+/** Tipos de entrada avulsa. A categoria do lançamento é o rótulo do tipo. */
+export const INCOME_KINDS: { id: IncomeKind; label: string; hint: string }[] = [
+  { id: "trabalho", label: "Trabalho", hint: "Freela, bico, serviço, hora extra" },
+  { id: "presente", label: "Presente/família", hint: "Dinheiro de parentes, aniversário" },
+  { id: "venda", label: "Venda", hint: "Vendeu algo seu" },
+  { id: "reembolso", label: "Reembolso", hint: "Devolveram um valor que você pagou" },
+  { id: "outro", label: "Outro", hint: "Qualquer outra entrada" },
+];
+
+export const INCOME_CATEGORIES = INCOME_KINDS.map((k) => k.label);
+
+const LEGACY_KIND: Record<string, IncomeKind> = { "Salário extra": "trabalho", Freelance: "trabalho", Vendas: "venda", Reembolso: "reembolso", Presentes: "presente" };
+
+/** Tipo de uma entrada avulsa (lançamentos antigos usam a categoria). */
+export function incomeKindOf(e: Pick<Expense, "incomeKind" | "category">): IncomeKind {
+  return e.incomeKind ?? INCOME_KINDS.find((k) => k.label === e.category)?.id ?? LEGACY_KIND[e.category] ?? "outro";
+}
+
+export function incomeKindLabel(k: IncomeKind): string {
+  return INCOME_KINDS.find((x) => x.id === k)?.label ?? "Outro";
+}
+
+/** Sugestões de gastos obrigatórios (viram contas fixas marcadas como obrigatórias). */
+export const MANDATORY_PRESETS: { name: string; category: string; dueDay: number }[] = [
+  { name: "Transporte público", category: "Transporte", dueDay: 1 },
+  { name: "Aluguel", category: "Moradia", dueDay: 5 },
+  { name: "Luz", category: "Contas", dueDay: 10 },
+  { name: "Água", category: "Contas", dueDay: 10 },
+  { name: "Internet", category: "Contas", dueDay: 15 },
+  { name: "Celular", category: "Contas", dueDay: 15 },
+  { name: "Faculdade/escola", category: "Educação", dueDay: 10 },
+];
+
+/** Total dos gastos obrigatórios ativos (pagos ou não) num mês. */
+export function mandatoryTotal(bills: Bill[]): number {
+  return round2(bills.filter((b) => b.active && b.mandatory).reduce((s, b) => s + b.amount, 0));
+}
+
+export interface CardUsage {
+  accountId: string;
+  institution: string;
+  limit: number;
+  /** Faturas em aberto + parcelas que ainda vão cair (sem fatura informada). */
+  used: number;
+  available: number;
+  closingDay?: number;
+  dueDay?: number;
+}
+
+/**
+ * Quanto do limite de cada cartão está tomado. Em cada mês, a fatura informada
+ * vale no lugar dos lançamentos no crédito daquele banco (não soma duas vezes);
+ * faturas antigas em aberto também ocupam o limite.
+ */
+export function cardsUsage(accounts: BankAccount[], invoices: Invoice[], expenses: Expense[], today = new Date()): CardUsage[] {
+  const cur = currentYm(today);
+  const out: CardUsage[] = [];
+  for (const a of accounts) {
+    if (!a.card || !(a.card.limit > 0)) continue;
+    const inst = a.institution;
+    const mine = invoices.filter((i) => i.institution === inst);
+    let used = mine.filter((i) => !i.paid && i.ym < cur).reduce((s, i) => s + i.amount, 0);
+    const credit = expenses.filter((e) => e.type === "despesa" && e.method === "credito" && e.institution === inst);
+    for (let k = 0; k < 24; k++) {
+      const ym = addMonthsYm(cur, k);
+      const inv = mine.find((i) => i.ym === ym);
+      if (inv) used += inv.paid ? 0 : inv.amount;
+      else used += entriesForMonth(credit, ym).reduce((s, e) => s + e.amount, 0);
+    }
+    used = round2(used);
+    out.push({ accountId: a.id, institution: inst, limit: a.card.limit, used, available: round2(a.card.limit - used), closingDay: a.card.closingDay, dueDay: a.card.dueDay });
+  }
+  return out;
+}
+
+function dayIn(ym: string, day: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${ym}-${String(Math.min(Math.max(1, day), last)).padStart(2, "0")}`;
+}
+
+export interface CalendarItem {
+  date: string;
+  kind: "salario" | "adiantamento" | "conta" | "fatura";
+  label: string;
+  amount: number;
+  /** Entrada (true) ou saída. */
+  income: boolean;
+  done: boolean;
+  mandatory?: boolean;
+}
+
+/** O que entra e o que vence no mês, em ordem de data: salário, contas fixas e faturas. */
+export function monthCalendar(
+  profile: Pick<FinancialProfile, "salary" | "payDay" | "advanceDay" | "advanceAmount">,
+  bills: Bill[],
+  accounts: BankAccount[],
+  invoices: Invoice[],
+  ym: string,
+  today = new Date()
+): CalendarItem[] {
+  const out: CalendarItem[] = [];
+  const todayIso = localIsoDate(today);
+  const adv = profile.advanceDay && profile.advanceAmount ? Math.min(profile.advanceAmount, profile.salary) : 0;
+  if (adv > 0) {
+    const date = dayIn(ym, profile.advanceDay!);
+    out.push({ date, kind: "adiantamento", label: "Adiantamento do salário", amount: round2(adv), income: true, done: date < todayIso });
+  }
+  if (profile.payDay && profile.salary > 0) {
+    const date = dayIn(ym, profile.payDay);
+    out.push({ date, kind: "salario", label: adv > 0 ? "Resto do salário" : "Salário", amount: round2(profile.salary - adv), income: true, done: date < todayIso });
+  }
+  for (const b of bills) {
+    if (!b.active) continue;
+    out.push({ date: billDueDate(b, ym), kind: "conta", label: b.name, amount: b.amount, income: false, done: b.paid.includes(ym), mandatory: !!b.mandatory });
+  }
+  const seen = new Set<string>();
+  for (const i of invoices.filter((x) => x.ym === ym)) {
+    const day = i.dueDay ?? accounts.find((a) => a.institution === i.institution)?.card?.dueDay;
+    seen.add(i.institution);
+    if (!day) continue;
+    out.push({ date: dayIn(ym, day), kind: "fatura", label: `Fatura ${institutionLabel(i.institution)}`, amount: i.amount, income: false, done: i.paid });
+  }
+  for (const a of accounts) {
+    if (!a.card?.dueDay || seen.has(a.institution)) continue;
+    out.push({ date: dayIn(ym, a.card.dueDay), kind: "fatura", label: `Fatura ${institutionLabel(a.institution)}`, amount: 0, income: false, done: false });
+  }
+  return out.sort((x, y) => x.date.localeCompare(y.date) || Number(y.income) - Number(x.income));
+}
 
 export const PAYMENT_LABEL: Record<Expense["method"], string> = {
   pix: "Pix",

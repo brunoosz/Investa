@@ -21,6 +21,8 @@
     "electron:build:linux": "npm run build && electron-builder --linux",
     "smoke:data": "node scripts/build-electron.mjs && node dist-electron/smoke.js",
     "test:alerts": "node scripts/test-alerts.mjs",
+    "test:groq": "node scripts/test-groq.mjs",
+    "test:insight": "node scripts/test-insight.mjs",
     "check:plan": "node scripts/check-plan.mjs",
     "icons": "node scripts/make-icons.mjs",
     "media": "npm run build && node scripts/capture.mjs",

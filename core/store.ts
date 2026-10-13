@@ -1,4 +1,4 @@
-import type { AiLogEntry, AlertRuntimeState, AppNotification, PublicUser, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
+import type { AiLogEntry, AlertRuntimeState, DailyInsight, AppNotification, PublicUser, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
 import { defaultUserData } from "@shared/defaults";
 import type { FileStore } from "./platform";
 import type { CloudState } from "./cloud";
@@ -74,6 +74,8 @@ interface DBShape {
     appIcon?: "dark" | "light";
     cloud?: CloudState;
     aiLog?: AiLogEntry[];
+    /** Última análise diária da IA de cada conta, neste aparelho. */
+    insights?: Record<string, DailyInsight>;
   };
 }
 

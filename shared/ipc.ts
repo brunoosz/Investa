@@ -20,6 +20,8 @@ export const INVOKE_CHANNELS = [
   "voice:listen",
   "ai:logs",
   "ai:logs:clear",
+  "insight:get",
+  "insight:refresh",
   "backup:export",
   "backup:import",
   "data:getAll",
@@ -56,5 +58,5 @@ export const INVOKE_CHANNELS = [
 
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number];
 
-export const EVENT_CHANNELS = ["notifications:new", "ai:event", "navigate", "data:changed", "session:ended"] as const;
+export const EVENT_CHANNELS = ["notifications:new", "ai:event", "navigate", "data:changed", "session:ended", "insight:new"] as const;
 export type EventChannel = (typeof EVENT_CHANNELS)[number];

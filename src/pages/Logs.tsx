@@ -16,6 +16,7 @@ const EXPLAIN: Record<string, string> = {
   AI_NO_KEY: "Sem chave de IA. Coloque a chave da Groq ou da NVIDIA em Configurações → Inteligência Artificial.",
   AI_AUTH: "O provedor recusou a chave (401/403). Gere uma chave nova (console.groq.com ou build.nvidia.com) e cole em Configurações.",
   AI_RATE: "Limite de uso da conta grátis atingido (429). O app tenta outro modelo ou o outro provedor; se continuar, espere alguns minutos.",
+  AI_BLOCKED: "O firewall na frente do provedor recusou esta rede (403 em página HTML). O app tenta o outro provedor.",
   AI_MODEL: "O modelo foi desativado pelo provedor (404/410). O app usa outro só nesta resposta; a sua escolha continua salva.",
   AI_DOWN: "O servidor deu erro (5xx) ou recusou o pedido. O app tenta outro modelo.",
   AI_SLOW: "O modelo não respondeu no prazo. O app tenta outro modelo.",

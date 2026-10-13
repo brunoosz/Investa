@@ -21,6 +21,8 @@ import { SegmentedControl } from "@/components/ui/form";
 import { Chart, type HoverInfo, type SeriesSpec } from "@/components/charts/Chart";
 import { Donut, Legend } from "@/components/charts/small";
 import { AssetAvatar, ChangePill } from "@/components/market";
+import { NextDatesLine } from "@/components/MonthCalendar";
+import { BestActionCard } from "@/components/BestActionCard";
 
 function todayLabel(): string {
   const s = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
@@ -65,13 +67,14 @@ function WeekCard() {
       ) : (
         <div className="mt-3 text-[13px] text-muted">Nenhuma conta fixa vence nos próximos 7 dias.</div>
       )}
+      <NextDatesLine />
     </Card>
   );
 }
 
 /** Sem investimentos: o dinheiro de hoje vem do saldo dos bancos e do disponível do mês. */
 function MoneyTodayCard() {
-  const accounts = useUserData("accounts");
+  const accounts = useUserData("accounts").filter((a) => !a.cardOnly);
   const expenses = useUserData("expenses");
   const invoices = useUserData("invoices");
   const bills = useUserData("bills");
@@ -493,6 +496,7 @@ export function Inicio() {
       </div>
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4">
+        <BestActionCard />
         <WeekCard />
         <LearningCard />
         <GoalsCard />

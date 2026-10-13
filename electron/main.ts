@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { INVOKE_CHANNELS } from "@shared/ipc";
 import { Backend, safeExternalUrl } from "../core/backend";
-import { setBrowserFetch } from "../core/http";
+import { fallbackFetch, setBrowserFetch, setStreamFetch } from "../core/http";
 import type { AiFileConfig, FileStore, Platform } from "../core/platform";
 
 const isDev = process.argv.includes("--dev");
@@ -80,8 +80,11 @@ function aiFileConfig(dirs: string[]): AiFileConfig | null {
     const env = path.join(dir, ".env");
     try {
       if (fs.existsSync(env)) {
-        const m = /^\s*NVIDIA_API_KEY\s*=\s*"?([^"\r\n]+)"?/m.exec(fs.readFileSync(env, "utf8"));
-        if (m) return { nvidiaApiKey: m[1].trim() };
+        const text = fs.readFileSync(env, "utf8");
+        const read = (name: string) => new RegExp(`^\\s*${name}\\s*=\\s*"?([^"\\r\\n]+)"?`, "m").exec(text)?.[1].trim();
+        const nvidiaApiKey = read("NVIDIA_API_KEY");
+        const groqApiKey = read("GROQ_API_KEY");
+        if (nvidiaApiKey || groqApiKey) return { nvidiaApiKey, groqApiKey };
       }
     } catch {
       // ignora
@@ -306,6 +309,7 @@ app.on("second-instance", () => showWindow());
 
 app.whenReady().then(() => {
   setBrowserFetch((url, init) => net.fetch(url, init));
+  setStreamFetch(fallbackFetch((url, init) => fetch(url, init), (url, init) => net.fetch(url, init)));
   hardenSession();
   backend = new Backend(createPlatform());
   for (const channel of INVOKE_CHANNELS) {

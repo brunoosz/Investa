@@ -1,19 +1,22 @@
 // Todos os canais que a interface chama (window.investa.invoke). O Electron e
 // o app do celular criam este backend com o adaptador da sua plataforma.
-import type { AiChatRequest, AiEvent, AiMode, WealthAnswers, AppNotification, ApiResult, ChartRange, DealCheck, Holding, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
+import type { AiChatRequest, AiEvent, AiMode, WealthAnswers, AppNotification, DailyInsight, ApiResult, ChartRange, DealCheck, Holding, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
 import { USER_DATA_KEYS } from "@shared/types";
 import { pendingFor, currentYm, monthBudget, monthsUntil, parsePlanSteps, summarizeMonth } from "@shared/finance";
 import { compareProducts, explainPlan, planAllocation, planBrief, planMarket, planMonthlyFor, planPct, projectPlan } from "@shared/plan";
 import { modeInfo } from "@shared/ai";
+import { INSIGHT_SYSTEM_PROMPT, insightHour, insightNotification, isQuietHour, profileLine, upcomingNotices } from "@shared/insight";
 import type { Platform } from "./platform";
 import { Store } from "./store";
 import { AppError, AuthService, type NewUserInput } from "./auth";
-import { AiService, CHAT_MAX_TOKENS, targetLabel, type AiConfigPatch } from "./ai";
+import { AiService, CHAT_MAX_TOKENS, fillAiKeys, mergeAiCloud, targetLabel, type AiConfigPatch } from "./ai";
 import { AlertEngine } from "./engine";
+import { aiErrorSummary, generateDailyInsight } from "./insight";
+import { GROQ_MODELS } from "./models";
 import { getChart, getQuotes, search } from "./yahoo";
 import { getCopom, getIndicators, getIpcaHistory, getSelicHistory } from "./bcb";
 import { getTesouro } from "./tesouro";
-import { setCacheFiles } from "./http";
+import { nowInSaoPaulo, setCacheFiles, todayIsoSaoPaulo } from "./http";
 import { getNews } from "./news";
 import { getBanks } from "./banks";
 import { portfolioHistory } from "./portfolio";
@@ -28,6 +31,8 @@ const VALID_RANGES: ChartRange[] = ["1D", "5D", "1M", "6M", "1A", "5A", "MAX"];
 const MODES: AiMode[] = ["geral", "professor", "app", "financas", "mercado", "compras"];
 const PUBLIC_CHANNELS = new Set(["app:info", "auth:session", "auth:register", "auth:login", "auth:logout", "window:setTheme", "app:icon", "shell:openExternal"]);
 const SYNC_EVERY = 45_000;
+/** No máximo um aviso de erros da IA para o Dono a cada 30 minutos. */
+const AI_ALERT_EVERY = 30 * 60_000;
 
 /** Mensagem que quem não é Dono vê quando a IA falha. */
 const AI_UNAVAILABLE = "O Assistente não está disponível agora. Tente de novo em alguns minutos.";
@@ -81,6 +86,12 @@ export class Backend {
   private aiControllers = new Map<string, AbortController>();
   private handlers = new Map<string, Handler>();
   private catalogTimer: ReturnType<typeof setInterval> | null = null;
+  private choresTimer: ReturnType<typeof setInterval> | null = null;
+  private deviceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Erros da IA anteriores a isto já foram avisados (ou são de antes de abrir o app). */
+  private aiErrorsSince = new Date().toISOString();
+  private aiAlertAt = 0;
+  private insightTriedAt = 0;
 
   constructor(private platform: Platform) {
     setCacheFiles(platform.files);
@@ -92,6 +103,7 @@ export class Backend {
     // O motor mexeu nos dados (ex.: depósito automático das caixinhas): sobe para a nuvem e atualiza a tela.
     this.engine.onDataChanged = (userId, keys) => {
       this.cloud.schedulePush(userId, keys);
+      this.refreshDevice();
       if (userId === this.currentUserId) {
         const u = this.store.findUser(userId);
         this.platform.emit("data:changed", u ? this.store.toPublic(u) : null);
@@ -99,8 +111,10 @@ export class Backend {
     };
     // Avisos de outra conta deste aparelho (ex.: aviso aos Donos) sobem quando ela entrar.
     this.engine.onInboxChanged = (userId) => {
-      if (userId === this.currentUserId) this.cloud.schedulePush(userId, [INBOX_KEY]);
-      else if (this.cloud.enabled) this.cloud.markDirty(userId, [INBOX_KEY]);
+      if (userId === this.currentUserId) {
+        this.cloud.schedulePush(userId, [INBOX_KEY]);
+        this.refreshDevice();
+      } else if (this.cloud.enabled) this.cloud.markDirty(userId, [INBOX_KEY]);
     };
     this.ai.onModelChange = (from, to, reason) => this.notifyOwners(from, to, reason);
     this.register();
@@ -114,6 +128,117 @@ export class Backend {
     }, 2500);
     this.catalogTimer = setInterval(() => void this.ai.catalog().catch(() => undefined), 6 * 3600_000);
     if (this.cloud.enabled) this.syncTimer = setInterval(() => void this.sync(), SYNC_EVERY);
+    this.choresTimer = setInterval(() => {
+      this.checkAiErrors();
+      void this.dailyInsight();
+    }, 60_000);
+  }
+
+  /**
+   * Celular: reagenda no sistema os avisos com hora marcada e passa ao Android
+   * o que a análise diária em segundo plano precisa. Espera as mudanças pararem.
+   */
+  refreshDevice(): void {
+    if (!this.platform.scheduleNotices && !this.platform.configureBackground) return;
+    if (this.deviceTimer) clearTimeout(this.deviceTimer);
+    this.deviceTimer = setTimeout(() => {
+      this.deviceTimer = null;
+      const uid = this.currentUserId;
+      if (!uid) {
+        this.platform.scheduleNotices?.([]);
+        this.platform.configureBackground?.({ enabled: false, notify: false, hour: 9, owner: false, groqModels: [], nvidiaModels: [], nvidiaBaseUrl: "", systemPrompt: "", profile: "" });
+        return;
+      }
+      const settings = this.store.getData(uid, "settings");
+      const keys = this.store.engine(uid).keys;
+      this.platform.scheduleNotices?.(
+        upcomingNotices({ settings, alerts: this.store.getData(uid, "alerts"), bills: this.store.getData(uid, "bills"), invoices: this.store.getData(uid, "invoices") }, new Date(), keys)
+      );
+      const r = this.ai.resolve();
+      const today = todayIsoSaoPaulo();
+      this.platform.configureBackground?.({
+        enabled: settings.aiInsight !== false,
+        notify: settings.desktopNotifications !== false,
+        hour: insightHour(settings),
+        owner: this.isOwner(uid) && settings.ownerAiAlerts !== false,
+        groqKey: this.ai.groqKey() ?? undefined,
+        groqModels: GROQ_MODELS.map((m) => m.id).slice(0, 2),
+        nvidiaKey: r.key ?? undefined,
+        nvidiaModels: [r.model],
+        nvidiaBaseUrl: r.baseUrl,
+        systemPrompt: INSIGHT_SYSTEM_PROMPT,
+        profile: profileLine(this.store.getData(uid, "profile")),
+        doneDate: keys[`insight-${today}`] ? today : undefined,
+      });
+    }, 1500);
+  }
+
+  /** Dono: avisa quando a IA registra erros (resumo, no máximo a cada 30 minutos). */
+  private checkAiErrors(): void {
+    const uid = this.currentUserId;
+    if (!uid || !this.isOwner(uid) || this.store.getData(uid, "settings").ownerAiAlerts === false) return;
+    if (Date.now() - this.aiAlertAt < AI_ALERT_EVERY) return;
+    const summary = aiErrorSummary(this.store.app.aiLog ?? [], this.aiErrorsSince);
+    if (!summary) return;
+    this.aiErrorsSince = summary.newest;
+    this.aiAlertAt = Date.now();
+    this.engine.push(uid, { type: "sistema", tone: "negative", title: "A IA registrou erros", message: summary.message, link: "/logs" }, `ia-log-${summary.newest}`);
+  }
+
+  /** Análise diária da IA (uma por dia, depois da hora escolhida e fora das 22h–8h). */
+  private async dailyInsight(force = false): Promise<DailyInsight | null> {
+    const uid = this.currentUserId;
+    if (!uid || !this.engine.dataReady) return null;
+    const settings = this.store.getData(uid, "settings");
+    const hour = nowInSaoPaulo().getHours();
+    const today = todayIsoSaoPaulo();
+    const key = `insight-${today}`;
+    if (!force) {
+      if (settings.aiInsight === false || isQuietHour(hour) || hour < insightHour(settings)) return null;
+      if (this.store.engine(uid).keys[key] || this.store.app.insights?.[uid]?.date === today) return null;
+      if (Date.now() - this.insightTriedAt < 60 * 60_000) return null;
+    }
+    if (!this.ai.info(false).hasKey) return null;
+    this.insightTriedAt = Date.now();
+    try {
+      const insight = await generateDailyInsight({
+        complete: (messages) => this.ai.complete(messages, undefined, 400),
+        news: () => getNews(),
+        indicators: () => getIndicators(),
+        profile: this.store.getData(uid, "profile"),
+        date: today,
+      });
+      this.saveInsight(uid, insight);
+      return insight;
+    } catch {
+      return null;
+    }
+  }
+
+  private saveInsight(uid: string, insight: DailyInsight): void {
+    const current = this.store.app.insights?.[uid];
+    if (current && current.at >= insight.at) return;
+    this.store.app.insights = { ...this.store.app.insights, [uid]: insight };
+    this.store.save();
+    const n = insightNotification(insight);
+    // Vinda do Android, chega com o app aberto: entra na lista de avisos sem repetir na barra do sistema.
+    this.engine.push(uid, { type: "mercado", tone: "info", title: n.title, message: n.message, link: "/" }, `insight-${insight.date}`);
+    if (uid === this.currentUserId) this.platform.emit("insight:new", insight);
+  }
+
+  /** Celular: traz a análise e os erros do trabalho em segundo plano do Android. */
+  importBackground(r: { insight?: DailyInsight | null; error?: { at: string; code: string; message: string; model?: string } | null }): void {
+    const uid = this.currentUserId;
+    if (!uid) return;
+    if (r.insight?.date && r.insight.title) this.saveInsight(uid, r.insight);
+    const e = r.error;
+    if (e?.at && !(this.store.app.aiLog ?? []).some((x) => x.at === e.at && x.code === e.code)) {
+      const list = this.store.app.aiLog ?? [];
+      this.store.app.aiLog = [{ at: e.at, kind: "erro" as const, model: e.model ?? "segundo plano", code: e.code, message: `Análise diária: ${e.message}` }, ...list]
+        .sort((a, b) => b.at.localeCompare(a.at))
+        .slice(0, 300);
+      this.store.save();
+    }
   }
 
   /** Sincroniza a conta aberta com a nuvem (dados, cargo e configuração da IA). */
@@ -129,6 +254,7 @@ export class Backend {
         this.platform.emit("session:ended", "Esta conta foi bloqueada pelo Dono do aplicativo.");
       } else if (changed && userId === this.currentUserId) {
         this.platform.emit("data:changed", u ? this.store.toPublic(u) : null);
+        this.refreshDevice();
       }
     } catch (err) {
       if (err instanceof AppError && err.code === "USER_NOT_FOUND") {
@@ -162,8 +288,11 @@ export class Backend {
       // Mudança do Dono feita sem internet: sobe, a não ser que outro aparelho tenha mudado depois.
       const cloud = await this.cloud.pullAi(userId, true);
       if (this.cloud.aiPending !== pending) return;
-      if (cloud?.changedAt && (!pending.changedAt || cloud.changedAt > pending.changedAt)) this.ai.applyCloud(cloud);
-      else await this.cloud.pushAi(userId, pending);
+      if (cloud?.changedAt && (!pending.changedAt || cloud.changedAt > pending.changedAt)) {
+        this.ai.applyCloud(cloud);
+        const keys = fillAiKeys(cloud, pending);
+        if (keys) await this.cloud.pushAi(userId, keys);
+      } else await this.cloud.pushAi(userId, mergeAiCloud(cloud, pending));
       if (this.cloud.aiPending === pending) this.cloud.aiPending = undefined;
       return;
     }
@@ -174,8 +303,8 @@ export class Backend {
     if (this.ai.version !== version || this.cloud.aiPending) return;
     if (ai) this.ai.applyCloud(ai);
     // A nuvem ainda não tem a chave (colocada antes da nuvem ou por uma versão antiga do app): o Dono envia a dele.
-    const mine = this.ai.cloudConfig();
-    if (ai !== null && this.isOwner(userId) && ((mine.apiKey && !ai.apiKey) || (mine.groqKey && !ai.groqKey))) await this.cloud.pushAi(userId, mine);
+    const keys = ai !== null && this.isOwner(userId) ? fillAiKeys(ai, this.ai.cloudConfig()) : null;
+    if (keys) await this.cloud.pushAi(userId, keys);
   }
 
   private endSession(): void {
@@ -186,11 +315,13 @@ export class Backend {
     this.engine.stop();
     for (const c of this.aiControllers.values()) c.abort();
     this.aiControllers.clear();
+    this.refreshDevice();
   }
 
   stop(): void {
     if (this.catalogTimer) clearInterval(this.catalogTimer);
     if (this.syncTimer) clearInterval(this.syncTimer);
+    if (this.choresTimer) clearInterval(this.choresTimer);
     if (this.currentUserId) void this.cloud.push(this.currentUserId).catch(() => undefined);
     this.engine.stop();
     this.store.flush();
@@ -243,6 +374,7 @@ export class Backend {
     // Com a nuvem, o motor só mexe em dados (caixinhas) depois da primeira sincronização.
     this.engine.dataReady = !this.cloud.enabled;
     this.engine.start(userId);
+    this.refreshDevice();
   }
 
   private onNotification(userId: string, n: AppNotification): void {
@@ -436,6 +568,7 @@ export class Backend {
       this.store.setData(this.uid(), a.key, a.value);
       this.cloud.schedulePush(this.uid(), [a.key]);
       if (a.key === "alerts" || a.key === "portfolio" || a.key === "settings" || a.key === "invoices" || a.key === "bills" || a.key === "boxes") this.engine.runNow();
+      if (a.key === "alerts" || a.key === "settings" || a.key === "invoices" || a.key === "bills" || a.key === "profile") this.refreshDevice();
       return true;
     });
 
@@ -486,17 +619,24 @@ export class Backend {
       if (this.cloud.enabled) {
         // A configuração vale para todas as contas, em qualquer aparelho. Se estiver sem
         // internet, fica pendente e sobe na próxima sincronização.
-        const payload = this.ai.cloudConfig();
+        // Sobe só o que mudou, por cima da versão da nuvem: a chave da Groq salva em
+        // outro aparelho não some quando este salva a da NVIDIA.
+        const payload = mergeAiCloud(this.cloud.aiPending, this.ai.cloudConfig(a));
+        const userId = this.uid();
         this.cloud.aiPending = payload;
         void this.cloud
-          .pushAi(this.uid(), payload)
+          .pullAi(userId, true)
+          .then((cloud) => this.cloud.pushAi(userId, mergeAiCloud(cloud, payload)))
           .then(() => {
             if (this.cloud.aiPending === payload) this.cloud.aiPending = undefined;
           })
           .catch(() => undefined);
       }
+      this.refreshDevice();
       return this.ai.info(true);
     });
+    this.on("insight:get", () => this.store.app.insights?.[this.uid()] ?? null);
+    this.on("insight:refresh", () => this.dailyInsight(true));
     this.on("ai:logs", () => {
       this.requireOwner();
       return this.store.app.aiLog ?? [];

@@ -3,7 +3,7 @@ import { Briefcase, Car, GraduationCap, House, Landmark, Plane, PiggyBank, Shiel
 import clsx from "clsx";
 import type { Experience, FinancialProfile, RiskProfile } from "@shared/types";
 import { brl } from "@/lib/format";
-import { Field, MoneyInput, SegmentedControl } from "@/components/ui/form";
+import { DayInput, Field, MoneyInput, SegmentedControl } from "@/components/ui/form";
 
 export const GOAL_OPTIONS = [
   { id: "reserva", label: "Montar minha reserva", icon: Shield },
@@ -34,9 +34,20 @@ export function IncomeFields({ value, onChange }: { value: FinancialProfile; onC
       <Field label="Salário / renda líquida mensal" hint="O valor que cai na conta, já com descontos.">
         <MoneyInput value={value.salary} onChange={(v) => onChange({ ...value, salary: v })} />
       </Field>
-      <Field label="Renda extra mensal (opcional)" hint="Freelas, aluguéis, bicos…">
+      <Field label="Outra renda fixa por mês (opcional)" hint="Só o que entra todo mês, como um aluguel. Dinheiro avulso vai em “Recebi dinheiro”.">
         <MoneyInput value={value.extraIncome} onChange={(v) => onChange({ ...value, extraIncome: v })} />
       </Field>
+      <Field label="Dia do pagamento" hint="Dia em que o salário cai na conta.">
+        <DayInput value={value.payDay} onChange={(v) => onChange({ ...value, payDay: v })} placeholder="Ex.: 5" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Adiantamento: dia" hint="Se recebe em duas vezes.">
+          <DayInput value={value.advanceDay} onChange={(v) => onChange({ ...value, advanceDay: v })} placeholder="Ex.: 20" />
+        </Field>
+        <Field label="Valor do adiantamento">
+          <MoneyInput value={value.advanceAmount ?? 0} onChange={(v) => onChange({ ...value, advanceAmount: v || undefined })} />
+        </Field>
+      </div>
     </div>
   );
 }

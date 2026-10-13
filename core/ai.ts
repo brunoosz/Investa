@@ -1,4 +1,4 @@
-import type { AiCatalog, AiConfigInfo, AiLogEntry, AiProvider } from "@shared/types";
+import type { AiCatalog, AiConfigInfo, AiLogEntry, AiProvider, AiProviderHealth } from "@shared/types";
 import type { Store } from "./store";
 import type { Platform } from "./platform";
 import type { AiCloudConfig } from "./cloud";
@@ -295,12 +295,34 @@ export class ThinkFilter {
   }
 }
 
-function friendlyError(status: number, body: string, provider: AiProvider): AppError {
-  return Object.assign(friendlyBase(status, body, provider), { status, detail: body.slice(0, 400) });
+export const providerName = (provider: AiProvider) => (provider === "groq" ? "Groq" : "NVIDIA");
+const providerOf = (id: string): AiProvider => (id.startsWith("groq:") ? "groq" : "nvidia");
+
+/** O que o provedor disse, numa linha: "Groq: 401 Invalid API Key". */
+export function providerLine(provider: AiProvider, status: number, body: string): string {
+  let msg = body;
+  try {
+    const j = JSON.parse(body) as { error?: { message?: string } | string; message?: string; detail?: string };
+    msg = (typeof j.error === "string" ? j.error : j.error?.message) ?? j.message ?? j.detail ?? body;
+  } catch {
+    // corpo em texto ou HTML
+  }
+  msg = msg.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+  return `${providerName(provider)}: ${status}${msg ? ` ${msg}` : ""}`;
+}
+
+type ProviderError = AppError & { status?: number; detail?: string; line?: string };
+
+function friendlyError(status: number, body: string, provider: AiProvider): ProviderError {
+  return Object.assign(friendlyBase(status, body, provider), { status, detail: body.slice(0, 400), line: providerLine(provider, status, body) });
 }
 
 function friendlyBase(status: number, body: string, provider: AiProvider): AppError {
-  const name = provider === "groq" ? "Groq" : "NVIDIA";
+  const name = providerName(provider);
+  // 403 em HTML vem do firewall (Cloudflare) na frente da API, não da chave.
+  if (status === 403 && /<html|error code: 10\d\d|cloudflare/i.test(body)) {
+    return new AppError("AI_BLOCKED", `A ${name} recusou a conexão desta rede (403). Tente outra internet ou use o outro provedor.`);
+  }
   if (status === 401 || status === 403) return new AppError("AI_AUTH", `Chave da ${name} inválida ou sem permissão. Confira em Configurações → Inteligência Artificial.`);
   if (status === 404 || status === 410 || /model_decommissioned|model_not_found|does not exist/i.test(body)) {
     return new AppError("AI_MODEL", "Nenhum modelo de IA disponível respondeu. Atualize a lista em Configurações → Inteligência Artificial.");
@@ -309,8 +331,9 @@ function friendlyBase(status: number, body: string, provider: AiProvider): AppEr
   if (status === 429) return new AppError("AI_RATE", "Limite de uso da API atingido. Aguarde alguns instantes e tente de novo.");
   if (status >= 500) return new AppError("AI_DOWN", "O serviço de IA está instável agora. Tente novamente em instantes.");
   // 400/422: o modelo não aceitou algo do pedido; trata como fora do ar e tenta outro.
-  if (status === 400 || status === 422) return new AppError("AI_DOWN", `Erro da IA (${status}): ${body.slice(0, 200)}`);
-  return new AppError("AI_ERROR", `Erro da IA (${status}): ${body.slice(0, 200)}`);
+  const said = providerLine(provider, status, body);
+  if (status === 400 || status === 422) return new AppError("AI_DOWN", `Erro da IA (${said})`);
+  return new AppError("AI_ERROR", `Erro da IA (${said})`);
 }
 
 export class AiService {
@@ -400,10 +423,10 @@ export class AiService {
     return ready.length ? ready : list((id) => retired.has(id));
   }
 
-  private groqModels(): string[] {
-    const retired = new Set(this.stored.retired ?? []);
-    const cooling = new Set(this.cooling());
-    const ids = this.stored.groqCatalog?.ids;
+  /** Com `health` false (teste de uma chave nova), ignora as falhas da chave anterior. */
+  private groqModels(ids = this.stored.groqCatalog?.ids, health = true): string[] {
+    const retired = new Set(health ? this.stored.retired ?? [] : []);
+    const cooling = new Set(health ? this.cooling() : []);
     const choice = this.stored.groqModel || "auto";
     const known = groqChatModels(ids);
     const list = (skip: (id: string) => boolean) => [...new Set([...(choice !== "auto" ? [choice] : []), ...known])].filter((id) => !skip(`groq:${id}`));
@@ -418,7 +441,7 @@ export class AiService {
     const nvidia: Target[] =
       r.key && only !== "groq" ? this.nvidiaModels(r.choice).slice(0, 3).map((model) => ({ provider: "nvidia", model, key: r.key!, baseUrl: r.baseUrl, id: model })) : [];
     const fast: Target[] =
-      groq && only !== "nvidia" ? this.groqModels().slice(0, 2).map((model) => ({ provider: "groq", model, key: groq, baseUrl: GROQ_BASE_URL, id: `groq:${model}` })) : [];
+      groq && only !== "nvidia" ? this.groqModels().slice(0, 3).map((model) => ({ provider: "groq", model, key: groq, baseUrl: GROQ_BASE_URL, id: `groq:${model}` })) : [];
     return (this.primary() === "nvidia" ? [...nvidia, ...fast] : [...fast, ...nvidia]).slice(0, MAX_TARGETS);
   }
 
@@ -444,10 +467,20 @@ export class AiService {
       groqPreview: groq ? preview(groq, 4) : undefined,
       groqChoice: this.stored.groqModel || "auto",
       primary: this.primary(),
+      lastUsedLabel: this.stored.lastUsed ? targetLabel(this.stored.lastUsed) : undefined,
+      providers: { groq: this.health("groq"), nvidia: this.health("nvidia") },
       hasSearch: true,
       searchProvider: search ? searchProvider(search) : undefined,
       searchPreview: search ? preview(search, 5) : undefined,
     };
+  }
+
+  /** Última resposta boa e último erro de cada provedor, tirados do log deste aparelho. */
+  private health(provider: AiProvider): AiProviderHealth {
+    const log = (this.store.app.aiLog ?? []).filter((l) => l.model !== "-" && providerOf(l.model) === provider);
+    const ok = log.find((l) => l.kind === "ok");
+    const err = log.find((l) => l.kind === "erro");
+    return { okAt: ok?.at, error: err ? { at: err.at, message: err.message ?? err.code ?? "Falhou" } : undefined };
   }
 
   /** Mudança feita pelo Dono (ou trazida da nuvem, com a data de lá). */
@@ -463,6 +496,7 @@ export class AiService {
       // Chave nova: a lista de modelos pode ser outra.
       delete current.catalog;
       current.retired = (current.retired ?? []).filter((id) => id.startsWith("groq:"));
+      current.cooldown = Object.fromEntries(Object.entries(current.cooldown ?? {}).filter(([id]) => id.startsWith("groq:")));
     }
     if (patch.groqKey === null || patch.groqKey === "") {
       delete current.groqKeyEnc;
@@ -472,7 +506,10 @@ export class AiService {
       current.groqKeyEnc = data;
       current.groqKeyMode = mode;
       delete current.groqCatalog;
+      // As falhas da chave anterior não valem para a nova.
       current.retired = (current.retired ?? []).filter((id) => !id.startsWith("groq:"));
+      current.cooldown = Object.fromEntries(Object.entries(current.cooldown ?? {}).filter(([id]) => !id.startsWith("groq:")));
+      for (const id of [...this.plain]) if (id.startsWith("groq:")) this.plain.delete(id);
     }
     if (patch.searchKey === null || patch.searchKey === "") {
       delete current.searchKeyEnc;
@@ -492,20 +529,33 @@ export class AiService {
     this.store.save();
   }
 
-  /** O que sobe para a nuvem (as chaves vindas de arquivo ou variável de ambiente ficam só neste aparelho). */
-  cloudConfig(): AiCloudConfig {
+  /**
+   * O que sobe para a nuvem. Com `patch`, só o que o Dono acabou de mudar: um
+   * aparelho que ainda não recebeu a chave da Groq não pode apagá-la da nuvem
+   * ao salvar a da NVIDIA (e vice-versa). As chaves vindas de arquivo ou
+   * variável de ambiente ficam só neste aparelho.
+   */
+  cloudConfig(patch?: AiConfigPatch): AiCloudConfig {
     const r = this.resolve();
     const s = this.stored;
-    return {
-      apiKey: r.source === "app" ? r.key : null,
+    const groq = this.storedGroqKey();
+    const full: AiCloudConfig = {
+      apiKey: r.source === "app" ? r.key : r.key ? undefined : null,
       model: r.choice,
       baseUrl: s.baseUrl ?? "",
       searchKey: this.searchKey(),
-      groqKey: this.storedGroqKey(),
+      groqKey: groq ?? (this.groqKey() ? undefined : null),
       groqModel: s.groqModel || "auto",
       primary: s.primary,
       changedAt: s.changedAt,
     };
+    if (!patch) return full;
+    const out: AiCloudConfig = { changedAt: s.changedAt };
+    for (const k of ["apiKey", "model", "baseUrl", "searchKey", "groqKey", "groqModel", "primary"] as const) {
+      if (patch[k] === null || (patch[k] === "" && k.endsWith("Key"))) Object.assign(out, { [k]: null });
+      else if (patch[k] !== undefined && full[k] !== undefined) Object.assign(out, { [k]: full[k] });
+    }
+    return out;
   }
 
   /**
@@ -539,7 +589,12 @@ export class AiService {
   }
 
   private async listModels(baseUrl: string, key: string, provider: AiProvider): Promise<string[]> {
-    const res = await fetchWithTimeout(`${baseUrl}/models`, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" } }, 20_000);
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(`${baseUrl}/models`, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" } }, 20_000);
+    } catch {
+      throw Object.assign(new AppError("AI_OFFLINE", OFFLINE_MESSAGE), { line: `${providerName(provider)}: sem conexão` });
+    }
     if (!res.ok) throw friendlyError(res.status, await res.text().catch(() => ""), provider);
     const json = (await res.json()) as { data?: { id: string }[] };
     return (json.data ?? []).map((m) => m.id);
@@ -565,6 +620,7 @@ export class AiService {
         }
       } catch (err) {
         errors.push(err);
+        this.logFailure("lista de modelos", "nvidia", err);
       }
     }
     if (groq && (force || !fresh(this.stored.groqCatalog))) {
@@ -576,6 +632,7 @@ export class AiService {
         }
       } catch (err) {
         errors.push(err);
+        this.logFailure("groq:lista de modelos", "groq", err);
       }
     }
     // Pedido do Dono ("Atualizar lista"): mostra o erro. Nas buscas automáticas, segue com a lista guardada.
@@ -589,21 +646,39 @@ export class AiService {
     };
   }
 
-  /** Testa a conexão. Com `key`, testa uma chave nova antes de salvar. */
+  /**
+   * Testa a conexão. Com `key`, testa uma chave nova antes de salvar: primeiro
+   * pede a lista de modelos com ela (confere a chave e mostra quais existem na
+   * conta) e depois uma resposta curta. Tudo vai para o log do Dono.
+   */
   async test(provider?: AiProvider, key?: string): Promise<string> {
     const ask: ChatMessageIn[] = [{ role: "user", content: "Responda apenas: Conexão OK" }];
     let text = "";
     if (key && provider) {
+      const k = key.trim();
       const r = this.resolve();
-      const models = provider === "groq" ? this.groqModels().slice(0, 2) : this.nvidiaModels(r.choice).slice(0, 2);
+      const baseUrl = provider === "groq" ? GROQ_BASE_URL : r.baseUrl;
+      let ids: string[] | undefined;
+      try {
+        ids = await this.listModels(baseUrl, k, provider);
+      } catch (err) {
+        this.logFailure(provider === "groq" ? "groq:lista de modelos" : "lista de modelos", provider, err);
+        const code = (err as AppError).code;
+        if (code === "AI_AUTH" || code === "AI_BLOCKED" || code === "AI_OFFLINE") throw err;
+      }
+      const models = provider === "groq" ? this.groqModels(ids?.length ? ids : undefined, false).slice(0, 3) : this.nvidiaModels(r.choice).slice(0, 2);
       let last: unknown;
       for (const model of models) {
-        const t: Target = { provider, model, key: key.trim(), baseUrl: provider === "groq" ? GROQ_BASE_URL : r.baseUrl, id: provider === "groq" ? `groq:${model}` : model };
+        const t: Target = { provider, model, key: k, baseUrl, id: provider === "groq" ? `groq:${model}` : model };
+        const started = Date.now();
         try {
+          text = "";
           await this.request(t, ask, (d) => (text += d), undefined, 300);
+          this.log({ kind: "ok", model: t.id, ms: Date.now() - started, message: "Teste da chave: funcionou." });
           return `${text.trim().slice(0, 80) || "Conexão OK"} (${targetLabel(t.id)})`;
         } catch (err) {
           last = err;
+          this.logFailure(t.id, provider, err, Date.now() - started);
           if ((err as AppError).code === "AI_AUTH" || (err as AppError).code === "AI_OFFLINE") break;
         }
       }
@@ -642,6 +717,11 @@ export class AiService {
     list.unshift({ at: new Date().toISOString(), ...entry });
     this.store.app.aiLog = list.slice(0, 300);
     this.store.save();
+  }
+
+  private logFailure(model: string, provider: AiProvider, err: unknown, ms?: number): void {
+    const e = err as ProviderError;
+    this.log({ kind: "erro", model, code: e.code ?? "AI_OFFLINE", status: e.status, message: e.line ?? `${providerName(provider)}: ${e.message}`, detail: e.detail, ms });
   }
 
   /**
@@ -702,7 +782,6 @@ export class AiService {
           return;
         }
         const e = err instanceof AppError ? err : new AppError("AI_OFFLINE", OFFLINE_MESSAGE);
-        const extra = e as AppError & { status?: number; detail?: string };
         if (e.code === "AI_LANG") {
           langTries++;
           strict = true;
@@ -711,9 +790,9 @@ export class AiService {
           if (langTries === 1 || i === list.length - 1) i--;
           continue;
         }
-        this.log({ kind: "erro", model: t.id, code: e.code, status: extra.status, message: e.message, detail: extra.detail, ms: Date.now() - started });
+        this.logFailure(t.id, t.provider, e, Date.now() - started);
         // Chave recusada ou sem conexão com o provedor: os outros modelos dele também vão falhar.
-        if (e.code === "AI_AUTH" || e.code === "AI_OFFLINE") skip.add(t.provider);
+        if (e.code === "AI_AUTH" || e.code === "AI_OFFLINE" || e.code === "AI_BLOCKED") skip.add(t.provider);
         else if (e.code === "AI_RATE") {
           this.coolDown(t.id, RATE_COOLDOWN_MS);
           // Na NVIDIA o limite é da conta inteira.
@@ -934,4 +1013,21 @@ export class AiService {
       signal?.removeEventListener("abort", onAbort);
     }
   }
+}
+
+/** Junta uma mudança à configuração da nuvem: só os campos que vieram na mudança são trocados. */
+export function mergeAiCloud(base: AiCloudConfig | null | undefined, change: AiCloudConfig): AiCloudConfig {
+  const out: AiCloudConfig = { ...(base ?? {}) };
+  for (const [k, v] of Object.entries(change)) if (v !== undefined) Object.assign(out, { [k]: v });
+  return out;
+}
+
+/** Completa a nuvem com as chaves que só este aparelho tem; null quando não falta nenhuma. */
+export function fillAiKeys(cloud: AiCloudConfig | null | undefined, mine: AiCloudConfig): AiCloudConfig | null {
+  const missing = (["apiKey", "groqKey", "searchKey"] as const).filter((k) => mine[k] && !cloud?.[k]);
+  if (!missing.length) return null;
+  const out: AiCloudConfig = { ...(cloud ?? {}) };
+  for (const k of missing) out[k] = mine[k];
+  if (!out.changedAt) out.changedAt = mine.changedAt;
+  return out;
 }

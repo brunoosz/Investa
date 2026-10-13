@@ -62,6 +62,30 @@ const BROWSER_HOSTS = new Set(["olinda.bcb.gov.br", "www.tesourodireto.com.br", 
 /** Lojas: a rede do Chromium passa por mais bloqueios anti-robô do que a do Node. */
 const STORE_HOSTS = /(^|\.)(mercadolivre\.com\.br|mercadolibre\.com|meli\.la|amazon\.com\.br|amzn\.to|a\.co|shopee\.com\.br|aliexpress\.com|kabum\.com\.br|magazineluiza\.com\.br|epicgames\.com)$/i;
 
+/** Servidores da IA: no PC, se a rede do Node falhar, tentam de novo pela do Chromium. */
+const AI_HOSTS = /(^|\.)(api\.groq\.com|api\.nvidia\.com)$/i;
+
+/**
+ * Usa `primary` e, se ele não conseguir conectar (proxy do Windows, antivírus)
+ * ou se um firewall devolver a página de bloqueio (403 em HTML), tenta `backup`.
+ */
+export function fallbackFetch(primary: FetchImpl, backup: FetchImpl): FetchImpl {
+  return async (url, init) => {
+    let res: Response;
+    try {
+      res = await primary(url, init);
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      return backup(url, init);
+    }
+    if (res.status === 403 && /text\/html/i.test(res.headers.get("content-type") ?? "")) {
+      void res.body?.cancel().catch(() => undefined);
+      return backup(url, init);
+    }
+    return res;
+  };
+}
+
 /** No app desktop, usa a pilha de rede do Chromium para servidores que bloqueiam clientes que não são navegadores. */
 export function setBrowserFetch(fn: FetchImpl): void {
   browserFetch = fn;
@@ -71,7 +95,8 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, time
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const host = new URL(url).host;
-  const impl: FetchImpl = browserFetch && (BROWSER_HOSTS.has(host) || STORE_HOSTS.test(host)) ? browserFetch : (u, i) => fetch(u, i);
+  const node: FetchImpl = (u, i) => fetch(u, i);
+  const impl: FetchImpl = !browserFetch ? node : BROWSER_HOSTS.has(host) || STORE_HOSTS.test(host) ? browserFetch : AI_HOSTS.test(host) ? fallbackFetch(node, browserFetch) : node;
   try {
     return await impl(url, {
       ...init,

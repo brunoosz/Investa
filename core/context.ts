@@ -1,7 +1,7 @@
 import type { AiMode, CreditRatesData, Indicators, Quote, UserDataMap } from "@shared/types";
 import { displaySymbol, LIQUID_UNIVERSE } from "@shared/catalog";
 import { institutionLabel } from "@shared/banks";
-import { addMonthsYm, annualRate, pendingFor, currentYm, monthBudget, projectGoal, ratesFromIndicators, summarizeMonth, ymLabel } from "@shared/finance";
+import { addMonthsYm, annualRate, cardsUsage, incomeKindLabel, incomeKindOf, mandatoryTotal, pendingFor, currentYm, monthBudget, projectGoal, ratesFromIndicators, summarizeMonth, ymLabel } from "@shared/finance";
 import { getCopom, getIndicators } from "./bcb";
 import { asksAboutDebt, creditRatesForAi, userCreditSection } from "./rates";
 import { getNews } from "./news";
@@ -173,7 +173,7 @@ function profileSection(lines: string[], input: ContextInput): void {
   if (p.onboarded) {
     lines.push(`- Perfil de investidor: ${p.riskProfile}; experiência: ${p.experience}; objetivo principal: ${p.mainGoal}${p.age ? `; idade: ${p.age}` : ""}`);
     lines.push(
-      `- Renda líquida mensal: ${brl(p.salary)}${p.extraIncome ? ` + renda extra ${brl(p.extraIncome)}` : ""}; gastos fixos ${brl(p.fixedExpenses)}; gastos variáveis ${brl(p.variableExpenses)}; pode investir ${brl(p.monthlyInvest)}/mês`
+      `- Renda fixa mensal: salário ${brl(p.salary)}${p.payDay ? ` (cai dia ${p.payDay}${p.advanceDay && p.advanceAmount ? `, com adiantamento de ${brl(p.advanceAmount)} no dia ${p.advanceDay}` : ""})` : ""}${p.extraIncome ? ` + outra renda fixa ${brl(p.extraIncome)}` : ""}; gastos fixos ${brl(p.fixedExpenses)}; gastos variáveis ${brl(p.variableExpenses)}; pode investir ${brl(p.monthlyInvest)}/mês`
     );
     lines.push(`- Reserva de emergência atual: ${brl(p.emergencyReserve)}; já investido: ${brl(p.invested)}; dívidas: ${brl(p.debts)}`);
   } else {
@@ -222,7 +222,7 @@ function moneySection(lines: string[], data: UserDataMap, detailed: boolean): vo
   const month = summarizeMonth(data.expenses, ym, p.salary, p.extraIncome);
   if (month.entries.length) {
     lines.push(
-      `- Gastos de ${ymLabel(ym)} até agora: ${brl(month.spent)} (${month.byCategory.slice(0, detailed ? 10 : 5).map((c) => `${c.category} ${brl(c.total)}`).join(", ")}); renda do mês ${brl(month.income)}; saldo previsto ${brl(month.balance)}`
+      `- Gastos de ${ymLabel(ym)} até agora: ${brl(month.spent)} (${month.byCategory.slice(0, detailed ? 10 : 5).map((c) => `${c.category} ${brl(c.total)}`).join(", ")}); renda fixa do mês ${brl(month.income)}; sobra da renda fixa ${brl(month.balance)}`
     );
     if (month.futureInstallments.length) lines.push(`- Parcelas futuras: ${month.futureInstallments.map((f) => `${ymLabel(f.ym)} ${brl(f.total)}`).join("; ")}`);
   } else {
@@ -245,12 +245,20 @@ function moneySection(lines: string[], data: UserDataMap, detailed: boolean): vo
     lines.push(`- Gastos que vão vir: ${planned.map((p) => `${p.description} ${brl(p.amount)} em ${brDate(p.date)}${p.plan ? " (já tem plano)" : ""}`).join("; ")}`);
   }
   if (bills.length) {
-    lines.push(`- Contas fixas: ${bills.map((b) => `${b.name} ${brl(b.amount)} (dia ${b.dueDay}${b.paid.includes(ym) ? ", paga este mês" : ""})`).join("; ")}`);
+    lines.push(`- Contas fixas: ${bills.map((b) => `${b.name} ${brl(b.amount)} (dia ${b.dueDay}${b.mandatory ? ", obrigatória" : ""}${b.paid.includes(ym) ? ", paga este mês" : ""})`).join("; ")}`);
+    const mandatory = mandatoryTotal(bills);
+    if (mandatory) lines.push(`- Gastos obrigatórios do mês (não dá para cortar): ${brl(mandatory)}.`);
   }
   lines.push(
-    `- Disponível para gastar em ${ymLabel(ym)}: ${brl(budget.available)} (renda ${brl(budget.income)} − gastos ${brl(budget.spentDirect)} − faturas ${brl(budget.invoices)}; ${n2(budget.ratio * 100)}% da renda comprometida)${budget.perDay !== undefined && budget.available > 0 ? `, cerca de ${brl(budget.perDay)} por dia até o fim do mês` : ""}.`
+    `- Disponível para gastar em ${ymLabel(ym)}: ${brl(budget.available)} (renda fixa ${brl(budget.income)} − gastos ${brl(budget.spentDirect)} − faturas ${brl(budget.invoices)} − contas, planejados e caixinhas pendentes ${brl(budget.pendingBills)}; ${n2(budget.ratio * 100)}% da renda comprometida)${budget.perDay !== undefined && budget.available > 0 ? `, cerca de ${brl(budget.perDay)} por dia até o fim do mês` : ""}. O salário não é saldo livre: só o disponível é.`
   );
-  const accounts = data.accounts ?? [];
+  const cards = cardsUsage(data.accounts ?? [], data.invoices ?? [], data.expenses);
+  if (cards.length) {
+    lines.push(
+      `- Limite dos cartões: ${cards.map((c) => `${institutionLabel(c.institution)} disponível ${brl(c.available)} de ${brl(c.limit)} (usado ${brl(c.used)}${c.closingDay ? `, fecha dia ${c.closingDay}` : ""}${c.dueDay ? `, vence dia ${c.dueDay}` : ""})`).join("; ")}. Compra no crédito acima do disponível não passa.`
+    );
+  }
+  const accounts = (data.accounts ?? []).filter((a) => !a.cardOnly);
   if (accounts.length) {
     const total = accounts.reduce((s, a) => s + a.balance, 0);
     lines.push(`- Saldo nas contas agora (informado pelo usuário): ${brl(total)} — ${accounts.map((a) => `${institutionLabel(a.institution)} ${brl(a.balance)}`).join("; ")}`);
@@ -258,7 +266,10 @@ function moneySection(lines: string[], data: UserDataMap, detailed: boolean): vo
     if (openNow) lines.push(`- Depois de pagar as faturas em aberto do mês, sobram ${brl(total - openNow)} nas contas.`);
   }
   const extras = month.entries.filter((e) => e.expense.type === "receita");
-  if (extras.length) lines.push(`- Entradas extras do mês: ${extras.map((e) => `${e.expense.description} ${brl(e.amount)}`).join("; ")}`);
+  if (extras.length)
+    lines.push(
+      `- Entradas avulsas do mês (NÃO são renda fixa, não conte como salário): ${extras.map((e) => `${e.expense.description} ${brl(e.amount)} (${incomeKindLabel(incomeKindOf(e.expense))})`).join("; ")}`
+    );
   const invoices = (data.invoices ?? []).filter((i) => i.ym >= addMonthsYm(ym, -1));
   if (invoices.length) {
     lines.push("- Faturas de cartão informadas pelo usuário:");
@@ -281,7 +292,7 @@ export const APP_GUIDE = `Telas do Investa e como usar:
 - Assistente: esta conversa. Modos: Conversa livre, Professor, Minhas finanças, Analista de mercado, Vale a pena comprar? e Ajuda com o app.
 - Meu plano: questionário de 5 perguntas (objetivo, prazo, quanto por mês — pode ser R$ 1 —, quanto já tem e estilo seguro/equilibrado/crescimento), projeção com juros compostos e marcos, e "Montar meu plano": o Assistente monta um plano de investimento com fases, checklist com datas e PDF, usando livros de finanças e, se ligada, pesquisa na internet.
 - Objetivos: "Nova meta" com valor, prazo e onde o dinheiro está aplicado. "Ver projeção" mostra quanto terá no prazo e a comparação entre bancos.
-- Gastos: "Novo lançamento" (gasto ou receita, categoria, forma de pagamento, banco/cartão e parcelas). Seção Faturas: informar a fatura de cada cartão no mês e pedir ajuda ao Assistente. "Minhas contas" guarda o saldo de cada banco e mostra quanto sobra depois da fatura daquele banco; "Recebi dinheiro" registra uma entrada extra (ex.: venda de um videogame) e pode somar ao saldo da conta. Botões PDF e Excel exportam o mês.
+- Gastos: "Novo lançamento" (gasto ou receita, categoria, forma de pagamento, banco/cartão e parcelas). Seção Faturas: informar a fatura de cada cartão no mês e pedir ajuda ao Assistente. "Minhas contas" guarda o saldo de cada banco, o limite do cartão (com dia de fechamento e vencimento) e mostra o limite disponível; "Recebi dinheiro" registra uma entrada avulsa com o tipo (trabalho, presente/família, venda, reembolso, outro) e o motivo — fica à parte do salário e só soma ao saldo se a pessoa ligar. Contas fixas podem ser marcadas como "Obrigatório" (transporte público, aluguel, luz). "Calendário do mês" mostra o dia do salário e os vencimentos. O dia do pagamento fica em Configurações › Dados financeiros. Botões PDF e Excel exportam o mês.
 - Vale a pena?: cole o link ou o nome de um produto ou jogo; o app busca o preço e diz se é um bom momento e se cabe no orçamento.
 - Bancos: ranking de bancos e corretoras com o motivo de cada nota, rendimento com o CDI do dia e juros de crédito do Banco Central.
 - Simulador: R$ 100 mil virtuais para comprar e vender a preços reais.

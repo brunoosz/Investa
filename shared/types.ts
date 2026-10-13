@@ -38,6 +38,11 @@ export interface FinancialProfile {
   experience: Experience;
   mainGoal: string;
   age?: number;
+  /** Dia do mês em que o salário cai. */
+  payDay?: number;
+  /** Adiantamento (vale): dia e valor, já incluído no salário. */
+  advanceDay?: number;
+  advanceAmount?: number;
   updatedAt: string;
 }
 
@@ -57,6 +62,22 @@ export interface UserSettings {
   customSymbols: { symbol: string; name: string; category: AssetCategory }[];
   favorites: string[];
   runInBackground: boolean;
+  /** Análise diária da IA ("Hoje: … porque …") como notificação. */
+  aiInsight?: boolean;
+  /** Hora da análise diária (8 a 21). */
+  aiInsightHour?: number;
+  /** Dono: avisar quando a IA registrar erros. */
+  ownerAiAlerts?: boolean;
+}
+
+/** Análise diária da IA. */
+export interface DailyInsight {
+  /** Dia (AAAA-MM-DD). */
+  date: string;
+  at: string;
+  title: string;
+  why: string;
+  model?: string;
 }
 
 export type AssetCategory =
@@ -146,7 +167,11 @@ export interface Expense {
   notes?: string;
   /** Conta fixa que gerou este lançamento ("Paguei"). */
   billId?: string;
+  /** Receita avulsa: de onde veio (não é salário nem renda do mês). */
+  incomeKind?: IncomeKind;
 }
+
+export type IncomeKind = "trabalho" | "presente" | "venda" | "reembolso" | "outro";
 
 export type AlertKind = "preco-acima" | "preco-abaixo" | "variacao-dia" | "abaixo-media" | "lembrete";
 
@@ -364,6 +389,8 @@ export interface Bill {
   /** Meses (AAAA-MM) já pagos. */
   paid: string[];
   active: boolean;
+  /** Gasto obrigatório do mês (transporte, aluguel, luz…). */
+  mandatory?: boolean;
 }
 
 /** Saldo de uma conta (corrente, poupança ou carteira digital), informado pela pessoa. */
@@ -373,6 +400,16 @@ export interface BankAccount {
   balance: number;
   updatedAt: string;
   notes?: string;
+  /** Só tem o cartão neste banco (sem saldo em conta). */
+  cardOnly?: boolean;
+  card?: CreditCardInfo;
+}
+
+/** Cartão de crédito de um banco: limite total, fechamento e vencimento. */
+export interface CreditCardInfo {
+  limit: number;
+  closingDay?: number;
+  dueDay?: number;
 }
 
 export type UserDataKey = keyof UserDataMap;
@@ -585,6 +622,10 @@ export interface AiConfigInfo {
   groqChoice?: string;
   /** Qual provedor tenta primeiro quando os dois estão configurados. */
   primary?: AiProvider;
+  /** Quem respondeu por último neste aparelho (ex.: "Llama 3.3 70B · Groq"). */
+  lastUsedLabel?: string;
+  /** Última resposta boa e último erro de cada provedor. */
+  providers?: Partial<Record<AiProvider, AiProviderHealth>>;
   baseUrl?: string;
   source?: "app" | "arquivo" | "ambiente" | null;
   catalogUpdatedAt?: string;
@@ -593,6 +634,12 @@ export interface AiConfigInfo {
   /** Chave opcional da pesquisa (Tavily ou Brave), se o Dono configurou. */
   searchProvider?: "tavily" | "brave";
   searchPreview?: string;
+}
+
+export interface AiProviderHealth {
+  okAt?: string;
+  /** Ex.: "Groq: 401 Invalid API Key". */
+  error?: { at: string; message: string };
 }
 
 export interface AiModelInfo {

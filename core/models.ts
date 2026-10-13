@@ -166,8 +166,10 @@ export const FALLBACK_MODELS = [
 export const GROQ_MODELS: { id: string; label: string; note: string }[] = [
   { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", note: "Equilibrado, bom em português" },
   { id: "moonshotai/kimi-k2-instruct-0905", label: "Kimi K2", note: "Respostas mais completas" },
-  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Llama 4 Maverick", note: "Rápido" },
   { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B", note: "Pensa um pouco antes de responder" },
+  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Llama 4 Maverick", note: "Rápido" },
+  { id: "qwen/qwen3-32b", label: "Qwen3 32B", note: "Rápido, bom em português" },
+  { id: "openai/gpt-oss-20b", label: "GPT-OSS 20B", note: "Rápido, pensa um pouco" },
   { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B", note: "O mais rápido, respostas mais simples" },
 ];
 
@@ -181,8 +183,10 @@ export function groqLabel(id: string): string {
  */
 export function groqChatModels(ids?: string[]): string[] {
   const known = GROQ_MODELS.map((m) => m.id).filter((id) => !ids?.length || ids.includes(id));
-  if (known.length || !ids?.length) return known;
-  return ids.filter((id) => isChatModel(id) && !/whisper|guard|tts|playai|compound|prompt|saba|allam/i.test(id)).sort((a, b) => scoreModel(b) - scoreModel(a));
+  if (!ids?.length) return known;
+  // Modelos novos que a Groq listar entram depois dos conhecidos (e no lugar deles, se forem aposentados).
+  const others = ids.filter((id) => !known.includes(id) && isChatModel(id) && !/whisper|guard|tts|playai|orpheus|compound|prompt|saba|allam|safeguard/i.test(id));
+  return [...known, ...others.sort((a, b) => scoreModel(b) - scoreModel(a))];
 }
 
 /** Modelos da Groq para a tela de configuração. */

@@ -158,24 +158,45 @@ await go("simulador", "simulador", 2500);
 await go("vale-a-pena", "vale-a-pena", 1500);
 await go("objetivos", "objetivos", 2500);
 await go("gastos", "gastos", 1500);
-// Saldo de conta e entrada extra ("Recebi dinheiro") somando ao saldo.
+// Saldo de conta, limite do cartão e entrada extra ("Recebi dinheiro") somando ao saldo sem mexer na renda.
 {
   const dialog = win.getByRole("dialog");
+  const money = async (testId) => {
+    const t = (await win.getByTestId(testId).first().innerText()).replace(/\s/g, "");
+    const n = Number(t.replace(/[^\d,-]/g, "").replace(",", "."));
+    return t.includes("-") ? -Math.abs(n) : n;
+  };
   await win.getByRole("button", { name: "Adicionar conta", exact: true }).click();
   await wait(400);
   await dialog.locator("select").first().selectOption("nubank");
-  await dialog.locator('input[inputmode="decimal"]').first().fill("2000");
+  await dialog.locator('input[inputmode="decimal"]').nth(0).fill("2000");
+  await dialog.locator('input[inputmode="decimal"]').nth(1).fill("1500");
+  await wait(200);
+  await dialog.getByPlaceholder("Ex.: 10").fill("12");
   await dialog.getByRole("button", { name: "Salvar" }).click();
   await wait(600);
+  const limitOk = /Limite disponível no Nubank: R\$\s?1\.500,00 de R\$\s?1\.500,00/.test(await win.getByTestId("card-limits").innerText());
+  console.log(`[gastos-limite] limite disponível: ${limitOk ? "sim" : "NÃO"}`);
+  if (!limitOk) pageErrors.push("Limite do cartão não mostrou o disponível");
+  const incomeBefore = await money("income-month");
+  const availBefore = await money("available-month");
   await win.getByRole("button", { name: "Recebi dinheiro" }).click();
   await wait(400);
-  await dialog.getByPlaceholder("Ex.: vendi o videogame").fill("Vendi o videogame");
+  await dialog.getByRole("button", { name: "Presente/família", exact: true }).click();
+  await dialog.getByPlaceholder("Ex.: presente da vó no aniversário").fill("Presente dos tios");
   await dialog.locator('input[inputmode="decimal"]').first().fill("800");
+  await dialog.getByRole("switch", { name: "Somar ao saldo da conta" }).click();
   await dialog.getByRole("button", { name: "Registrar" }).click();
   await wait(800);
   const ok = /R\$\s?2\.800,00/.test(await win.locator("main").innerText());
   console.log(`[gastos-contas] saldo somado: ${ok ? "sim" : "NÃO"}`);
   if (!ok) pageErrors.push("Saldo da conta não somou a entrada extra");
+  const incomeAfter = await money("income-month");
+  const availAfter = await money("available-month");
+  const extrasOk = (await win.getByTestId("extras-month").innerText()).includes("Presente/família");
+  console.log(`[gastos-renda] renda ${incomeBefore} → ${incomeAfter}, disponível ${availBefore} → ${availAfter}, extras à parte: ${extrasOk ? "sim" : "NÃO"}`);
+  if (incomeAfter !== incomeBefore || availAfter !== availBefore) pageErrors.push("Entrada extra mudou a renda mensal ou o disponível");
+  if (!extrasOk) pageErrors.push("Entrada extra não apareceu em Entradas extras do mês");
   await shot("gastos-contas");
   // Conta fixa: cadastrar e marcar como paga.
   await win.getByRole("button", { name: "Adicionar conta fixa", exact: true }).click();
@@ -191,6 +212,20 @@ await go("gastos", "gastos", 1500);
   console.log(`[gastos-conta-fixa] paga: ${billOk ? "sim" : "NÃO"}`);
   if (!billOk) pageErrors.push("Conta fixa não ficou paga");
   await shot("gastos-conta-fixa");
+  // Gasto obrigatório (Transporte público) tira do disponível.
+  const availPre = await money("available-month");
+  await win.getByRole("button", { name: "Adicionar conta fixa", exact: true }).click();
+  await wait(400);
+  await dialog.getByRole("button", { name: "Transporte público", exact: true }).click();
+  await dialog.locator('input[inputmode="decimal"]').first().fill("150");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await wait(700);
+  const availPost = await money("available-month");
+  const mandOk = /Gastos obrigatórios do mês: R\$\s?150,00/.test(await win.getByTestId("mandatory-total").innerText());
+  console.log(`[gastos-obrigatorio] disponível ${availPre} → ${availPost}, total obrigatório: ${mandOk ? "sim" : "NÃO"}`);
+  if (Math.abs(availPre - 150 - availPost) > 0.01) pageErrors.push("Gasto obrigatório não tirou do disponível");
+  if (!mandOk) pageErrors.push("Gastos obrigatórios do mês não apareceu");
+  await shot("gastos-obrigatorio");
   // Gasto que vai vir.
   await win.getByRole("button", { name: "Adicionar gasto futuro", exact: true }).click();
   await wait(400);

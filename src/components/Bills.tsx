@@ -2,14 +2,14 @@ import { useState } from "react";
 import { CalendarClock, Check, Plus, Repeat, Trash } from "lucide-react";
 import clsx from "clsx";
 import type { Bill, Expense } from "@shared/types";
-import { billDueDate, EXPENSE_CATEGORIES, ymLabel, localIsoDate } from "@shared/finance";
+import { billDueDate, EXPENSE_CATEGORIES, MANDATORY_PRESETS, mandatoryTotal, ymLabel, localIsoDate } from "@shared/finance";
 import { uid } from "@/lib/api";
 import { brl } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { Badge, Card, Private, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, MoneyInput, Select, Toggle } from "@/components/ui/form";
+import { Chip, Field, Input, MoneyInput, Select, Toggle } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/Sheet";
 
 const todayIso = () => localIsoDate();
@@ -63,6 +63,17 @@ function BillSheet({ open, initial, onClose }: { open: boolean; initial: Bill | 
       }
     >
       <div className="space-y-4">
+        {!initial && (
+          <Field label="Sugestões de gastos obrigatórios">
+            <div className="flex flex-wrap gap-1.5">
+              {MANDATORY_PRESETS.map((p) => (
+                <Chip key={p.name} active={bill.name === p.name} onClick={() => setBill({ ...bill, name: p.name, category: p.category, dueDay: bill.dueDay || p.dueDay, mandatory: true })}>
+                  {p.name}
+                </Chip>
+              ))}
+            </div>
+          </Field>
+        )}
         <Field label="Nome">
           <Input value={bill.name} onChange={(e) => setBill({ ...bill, name: e.target.value })} placeholder="Ex.: Internet" autoFocus />
         </Field>
@@ -91,6 +102,13 @@ function BillSheet({ open, initial, onClose }: { open: boolean; initial: Bill | 
         </Field>
         <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
           <div>
+            <div className="font-medium text-[14.5px]">Obrigatório</div>
+            <div className="text-[12.5px] text-muted">Gasto que não dá para cortar no mês (transporte, aluguel, luz). Sai do salário antes de tudo.</div>
+          </div>
+          <Toggle checked={!!bill.mandatory} onChange={(v) => setBill({ ...bill, mandatory: v })} label="Obrigatório" />
+        </div>
+        <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+          <div>
             <div className="font-medium text-[14.5px]">Ativa</div>
             <div className="text-[12.5px] text-muted">Desligue para pausar sem apagar (ex.: assinatura cancelada por um tempo).</div>
           </div>
@@ -110,6 +128,11 @@ export function BillsCard({ ym }: { ym: string }) {
   const active = bills.filter((b) => b.active).sort((a, b) => a.dueDay - b.dueDay);
   const pending = active.filter((b) => !b.paid.includes(ym));
   const pendingTotal = pending.reduce((s, b) => s + b.amount, 0);
+  const mandatory = mandatoryTotal(bills);
+  const groups = [
+    { title: "Gastos obrigatórios", list: active.filter((b) => b.mandatory) },
+    { title: "Outras contas fixas", list: active.filter((b) => !b.mandatory) },
+  ].filter((g) => g.list.length);
 
   const pay = (b: Bill) => {
     const due = billDueDate(b, ym);
@@ -136,7 +159,7 @@ export function BillsCard({ ym }: { ym: string }) {
             ? pending.length
               ? <><Private>{brl(pendingTotal)}</Private> a pagar em {ymLabel(ym)} · já entra no disponível</>
               : `Todas pagas em ${ymLabel(ym)}`
-            : "Aluguel, internet, assinaturas… O app avisa antes de vencer."
+            : "Aluguel, transporte, internet… Marque os obrigatórios. O app avisa antes de vencer."
         }
         action={
           <Button size="sm" variant="secondary" icon={Plus} onClick={() => setSheet({ open: true, item: null })}>
@@ -145,55 +168,66 @@ export function BillsCard({ ym }: { ym: string }) {
           </Button>
         }
       />
-      {active.length > 0 ? (
-        <div className="divide-y divide-line/[0.06]">
-          {active.map((b) => {
-            const paid = b.paid.includes(ym);
-            const due = billDueDate(b, ym);
-            const days = daysUntil(due);
-            const current = ym === todayIso().slice(0, 7);
-            const status = paid ? (
-              <Badge tone="success">Paga</Badge>
-            ) : !current ? (
-              <Badge tone="neutral">Dia {Number(due.slice(8))}</Badge>
-            ) : days < 0 ? (
-              <Badge tone="danger">Atrasada</Badge>
-            ) : days === 0 ? (
-              <Badge tone="warning">Vence hoje</Badge>
-            ) : days <= 3 ? (
-              <Badge tone="warning">Vence em {days} {days === 1 ? "dia" : "dias"}</Badge>
-            ) : (
-              <Badge tone="neutral">Dia {Number(due.slice(8))}</Badge>
-            );
-            return (
-              <div key={b.id} className="flex items-center gap-3 py-2.5">
-                <button type="button" onClick={() => setSheet({ open: true, item: b })} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                  <div className={clsx("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", paid ? "bg-success/15 text-success" : "bg-primary/12 text-primary")}>
-                    {paid ? <Check size={18} /> : <Repeat size={18} />}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-medium text-[14.5px] truncate">{b.name}</div>
-                    <div className="text-[12.5px] text-muted flex items-center gap-2">
-                      {status} <span className="truncate">{b.category}</span>
-                    </div>
-                  </div>
-                </button>
-                <div className="font-semibold tabular text-[15px] shrink-0" data-private="">
-                  {brl(b.amount)}
-                </div>
-                {paid ? (
-                  <Button size="sm" variant="ghost" onClick={() => unpay(b)} title="Desfazer pagamento">
-                    Desfazer
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="secondary" icon={Check} onClick={() => pay(b)}>
-                    Paguei
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+      {mandatory > 0 && (
+        <div className="mb-2 rounded-2xl bg-warning/[0.08] px-4 py-2.5 text-[13.5px]" data-testid="mandatory-total">
+          Gastos obrigatórios do mês: <Private className="font-semibold tabular">{brl(mandatory)}</Private>
+          <span className="text-muted"> · saem do salário antes de qualquer outra coisa</span>
         </div>
+      )}
+      {active.length > 0 ? (
+        groups.map((g) => (
+          <div key={g.title}>
+            {groups.length > 1 && <div className="text-[12.5px] font-semibold text-muted pt-2">{g.title}</div>}
+            <div className="divide-y divide-line/[0.06]">
+              {g.list.map((b) => {
+                const paid = b.paid.includes(ym);
+                const due = billDueDate(b, ym);
+                const days = daysUntil(due);
+                const current = ym === todayIso().slice(0, 7);
+                const status = paid ? (
+                  <Badge tone="success">Paga</Badge>
+                ) : !current ? (
+                  <Badge tone="neutral">Dia {Number(due.slice(8))}</Badge>
+                ) : days < 0 ? (
+                  <Badge tone="danger">Atrasada</Badge>
+                ) : days === 0 ? (
+                  <Badge tone="warning">Vence hoje</Badge>
+                ) : days <= 3 ? (
+                  <Badge tone="warning">Vence em {days} {days === 1 ? "dia" : "dias"}</Badge>
+                ) : (
+                  <Badge tone="neutral">Dia {Number(due.slice(8))}</Badge>
+                );
+                return (
+                  <div key={b.id} className="flex items-center gap-3 py-2.5">
+                    <button type="button" onClick={() => setSheet({ open: true, item: b })} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                      <div className={clsx("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", paid ? "bg-success/15 text-success" : "bg-primary/12 text-primary")}>
+                        {paid ? <Check size={18} /> : <Repeat size={18} />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-[14.5px] truncate">{b.name}</div>
+                        <div className="text-[12.5px] text-muted flex items-center gap-2">
+                          {status} {b.mandatory && <Badge tone="warning">Obrigatório</Badge>} <span className="truncate">{b.category}</span>
+                        </div>
+                      </div>
+                    </button>
+                    <div className="font-semibold tabular text-[15px] shrink-0" data-private="">
+                      {brl(b.amount)}
+                    </div>
+                    {paid ? (
+                      <Button size="sm" variant="ghost" onClick={() => unpay(b)} title="Desfazer pagamento">
+                        Desfazer
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" icon={Check} onClick={() => pay(b)}>
+                        Paguei
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
       ) : (
         <div className="flex items-center gap-3 text-[13.5px] text-muted">
           <CalendarClock size={18} className="text-primary shrink-0" />

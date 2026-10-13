@@ -38,6 +38,7 @@ function creditByBank(summary: MonthSummary): Map<string, number> {
 function InvoiceSheet({ open, initial, ym, suggestions, onClose }: { open: boolean; initial: Invoice | null; ym: string; suggestions: Map<string, number>; onClose: () => void }) {
   const update = useSession((s) => s.update);
   const toast = useUi((s) => s.toast);
+  const accounts = useUserData("accounts");
   const empty = (): Invoice => ({ id: uid(), institution: "", ym, amount: 0, paid: false });
   const [inv, setInv] = useState<Invoice>(initial ?? empty());
   const [lastOpen, setLastOpen] = useState(false);
@@ -81,7 +82,7 @@ function InvoiceSheet({ open, initial, ym, suggestions, onClose }: { open: boole
     >
       <div className="space-y-4">
         <Field label="Banco / cartão">
-          <InstitutionSelect value={inv.institution} onChange={(v) => setInv({ ...inv, institution: v })} />
+          <InstitutionSelect value={inv.institution} onChange={(v) => setInv({ ...inv, institution: v, dueDay: inv.dueDay ?? accounts.find((a) => a.institution === v)?.card?.dueDay })} />
         </Field>
         <Field label="Valor da fatura" hint={suggested ? `Pelos seus lançamentos no crédito deste banco: ${brl(suggested)}` : "O valor que aparece no app do banco."}>
           <MoneyInput value={inv.amount} onChange={(v) => setInv({ ...inv, amount: v })} />
@@ -133,7 +134,7 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
   const suggestions = useMemo(() => creditByBank(summary), [summary]);
   const open = list.filter((i) => !i.paid).reduce((s, i) => s + i.amount, 0);
   const total = list.reduce((s, i) => s + i.amount, 0);
-  const income = profile.salary + profile.extraIncome + summary.extraIncome;
+  const income = profile.salary + profile.extraIncome;
   const ratio = income ? open / income : 0;
   const tight = income > 0 && open > income;
   const heavy = !tight && ratio > 0.5;
