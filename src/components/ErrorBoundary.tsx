@@ -32,12 +32,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
     return (
       <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="drag fixed inset-x-0 top-0 h-12" />
-        <div className="h-14 w-14 rounded-2xl bg-danger/10 text-danger flex items-center justify-center">
+        <div className="h-14 w-14 rounded-card bg-danger/10 text-danger flex items-center justify-center">
           <TriangleAlert size={28} />
         </div>
         <div>
-          <div className="text-[20px] font-semibold tracking-tight">Algo deu errado nesta tela</div>
-          <div className="text-[14px] text-muted mt-1.5 max-w-[360px]">Seus dados estão salvos. Tente de novo ou volte para o início.</div>
+          <div className="text-title">Algo deu errado nesta tela</div>
+          <div className="text-callout text-muted mt-1.5 max-w-[360px]">Seus dados estão salvos. Tente de novo ou volte para o início.</div>
         </div>
         <div className="flex gap-2 mt-2">
           <Button variant="secondary" onClick={this.reset}>
