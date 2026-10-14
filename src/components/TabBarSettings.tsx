@@ -46,16 +46,16 @@ export function TabBarSettings() {
           </Button>
         )}
       </div>
-      <div className="text-[13px] text-muted mb-4">Escolha até {TAB_SLOTS} telas para abrir com um toque. O último botão é sempre “Mais”, com o resto.</div>
+      <div className="text-footnote text-muted mb-4">Escolha até {TAB_SLOTS} telas para abrir com um toque. O último botão é sempre “Mais”, com o resto.</div>
 
-      <div className="text-[12.5px] font-semibold text-muted mb-1.5 px-1">Na barra</div>
-      <div className="rounded-2xl bg-line/[0.04] divide-y divide-line/[0.07] overflow-hidden">
+      <div className="text-footnote font-semibold text-muted mb-1.5 px-1">Na barra</div>
+      <div className="rounded-card bg-line/[0.04] divide-y divide-separator/[0.07] overflow-hidden">
         {chosen.map((item, idx) => {
           const Icon = item.icon;
           return (
             <motion.div layout transition={{ type: "spring", stiffness: 500, damping: 40 }} key={item.to} className="flex items-center gap-2 pl-3.5 pr-1.5 py-1.5">
               <Icon size={18} className="text-primary shrink-0" />
-              <span className="flex-1 min-w-0 truncate text-[14.5px] font-medium ml-1">{item.label}</span>
+              <span className="flex-1 min-w-0 truncate text-callout font-medium ml-1">{item.label}</span>
               <Button size="icon-sm" variant="ghost" icon={ArrowUp} disabled={idx === 0} onClick={() => move(idx, idx - 1)} aria-label={`Subir ${item.label}`} />
               <Button size="icon-sm" variant="ghost" icon={ArrowDown} disabled={idx === chosen.length - 1} onClick={() => move(idx, idx + 1)} aria-label={`Descer ${item.label}`} />
               <Button size="icon-sm" variant="ghost" icon={X} disabled={chosen.length === 1} onClick={() => save(chosen.filter((i) => i !== item))} aria-label={`Tirar ${item.label} da barra`} />
@@ -66,7 +66,7 @@ export function TabBarSettings() {
 
       {others.length > 0 && (
         <>
-          <div className="text-[12.5px] font-semibold text-muted mt-4 mb-2 px-1">{full ? "Para trocar, tire uma tela da barra" : "Toque para adicionar"}</div>
+          <div className="text-footnote font-semibold text-muted mt-4 mb-2 px-1">{full ? "Para trocar, tire uma tela da barra" : "Toque para adicionar"}</div>
           <div className="flex flex-wrap gap-2">
             {others.map((item) => (
               <button
@@ -75,7 +75,7 @@ export function TabBarSettings() {
                 disabled={full}
                 onClick={() => save([...chosen, item])}
                 aria-label={`Pôr ${item.label} na barra`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-line/[0.06] px-3 py-1.5 text-[13px] font-medium transition enabled:hover:bg-line/[0.1] disabled:opacity-45 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 rounded-full bg-line/[0.06] px-3 py-1.5 text-footnote font-medium transition-colors enabled:hover:bg-line/[0.1] disabled:opacity-45 disabled:cursor-not-allowed"
               >
                 <Plus size={14} className="text-primary" />
                 {item.label}

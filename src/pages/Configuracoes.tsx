@@ -77,7 +77,7 @@ function BackupSection() {
   };
   return (
     <Card>
-      <div className="text-[13.5px] text-muted">
+      <div className="text-footnote text-muted">
         Salve uma cópia de tudo (gastos, faturas, contas, carteira, metas, caixinhas, aulas e memória do Assistente) num arquivo. Com a nuvem ligada, os dados já ficam guardados na
         conta; o backup é uma garantia a mais.
       </div>
@@ -128,7 +128,7 @@ function MemorySection() {
   };
   return (
     <Card>
-      <div className="text-[13.5px] text-muted mb-3">
+      <div className="text-footnote text-muted mb-3">
         Gostos, hobbies e planos que você contou ao Assistente. Ele usa isso para personalizar as respostas, como numa análise de compra. Toque no texto para editar.
       </div>
       {memory.length > 0 ? (
@@ -146,7 +146,7 @@ function MemorySection() {
           ))}
         </div>
       ) : (
-        <div className="text-[13.5px] text-muted">Nada guardado ainda. Conte ao Assistente o que você gosta de fazer, ou adicione aqui.</div>
+        <div className="text-footnote text-muted">Nada guardado ainda. Conte ao Assistente o que você gosta de fazer, ou adicione aqui.</div>
       )}
       <div className="flex gap-2 mt-3">
         <Input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Ex.: gosto de jogar videogame e comer fora" />
@@ -179,7 +179,7 @@ function MemorySection() {
 function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
     <section id={id} className="scroll-mt-6">
-      <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted mb-2 px-1">{title}</h2>
+      <h2 className="text-footnote font-semibold uppercase tracking-[0.08em] text-muted mb-2 px-1">{title}</h2>
       {children}
     </section>
   );
@@ -400,18 +400,18 @@ function SearchSettings({ info, onChange }: { info?: AiConfigInfo | null; onChan
     }
   };
   return (
-    <div className="mt-5 pt-5 border-t border-line/10">
+    <div className="mt-5 pt-5 border-t border-separator/10">
       <div className="flex items-center gap-2">
         <span className="font-semibold">Pesquisa na internet</span>
         <Badge tone="success">Ligada</Badge>
       </div>
-      <div className="text-[13px] text-muted mt-0.5">
+      <div className="text-footnote text-muted mt-0.5">
         Funciona sem chave: cada aparelho faz a própria busca, então não existe limite dividido entre as contas. O Assistente mostra as fontes, inclusive no plano de investimento.
       </div>
-      <div className="text-[13px] font-medium mt-4">Chave da Tavily ou da Brave (opcional)</div>
-      <div className="text-[13px] text-muted mt-0.5">Deixa os resultados mais completos. Se a cota acabar, o app volta sozinho para a busca sem chave.</div>
+      <div className="text-footnote font-medium mt-4">Chave da Tavily ou da Brave (opcional)</div>
+      <div className="text-footnote text-muted mt-0.5">Deixa os resultados mais completos. Se a cota acabar, o app volta sozinho para a busca sem chave.</div>
       {info?.searchPreview && (
-        <div className="mt-2 text-[13px]">
+        <div className="mt-2 text-footnote">
           <Badge tone="neutral">{info.searchProvider === "tavily" ? "Tavily" : "Brave"}</Badge> <span className="text-muted ml-1">{info.searchPreview}</span>
         </div>
       )}
@@ -457,22 +457,22 @@ function ChoiceRow({ selected, saving, onClick, title, sub, badge }: { selected:
       onClick={onClick}
       aria-pressed={selected}
       className={clsx(
-        "w-full text-left flex items-center gap-3 rounded-2xl border px-4 py-3 transition",
-        selected ? "border-primary/60 bg-primary/[0.07]" : "border-line/10 hover:border-primary/30 hover:bg-line/[0.04]"
+        "w-full text-left flex items-center gap-3 rounded-card border px-4 py-3 transition",
+        selected ? "border-primary/60 bg-primary/[0.07]" : "border-separator/10 hover:border-primary/30 hover:bg-line/[0.04]"
       )}
     >
       <span
         className={clsx(
           "h-4 w-4 rounded-full border-2 shrink-0",
-          selected ? "border-primary bg-primary shadow-[inset_0_0_0_3px_rgb(var(--surface))]" : "border-line/30",
+          selected ? "border-primary bg-primary shadow-[inset_0_0_0_3px_rgb(var(--surface))]" : "border-separator/30",
           saving && "animate-pulse"
         )}
       />
       <span className="flex-1 min-w-0">
-        <span className="flex items-center gap-2 flex-wrap font-medium text-[14.5px]">
+        <span className="flex items-center gap-2 flex-wrap font-medium text-callout">
           {title} {badge}
         </span>
-        <span className="block text-[12.5px] text-muted truncate">{sub}</span>
+        <span className="block text-footnote text-muted truncate">{sub}</span>
       </span>
     </button>
   );
@@ -482,12 +482,12 @@ function ChoiceRow({ selected, saving, onClick, title, sub, badge }: { selected:
 function ProviderHealth({ h }: { h?: AiProviderHealth }) {
   if (h?.error && (!h.okAt || h.error.at > h.okAt)) {
     return (
-      <div className="text-[12.5px] text-danger mt-2 break-words">
+      <div className="text-footnote text-danger mt-2 break-words">
         Último erro ({relativeTime(h.error.at)}): {h.error.message}
       </div>
     );
   }
-  if (h?.okAt) return <div className="text-[12.5px] text-muted mt-2">Respondeu {relativeTime(h.okAt)}.</div>;
+  if (h?.okAt) return <div className="text-footnote text-muted mt-2">Respondeu {relativeTime(h.okAt)}.</div>;
   return null;
 }
 
@@ -545,7 +545,7 @@ function GroqSettings({ info, groqModels, onChange }: { info?: AiConfigInfo | nu
   };
 
   return (
-    <div className="rounded-2xl border border-line/10 p-4">
+    <div className="rounded-card border border-separator/10 p-4">
       <div className="flex items-center gap-2 flex-wrap">
         <Zap size={17} className="text-primary" />
         <span className="font-semibold">Groq</span>
@@ -557,8 +557,8 @@ function GroqSettings({ info, groqModels, onChange }: { info?: AiConfigInfo | nu
           <Badge tone="primary">Recomendado</Badge>
         )}
       </div>
-      <div className="text-[13px] text-muted mt-0.5">Grátis e bem mais rápida; crie a chave em console.groq.com.</div>
-      {has && info?.groqPreview && <div className="text-[13px] text-muted mt-2">Chave atual: {info.groqPreview}</div>}
+      <div className="text-footnote text-muted mt-0.5">Grátis e bem mais rápida; crie a chave em console.groq.com.</div>
+      {has && info?.groqPreview && <div className="text-footnote text-muted mt-2">Chave atual: {info.groqPreview}</div>}
       <ProviderHealth h={info?.providers?.groq} />
       <div className="flex flex-col sm:flex-row gap-2 mt-3">
         <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder={has ? "Nova chave (gsk_…)" : "gsk_…"} type="password" autoComplete="off" />
@@ -730,12 +730,12 @@ function AiSettings() {
   return (
     <Card>
       <div className="flex items-start gap-4">
-        <div className="h-11 w-11 rounded-xl bg-brand flex items-center justify-center shadow-glow shrink-0">
+        <div className="h-11 w-11 rounded-control bg-brand flex items-center justify-center shadow-glow shrink-0">
           <BrainCircuit size={22} className="text-white" />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="font-semibold text-[16px]">Inteligência Artificial</div>
+            <div className="font-semibold text-headline">Inteligência Artificial</div>
             {info.data?.hasKey ? (
               <Badge tone="success" icon={CircleCheck}>
                 Conectada
@@ -744,17 +744,17 @@ function AiSettings() {
               <Badge tone="warning">Não configurada</Badge>
             )}
           </div>
-          <p className="text-[13.5px] text-muted mt-1">
+          <p className="text-footnote text-muted mt-1">
             Só você, como Dono, vê esta seção. As chaves ficam guardadas criptografadas e valem para todas as contas do app. Os outros usuários só veem o Assistente funcionando.
           </p>
-          {info.data?.hasKey && info.data.modelLabel && <p className="text-[12.5px] text-muted mt-1">Responde primeiro: {info.data.modelLabel}</p>}
-          {info.data?.lastUsedLabel && info.data.lastUsedLabel !== info.data.modelLabel && <p className="text-[12.5px] text-muted">Última resposta veio de: {info.data.lastUsedLabel}</p>}
+          {info.data?.hasKey && info.data.modelLabel && <p className="text-footnote text-muted mt-1">Responde primeiro: {info.data.modelLabel}</p>}
+          {info.data?.lastUsedLabel && info.data.lastUsedLabel !== info.data.modelLabel && <p className="text-footnote text-muted">Última resposta veio de: {info.data.lastUsedLabel}</p>}
         </div>
       </div>
       <div className="mt-5 space-y-4">
         <GroqSettings info={info.data} groqModels={catalog.data?.groq} onChange={reloadAll} />
 
-        <div className="rounded-2xl border border-line/10 p-4 space-y-4">
+        <div className="rounded-card border border-separator/10 p-4 space-y-4">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold">NVIDIA</span>
@@ -766,7 +766,7 @@ function AiSettings() {
                 <Badge>{info.data?.hasGroq ? "Opcional" : "Não configurada"}</Badge>
               )}
             </div>
-            <div className="text-[13px] text-muted mt-0.5">Muitos modelos grátis, porém mais lentos.{info.data?.hasGroq ? " Serve de reserva para a Groq." : ""}</div>
+            <div className="text-footnote text-muted mt-0.5">Muitos modelos grátis, porém mais lentos.{info.data?.hasGroq ? " Serve de reserva para a Groq." : ""}</div>
             <ProviderHealth h={info.data?.providers?.nvidia} />
           </div>
           <Field label="Chave da API" hint={info.data?.keyPreview ? `Chave atual: ${info.data.keyPreview}` : "Começa com nvapi-"}>
@@ -810,7 +810,7 @@ function AiSettings() {
                 ))}
               </div>
               {models.length > 10 && (
-                <button type="button" className="text-[13px] text-primary font-medium mt-2" onClick={() => setShowAll((v) => !v)}>
+                <button type="button" className="text-footnote text-primary font-medium mt-2" onClick={() => setShowAll((v) => !v)}>
                   {showAll ? "Mostrar só os melhores" : `Mostrar todos os ${models.length} modelos`}
                 </button>
               )}
@@ -890,8 +890,8 @@ export function Configuracoes() {
         <Card className="flex items-center gap-4">
           <Avatar name={user.name} hue={user.avatarHue} size={64} />
           <div className="flex-1 min-w-0">
-            <div className="text-[20px] font-semibold truncate">{user.name}</div>
-            <div className="text-[14px] text-muted">
+            <div className="text-title font-semibold truncate">{user.name}</div>
+            <div className="text-callout text-muted">
               @{user.username}
               {user.email ? ` · ${user.email}` : ""}
             </div>
@@ -906,9 +906,9 @@ export function Configuracoes() {
 
         <Section title="Finanças">
           <ListGroup>
-            <ListRow icon={Wallet} iconColor="#34D399" title="Renda mensal" subtitle={<PrivateAmounts text={`${brl(profile.salary)} de salário${profile.extraIncome ? ` + ${brl(profile.extraIncome)} fixos` : ""}${profile.payDay ? ` · cai dia ${profile.payDay}` : ""}`} />} right={<Private className="font-semibold tabular">{brl(totalIncome(profile))}</Private>} onClick={() => setSheet("financeiro")} chevron />
-            <ListRow icon={PiggyBank} iconColor="#FBBF24" title="Gastos e investimentos" subtitle={<PrivateAmounts text={`Gasta ${brl(totalExpenses(profile))} · investe ${brl(profile.monthlyInvest)} por mês`} />} onClick={() => setSheet("financeiro")} chevron />
-            <ListRow icon={UserRound} iconColor="#A78BFA" title="Perfil de investidor" subtitle="Usado pelo Assistente para personalizar sugestões" right={<Badge tone="secondary">{RISK_LABEL[profile.riskProfile]}</Badge>} onClick={() => setSheet("financeiro")} chevron />
+            <ListRow icon={Wallet} iconColor="success" title="Renda mensal" subtitle={<PrivateAmounts text={`${brl(profile.salary)} de salário${profile.extraIncome ? ` + ${brl(profile.extraIncome)} fixos` : ""}${profile.payDay ? ` · cai dia ${profile.payDay}` : ""}`} />} right={<Private className="font-semibold tabular">{brl(totalIncome(profile))}</Private>} onClick={() => setSheet("financeiro")} chevron />
+            <ListRow icon={PiggyBank} iconColor="warning" title="Gastos e investimentos" subtitle={<PrivateAmounts text={`Gasta ${brl(totalExpenses(profile))} · investe ${brl(profile.monthlyInvest)} por mês`} />} onClick={() => setSheet("financeiro")} chevron />
+            <ListRow icon={UserRound} iconColor="secondary" title="Perfil de investidor" subtitle="Usado pelo Assistente para personalizar sugestões" right={<Badge tone="secondary">{RISK_LABEL[profile.riskProfile]}</Badge>} onClick={() => setSheet("financeiro")} chevron />
           </ListGroup>
         </Section>
 
@@ -947,7 +947,7 @@ export function Configuracoes() {
 
         <Section title="Segurança">
           <ListGroup>
-            <ListRow icon={Lock} iconColor="#4F8CFF" title="Alterar senha" onClick={() => setSheet("senha")} chevron />
+            <ListRow icon={Lock} iconColor="primary" title="Alterar senha" onClick={() => setSheet("senha")} chevron />
           </ListGroup>
         </Section>
 
@@ -971,8 +971,8 @@ export function Configuracoes() {
             />
             {settings.aiInsight !== false && (
               <div className="flex items-center gap-3 px-4 pb-3.5 -mt-1">
-                <div className="flex-1 text-[13px] text-muted">Horário da análise</div>
-                <Select className="!py-1.5 !text-[14px]" value={insightHour(settings)} onChange={(e) => setSetting({ aiInsightHour: Number(e.target.value) })} aria-label="Horário da análise">
+                <div className="flex-1 text-footnote text-muted">Horário da análise</div>
+                <Select className="!py-1.5 !text-callout" value={insightHour(settings)} onChange={(e) => setSetting({ aiInsightHour: Number(e.target.value) })} aria-label="Horário da análise">
                   {Array.from({ length: QUIET_START - QUIET_END }, (_, i) => QUIET_END + i).map((h) => (
                     <option key={h} value={h}>
                       {h}h
@@ -986,7 +986,7 @@ export function Configuracoes() {
             )}
             {!mobileApp && <ToggleRow title="Continuar em segundo plano" subtitle="Ao fechar, fica na bandeja e continua avisando" checked={settings.runInBackground} onChange={(v) => setSetting({ runInBackground: v })} />}
           </ListGroup>
-          <button className="text-[13px] text-primary font-semibold mt-2 px-1 inline-flex items-center gap-1" onClick={() => navigate("/alertas")}>
+          <button className="text-footnote text-primary font-semibold mt-2 px-1 inline-flex items-center gap-1" onClick={() => navigate("/alertas")}>
             <Bell size={14} /> Gerenciar alertas
           </button>
         </Section>
@@ -1005,16 +1005,16 @@ export function Configuracoes() {
 
         <Section title="Sobre">
           <ListGroup>
-            <ListRow icon={Info} iconColor="#94A3B8" title="Versão" right={<span className="text-muted">{appInfo.data?.version ?? "—"}</span>} />
+            <ListRow icon={Info} iconColor="muted" title="Versão" right={<span className="text-muted">{appInfo.data?.version ?? "—"}</span>} />
             <ListRow
               icon={Database}
-              iconColor="#94A3B8"
+              iconColor="muted"
               title="Pasta de dados"
               subtitle={<span className="break-all">{appInfo.data?.dataDir ?? "—"}</span>}
             />
           </ListGroup>
-          <Card className="mt-3 text-[13px] text-muted space-y-1.5">
-            <div className="font-semibold text-fg text-[14px] mb-1">Fontes de dados</div>
+          <Card className="mt-3 text-footnote text-muted space-y-1.5">
+            <div className="font-semibold text-fg text-callout mb-1">Fontes de dados</div>
             <div>Cotações: Yahoo Finance (B3 com atraso de até 15 minutos; cripto e câmbio em tempo real).</div>
             <div>Selic, CDI, IPCA, dólar PTAX, Boletim Focus e juros de crédito: Banco Central do Brasil (dados abertos oficiais).</div>
             <div>Títulos públicos: Tesouro Direto / Tesouro Transparente.</div>
@@ -1052,8 +1052,8 @@ function ToggleRow({ title, subtitle, checked, onChange }: { title: string; subt
   return (
     <div className="flex items-center gap-3 px-4 py-3.5">
       <div className="flex-1">
-        <div className="font-medium text-[15px]">{title}</div>
-        <div className="text-[13px] text-muted">{subtitle}</div>
+        <div className="font-medium text-body">{title}</div>
+        <div className="text-footnote text-muted">{subtitle}</div>
       </div>
       <Toggle checked={checked} onChange={onChange} />
     </div>
@@ -1087,7 +1087,7 @@ function IconPicker() {
         <Sparkles size={20} className="text-primary" />
         <div className="font-medium">Trocar ícone</div>
       </div>
-      <div className="text-[13px] text-muted mb-4">O ícone do app neste aparelho.</div>
+      <div className="text-footnote text-muted mb-4">O ícone do app neste aparelho.</div>
       <div className="grid grid-cols-2 gap-3">
         {(["dark", "light"] as const).map((v) => (
           <button
@@ -1097,12 +1097,12 @@ function IconPicker() {
             disabled={busy}
             onClick={() => void pick(v)}
             className={clsx(
-              "rounded-2xl p-4 flex flex-col items-center gap-3 border-2 transition-colors",
+              "rounded-card p-4 flex flex-col items-center gap-3 border-2 transition-colors",
               current === v ? "border-primary bg-primary/[0.06]" : "border-transparent bg-line/[0.04] hover:bg-line/[0.07]"
             )}
           >
             <AppIcon size={64} variant={v} />
-            <span className="text-[14px] font-medium flex items-center gap-1.5">
+            <span className="text-callout font-medium flex items-center gap-1.5">
               {current === v && <CircleCheck size={15} className="text-primary" />}
               {v === "dark" ? "Escuro" : "Claro"}
             </span>
