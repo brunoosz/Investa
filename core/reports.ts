@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import type { MonthSummary } from "@shared/finance";
-import type { Invoice } from "@shared/types";
+import type { Invoice, ShoppingItem } from "@shared/types";
+import { itemPrice, summarizeShopping, SHOPPING_CATEGORIES, type ItemPrice, type PriceSource } from "@shared/shopping";
 import { PAYMENT_LABEL, ymLabel } from "@shared/finance";
 import { institutionLabel } from "@shared/banks";
 import { logoMarkSvg } from "@shared/brand";
@@ -20,9 +21,19 @@ export function markdownToHtml(md: string): string {
   const inline = (t: string) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
   const out: string[] = [];
   let list: "ul" | "ol" | null = null;
+  let table: string[][] = [];
+  const flushTable = () => {
+    if (!table.length) return;
+    const [head, ...rows] = table;
+    out.push(
+      `<table class="md"><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+    );
+    table = [];
+  };
   const close = () => {
     if (list) out.push(`</${list}>`);
     list = null;
+    flushTable();
   };
   for (const raw of md.split("\n")) {
     const line = raw.trim();
@@ -30,6 +41,16 @@ export function markdownToHtml(md: string): string {
       close();
       continue;
     }
+    if (line.startsWith("|")) {
+      if (list) {
+        out.push(`</${list}>`);
+        list = null;
+      }
+      // Linha separadora "|---|---|" não vira linha da tabela.
+      if (!/^\|[\s:|-]+\|?$/.test(line)) table.push(tableCells(line));
+      continue;
+    }
+    flushTable();
     const h = /^#{1,4}\s+(.*)$/.exec(line);
     const ul = /^[-*•]\s+(.*)$/.exec(line);
     const ol = /^\d+[.)]\s+(.*)$/.exec(line);
@@ -53,12 +74,17 @@ export function markdownToHtml(md: string): string {
   return out.join("");
 }
 
+function tableCells(line: string): string[] {
+  return line.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+}
+
 /** Markdown para texto corrido (planilha e PDF do celular). */
 export function markdownToText(md: string): string[] {
   return md
     .split("\n")
     .map((l) => l.trim().replace(/^#{1,4}\s+/, "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/^[-*•]\s+/, "• "))
-    .filter((l) => l && !l.startsWith("|"));
+    .filter((l) => l && !/^\|[\s:|-]+\|?$/.test(l))
+    .map((l) => (l.startsWith("|") ? tableCells(l).join("  ·  ") : l));
 }
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -95,9 +121,9 @@ export async function buildExcel(input: ReportInput): Promise<Uint8Array> {
   header(resumo.addRow(["Resumo do mês", "Valor", ""]));
   const kpis: [string, number][] = [
     ["Renda mensal (perfil)", summary.income],
-    ["Receitas extras lançadas", summary.extraIncome],
+    ["Entradas extras (à parte da renda)", summary.extraIncome],
     ["Total gasto no mês", summary.spent],
-    ["Saldo do mês", summary.balance],
+    ["Sobra da renda fixa", summary.balance],
   ];
   for (const [k, v] of kpis) {
     const r = resumo.addRow([k, v]);
@@ -142,7 +168,7 @@ export async function buildExcel(input: ReportInput): Promise<Uint8Array> {
     const r = lanc.addRow({
       date: brDate(e.expense.date),
       desc: e.expense.description,
-      type: e.expense.type === "receita" ? "Receita" : "Despesa",
+      type: e.expense.type === "receita" ? "Entrada extra" : "Despesa",
       cat: e.expense.category,
       method: PAYMENT_LABEL[e.expense.method],
       bank: institutionLabel(e.expense.institution),
@@ -178,7 +204,7 @@ export async function buildExcel(input: ReportInput): Promise<Uint8Array> {
     an.columns = [{ width: 110 }];
     an.getCell("A1").value = "Análise do Assistente";
     an.getCell("A1").font = { bold: true, size: 14 };
-    for (const line of markdownToText(input.aiAnalysis)) {
+    for (const line of markdownToText(input.aiAnalysis).map(latin1)) {
       const r = an.addRow([line]);
       r.getCell(1).alignment = { wrapText: true, vertical: "top" };
     }
@@ -239,7 +265,7 @@ export function buildReportHtml(input: ReportInput): string {
 <h1>Relatório de gastos — ${ymLabel(summary.ym)}</h1><div class="sub">${esc(input.userName)} · gerado em ${new Date().toLocaleString("pt-BR")}</div></div>
 <div class="wrap">
 <div class="kpis">
-  <div class="kpi"><span>Renda do mês</span><strong>${brl(summary.income + summary.extraIncome)}</strong></div>
+  <div class="kpi"><span>Renda fixa do mês</span><strong>${brl(summary.income)}</strong>${summary.extraIncome ? `<span>+ ${brl(summary.extraIncome)} extras à parte</span>` : ""}</div>
   <div class="kpi"><span>Total gasto</span><strong class="neg">${brl(summary.spent)}</strong></div>
   <div class="kpi"><span>Saldo</span><strong class="${summary.balance >= 0 ? "pos" : "neg"}">${brl(summary.balance)}</strong></div>
   <div class="kpi"><span>Lançamentos</span><strong>${summary.entries.length}</strong></div>
@@ -257,18 +283,20 @@ ${future ? `<h2>Parcelas dos próximos meses</h2><table>${future}</table>` : ""}
 }
 
 /** PDF montado sem navegador, para o celular. */
-export async function buildPdf(input: ReportInput): Promise<Uint8Array> {
+type JsPdf = InstanceType<typeof import("jspdf").jsPDF>;
+
+/** Página A4 com o cabeçalho escuro do Investa e as funções de título e linha de tabela (PDF de gastos e da lista de compras). */
+async function pdfPage(heading: string, subtitle: string) {
   const { jsPDF } = await import("jspdf");
-  const { summary } = input;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const doc: JsPdf = new jsPDF({ unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 40;
-  let y = 0;
+  const k = { doc, W, H, M, y: 0 };
   const ensure = (h: number) => {
-    if (y + h > H - M) {
+    if (k.y + h > H - M) {
       doc.addPage();
-      y = M;
+      k.y = M;
     }
   };
   doc.setFillColor(11, 15, 26);
@@ -278,38 +306,23 @@ export async function buildPdf(input: ReportInput): Promise<Uint8Array> {
   doc.setFontSize(20);
   doc.text("Investa", M, 40);
   doc.setFontSize(14);
-  doc.text(`Relatório de gastos — ${ymLabel(summary.ym)}`, M, 64);
+  doc.text(latin1(heading), M, 64);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(148, 163, 184);
-  doc.text(`${input.userName} · gerado em ${new Date().toLocaleString("pt-BR")}`, M, 82);
-  y = 124;
+  doc.text(latin1(subtitle), M, 82);
+  k.y = 124;
   doc.setTextColor(11, 15, 26);
-  const kpis: [string, string][] = [
-    ["Renda do mês", brl(summary.income + summary.extraIncome)],
-    ["Total gasto", brl(summary.spent)],
-    ["Saldo", brl(summary.balance)],
-    ["Lançamentos", String(summary.entries.length)],
-  ];
-  const kw = (W - 2 * M) / 4;
-  kpis.forEach(([k, v], i) => {
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    doc.text(k.toUpperCase(), M + i * kw, y);
-    doc.setFontSize(13);
-    doc.setTextColor(11, 15, 26);
-    doc.text(v, M + i * kw, y + 18);
-  });
-  y += 44;
   const title = (t: string) => {
     ensure(30);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(t, M, y);
+    doc.setTextColor(11, 15, 26);
+    doc.text(latin1(t), M, k.y);
     doc.setFont("helvetica", "normal");
-    y += 16;
+    k.y += 16;
   };
-  const row = (cols: string[], widths: number[], opts: { bold?: boolean; muted?: boolean } = {}) => {
+  const row = (cols: string[], widths: number[], opts: { bold?: boolean; muted?: boolean; strike?: boolean } = {}) => {
     ensure(16);
     doc.setFontSize(9);
     doc.setFont("helvetica", opts.bold ? "bold" : "normal");
@@ -318,39 +331,69 @@ export async function buildPdf(input: ReportInput): Promise<Uint8Array> {
     let x = M;
     cols.forEach((c, i) => {
       const right = i === cols.length - 1;
-      const text = doc.splitTextToSize(c, widths[i] - 6)[0] ?? "";
-      doc.text(text, right ? x + widths[i] : x, y, { align: right ? "right" : "left" });
+      const text = doc.splitTextToSize(latin1(c), widths[i] - 6)[0] ?? "";
+      doc.text(text, right ? x + widths[i] : x, k.y, { align: right ? "right" : "left" });
+      if (opts.strike && i === 0 && text) {
+        const w = doc.getTextWidth(text);
+        doc.setDrawColor(100, 116, 139);
+        doc.line(x, k.y - 3, x + w, k.y - 3);
+      }
       x += widths[i];
     });
-    y += 15;
+    k.y += 15;
   };
+  const kpis = (items: [string, string][]) => {
+    const kw = (W - 2 * M) / items.length;
+    items.forEach(([label, v], i) => {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(latin1(label.toUpperCase()), M + i * kw, k.y);
+      doc.setFontSize(13);
+      doc.setTextColor(11, 15, 26);
+      doc.text(latin1(v), M + i * kw, k.y + 18);
+    });
+    k.y += 44;
+  };
+  return { k, ensure, title, row, kpis, out: () => new Uint8Array(doc.output("arraybuffer")) };
+}
+
+export async function buildPdf(input: ReportInput): Promise<Uint8Array> {
+  const { summary } = input;
+  const { k, ensure, title, row, kpis, out } = await pdfPage(`Relatório de gastos — ${ymLabel(summary.ym)}`, `${input.userName} · gerado em ${new Date().toLocaleString("pt-BR")}`);
+  const { doc, W, M } = k;
+  kpis([
+    ["Renda fixa do mês", brl(summary.income)],
+    ["Total gasto", brl(summary.spent)],
+    ["Saldo", brl(summary.balance)],
+    ["Lançamentos", String(summary.entries.length)],
+  ]);
   if (input.aiAnalysis) {
     title("Análise do Assistente");
     doc.setFontSize(9.5);
     for (const line of markdownToText(input.aiAnalysis)) {
       for (const part of doc.splitTextToSize(line, W - 2 * M)) {
         ensure(14);
-        doc.text(part, M, y);
-        y += 13;
+        doc.text(part, M, k.y);
+        k.y += 13;
       }
-      y += 3;
+      k.y += 3;
     }
-    y += 8;
+    k.y += 8;
   }
   title("Gastos por categoria");
   for (const c of summary.byCategory) row([c.category, brl(c.total)], [W - 2 * M - 120, 120]);
   const invoices = input.invoices.filter((i) => i.ym === summary.ym);
   if (invoices.length) {
-    y += 8;
+    k.y += 8;
     title("Faturas dos cartões");
     for (const i of invoices) row([institutionLabel(i.institution), i.paid ? "Paga" : "Em aberto", brl(i.amount)], [W - 2 * M - 220, 100, 120]);
   }
   if (summary.futureInstallments.length) {
-    y += 8;
+    k.y += 8;
     title("Parcelas dos próximos meses");
     for (const f of summary.futureInstallments) row([ymLabel(f.ym), brl(f.total)], [W - 2 * M - 120, 120]);
   }
-  y += 8;
+  k.y += 8;
   title("Lançamentos");
   const widths = [52, W - 2 * M - 52 - 90 - 70 - 100, 90, 70, 100];
   row(["Data", "Descrição", "Categoria", "Parcela", "Valor"], widths, { bold: true, muted: true });
@@ -366,5 +409,188 @@ export async function buildPdf(input: ReportInput): Promise<Uint8Array> {
       widths
     );
   }
+  return out();
+}
+
+/** Documento simples (plano do Assistente) em HTML, para virar PDF no desktop. */
+export function buildDocHtml(title: string, subtitle: string, markdown: string): string {
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>
+body{font-family:Inter,Segoe UI,Arial,sans-serif;color:#0B0F1A;margin:0;font-size:12.5px;line-height:1.55}
+.top{background:#0B0F1A;color:#F8FAFC;padding:26px 40px}
+.top h1{margin:0;font-size:20px}.top p{margin:6px 0 0;color:#94A3B8;font-size:11px}
+.body{padding:24px 40px}
+h2,h3{margin:18px 0 6px}ul{padding-left:20px}li{margin:3px 0}
+table.md{border-collapse:collapse;width:100%;margin:8px 0}table.md th,table.md td{border:1px solid #E2E8F0;padding:5px 8px;text-align:left}table.md th{background:#F1F5F9}
+footer{padding:16px 40px;color:#64748B;font-size:10px;border-top:1px solid #E2E8F0}
+</style></head><body>
+<div class="top"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
+<div class="body">${markdownToHtml(markdown.replace(/^\s*[-*]\s*\[( |x|X)\]/gm, (_m, c) => (c.trim() ? "- ☑" : "- ☐")))}</div>
+<footer>Gerado pelo aplicativo Investa. Conteúdo educacional, não é recomendação individual de investimento.</footer>
+</body></html>`;
+}
+
+/** A fonte padrão do PDF do celular só tem Latin-1: troca símbolos comuns e tira emojis. */
+function latin1(t: string): string {
+  return t
+    .replace(/≈/g, "~")
+    .replace(/[→⇒➜]/g, "->")
+    .replace(/[←]/g, "<-")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/…/g, "...")
+    .replace(/[✅✔☑]/g, "[x]")
+    .replace(/[☐]/g, "[ ]")
+    .replace(/≥/g, ">=")
+    .replace(/≤/g, "<=")
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
+/** O mesmo documento em PDF, sem navegador (celular). */
+export async function buildDocPdf(title: string, subtitle: string, markdown: string): Promise<Uint8Array> {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const M = 40;
+  doc.setFillColor(11, 15, 26);
+  doc.rect(0, 0, W, 80, "F");
+  doc.setTextColor(248, 250, 252);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.text(doc.splitTextToSize(latin1(title), W - 2 * M)[0] ?? latin1(title), M, 40);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(148, 163, 184);
+  doc.text(latin1(subtitle), M, 62);
+  let y = 108;
+  doc.setTextColor(11, 15, 26);
+  const lines = markdown
+    .replace(/^\s*[-*]\s*\[( |x|X)\]/gm, (_m, c) => (c.trim() ? "- [feito]" : "- [ ]"))
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !/^\|[\s:|-]+\|?$/.test(l))
+    .map((l) => (l.startsWith("|") ? tableCells(l).join("   ·   ") : l))
+    .map(latin1);
+  for (const line of lines) {
+    const heading = /^#{1,4}\s/.test(line);
+    const text = line.replace(/^#{1,4}\s*/, "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/^[-*•]\s+/, "•  ");
+    if (heading) y += 6;
+    doc.setFont("helvetica", heading ? "bold" : "normal");
+    doc.setFontSize(heading ? 12 : 10);
+    for (const part of doc.splitTextToSize(text || " ", W - 2 * M) as string[]) {
+      if (y > H - M) {
+        doc.addPage();
+        y = M;
+      }
+      doc.text(part, M, y);
+      y += heading ? 17 : 14;
+    }
+    if (heading) y += 2;
+  }
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text("Gerado pelo aplicativo Investa. Conteúdo educacional, não é recomendação individual de investimento.", M, H - 24);
   return new Uint8Array(doc.output("arraybuffer"));
+}
+
+export interface ShoppingReportInput {
+  userName: string;
+  items: ShoppingItem[];
+}
+
+const PRICE_NOTE: Record<PriceSource, string> = { informado: "informado", estimado: "estimado", pago: "pago", sem: "sem preço" };
+
+function shoppingRows(items: ShoppingItem[]) {
+  const summary = summarizeShopping(items);
+  return SHOPPING_CATEGORIES.filter((c) => items.some((i) => i.category === c.id)).map((c) => {
+    const list = items
+      .filter((i) => i.category === c.id)
+      .sort((a, b) => (a.status === b.status ? a.name.localeCompare(b.name, "pt-BR") : a.status === "pendente" ? -1 : 1))
+      .map((i) => ({ item: i, price: itemPrice(i) }));
+    const totals = summary.byCategory.find((b) => b.category === c.id)!;
+    return { label: c.label, list, totals };
+  });
+}
+
+const priceText = (p: ItemPrice) => (p.source === "sem" ? "sem preço" : p.source === "estimado" ? `~${brl(p.total)}` : brl(p.total));
+
+export async function buildShoppingExcel(input: ShoppingReportInput): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Investa";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("Lista de compras", { views: [{ showGridLines: false, state: "frozen", ySplit: 4 }] });
+  ws.columns = [{ width: 38 }, { width: 8 }, { width: 14 }, { width: 14 }, { width: 13 }, { width: 13 }];
+  ws.mergeCells("A1:F1");
+  ws.getCell("A1").value = "Investa — Lista de compras";
+  ws.getCell("A1").font = { bold: true, size: 16, color: { argb: "FF0B0F1A" } };
+  ws.getCell("A2").value = `${input.userName} · gerado em ${new Date().toLocaleString("pt-BR")}`;
+  ws.getCell("A2").font = { color: { argb: "FF64748B" } };
+  const head = ws.getRow(4);
+  head.values = ["Item", "Qtd.", "Preço unit.", "Total", "Preço", "Status"];
+  head.eachCell((c) => {
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F8CFF" } };
+  });
+  head.height = 22;
+  for (const cat of shoppingRows(input.items)) {
+    const title = ws.addRow([cat.label]);
+    title.font = { bold: true, size: 12 };
+    title.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF3FB" } };
+    for (const { item, price } of cat.list) {
+      const r = ws.addRow([item.name, item.quantity, price.source === "sem" ? null : price.unit, price.source === "sem" ? null : price.total, PRICE_NOTE[price.source], item.status === "comprado" ? "Comprado" : "Pendente"]);
+      r.getCell(3).numFmt = BRL_FMT;
+      r.getCell(4).numFmt = BRL_FMT;
+      if (item.status === "comprado") r.getCell(1).font = { strike: true, color: { argb: "FF64748B" } };
+    }
+    const sub = ws.addRow([`Subtotal ${cat.label} (falta comprar)`, null, null, cat.totals.pending.total, cat.totals.pending.estimated ? `~${brl(cat.totals.pending.estimated)} estimado` : ""]);
+    sub.font = { bold: true };
+    sub.getCell(4).numFmt = BRL_FMT;
+    ws.addRow([]);
+  }
+  const s = summarizeShopping(input.items);
+  const lines: [string, number][] = [
+    ["Falta comprar — total", s.pending.total],
+    ["  com preço informado", s.pending.informed],
+    ["  estimado (preço médio)", s.pending.estimated],
+    ["Já comprado", s.bought.total],
+  ];
+  for (const [label, v] of lines) {
+    const r = ws.addRow([label, null, null, v]);
+    r.font = { bold: !label.startsWith("  ") };
+    r.getCell(4).numFmt = BRL_FMT;
+  }
+  if (s.pending.noPrice) ws.addRow([`${s.pending.noPrice} ${s.pending.noPrice === 1 ? "item" : "itens"} sem preço (não entram no total)`]).font = { italic: true, color: { argb: "FF64748B" } };
+  return new Uint8Array(await wb.xlsx.writeBuffer());
+}
+
+export async function buildShoppingPdf(input: ShoppingReportInput): Promise<Uint8Array> {
+  const s = summarizeShopping(input.items);
+  const { k, title, row, kpis, out } = await pdfPage("Lista de compras", `${input.userName} · gerado em ${new Date().toLocaleString("pt-BR")}`);
+  const { W, M } = k;
+  kpis([
+    ["Falta comprar", brl(s.pending.total)],
+    ["Estimado", brl(s.pending.estimated)],
+    ["Já comprado", brl(s.bought.total)],
+    ["Itens", `${s.pending.count} pendentes`],
+  ]);
+  const widths = [W - 2 * M - 40 - 80 - 90, 40, 80, 90];
+  for (const cat of shoppingRows(input.items)) {
+    title(cat.label);
+    row(["Item", "Qtd.", "Status", "Total"], widths, { bold: true, muted: true });
+    for (const { item, price } of cat.list) {
+      row([item.name, String(item.quantity), item.status === "comprado" ? "Comprado" : "Pendente", priceText(price)], widths, { strike: item.status === "comprado", muted: item.status === "comprado" });
+    }
+    row([`Subtotal (falta comprar)${cat.totals.pending.estimated ? ` · ~${brl(cat.totals.pending.estimated)} estimado` : ""}`, "", "", brl(cat.totals.pending.total)], widths, { bold: true });
+    k.y += 8;
+  }
+  title("Total");
+  const tw = [W - 2 * M - 120, 120];
+  row(["Falta comprar", brl(s.pending.total)], tw, { bold: true });
+  row(["Com preço informado", brl(s.pending.informed)], tw);
+  row(["Estimado pelo preço médio (~)", brl(s.pending.estimated)], tw);
+  row(["Já comprado", brl(s.bought.total)], tw);
+  if (s.pending.noPrice) row([`${s.pending.noPrice} ${s.pending.noPrice === 1 ? "item" : "itens"} sem preço (não entram no total)`, ""], tw, { muted: true });
+  return out();
 }

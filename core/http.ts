@@ -14,9 +14,20 @@ let browserFetch: FetchImpl | null = null;
 let cacheFiles: FileStore | null = null;
 let streamFetch: FetchImpl | null = null;
 
-/** No celular, a IA usa o fetch do WebView para receber a resposta em streaming. */
-export function setStreamFetch(fn: FetchImpl): void {
+let bufferedCheck: (url: string) => boolean = () => false;
+
+/**
+ * No celular, a IA usa o fetch do WebView para receber a resposta em streaming;
+ * quando ele não está disponível para aquele servidor, a rede nativa entrega a
+ * resposta inteira de uma vez ("buffered"), e a IA espera mais por ela.
+ */
+export function setStreamFetch(fn: FetchImpl, buffered?: (url: string) => boolean): void {
   streamFetch = fn;
+  if (buffered) bufferedCheck = buffered;
+}
+
+export function isBufferedStream(url: string): boolean {
+  return bufferedCheck(url);
 }
 
 export function fetchStream(url: string, init: RequestInit): Promise<Response> {
@@ -46,7 +57,34 @@ export function writeDiskCache(name: string, data: unknown): void {
     // sem disco: segue só com o cache em memória
   }
 }
-const BROWSER_HOSTS = new Set(["olinda.bcb.gov.br", "www.tesourodireto.com.br", "api.bcb.gov.br", "store.steampowered.com"]);
+const BROWSER_HOSTS = new Set(["olinda.bcb.gov.br", "www.tesourodireto.com.br", "api.bcb.gov.br", "store.steampowered.com", "html.duckduckgo.com", "lite.duckduckgo.com"]);
+
+/** Lojas: a rede do Chromium passa por mais bloqueios anti-robô do que a do Node. */
+const STORE_HOSTS = /(^|\.)(mercadolivre\.com\.br|mercadolibre\.com|meli\.la|amazon\.com\.br|amzn\.to|a\.co|shopee\.com\.br|aliexpress\.com|kabum\.com\.br|magazineluiza\.com\.br|epicgames\.com)$/i;
+
+/** Servidores da IA: no PC, se a rede do Node falhar, tentam de novo pela do Chromium. */
+const AI_HOSTS = /(^|\.)(api\.groq\.com|api\.nvidia\.com)$/i;
+
+/**
+ * Usa `primary` e, se ele não conseguir conectar (proxy do Windows, antivírus)
+ * ou se um firewall devolver a página de bloqueio (403 em HTML), tenta `backup`.
+ */
+export function fallbackFetch(primary: FetchImpl, backup: FetchImpl): FetchImpl {
+  return async (url, init) => {
+    let res: Response;
+    try {
+      res = await primary(url, init);
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      return backup(url, init);
+    }
+    if (res.status === 403 && /text\/html/i.test(res.headers.get("content-type") ?? "")) {
+      void res.body?.cancel().catch(() => undefined);
+      return backup(url, init);
+    }
+    return res;
+  };
+}
 
 /** No app desktop, usa a pilha de rede do Chromium para servidores que bloqueiam clientes que não são navegadores. */
 export function setBrowserFetch(fn: FetchImpl): void {
@@ -56,7 +94,9 @@ export function setBrowserFetch(fn: FetchImpl): void {
 export async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 12_000): Promise<Response> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  const impl: FetchImpl = browserFetch && BROWSER_HOSTS.has(new URL(url).host) ? browserFetch : (u, i) => fetch(u, i);
+  const host = new URL(url).host;
+  const node: FetchImpl = (u, i) => fetch(u, i);
+  const impl: FetchImpl = !browserFetch ? node : BROWSER_HOSTS.has(host) || STORE_HOSTS.test(host) ? browserFetch : AI_HOSTS.test(host) ? fallbackFetch(node, browserFetch) : node;
   try {
     return await impl(url, {
       ...init,
@@ -68,16 +108,30 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, time
   }
 }
 
+/** Lê o corpo com prazo: o tempo-limite do fetch acaba quando chegam os cabeçalhos. */
+export function readText(res: Response, ms = 15_000): Promise<string> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    res.text().finally(() => clearTimeout(timer)),
+    new Promise<string>((_, reject) => {
+      timer = setTimeout(() => {
+        void res.body?.cancel().catch(() => undefined);
+        reject(new Error("A resposta demorou demais."));
+      }, ms);
+    }),
+  ]);
+}
+
 export async function getJson<T>(url: string, init: RequestInit = {}, timeoutMs?: number): Promise<T> {
   const res = await fetchWithTimeout(url, { ...init, headers: { Accept: "application/json", ...(init.headers as Record<string, string>) } }, timeoutMs);
-  if (!res.ok) throw new HttpError(res.status, url, await res.text().catch(() => ""));
-  return (await res.json()) as T;
+  if (!res.ok) throw new HttpError(res.status, url, await readText(res, 5_000).catch(() => ""));
+  return JSON.parse(await readText(res, timeoutMs ?? 15_000)) as T;
 }
 
 export async function getText(url: string, init: RequestInit = {}, timeoutMs?: number): Promise<string> {
   const res = await fetchWithTimeout(url, init, timeoutMs);
   if (!res.ok) throw new HttpError(res.status, url);
-  return res.text();
+  return readText(res, timeoutMs ?? 15_000);
 }
 
 interface CacheEntry<T> {

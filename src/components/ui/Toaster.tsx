@@ -21,17 +21,18 @@ export function Toaster() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 40, scale: 0.96 }}
               transition={{ type: "spring", stiffness: 500, damping: 36 }}
-              className="pointer-events-auto glass border border-line/15 rounded-2xl shadow-2xl px-4 py-3 flex gap-3 items-start no-drag"
+              className="pointer-events-auto glass border border-separator/15 rounded-card shadow-2xl px-4 py-3 flex gap-3 items-start no-drag"
             >
               <Icon size={20} className={clsx("mt-0.5 shrink-0", t.tone === "success" ? "text-success" : t.tone === "error" ? "text-danger" : "text-primary")} />
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold">{t.title}</div>
-                {t.message && <div className="text-[13px] text-muted mt-0.5 line-clamp-3">{t.message}</div>}
+                <div className="text-callout font-semibold">{t.title}</div>
+                {t.message && <div className="text-footnote text-muted mt-0.5 line-clamp-3">{t.message}</div>}
                 {t.action && (
                   <button
-                    className="text-[13px] font-semibold text-primary mt-1.5"
+                    className="pressable text-footnote font-semibold text-primary mt-1.5"
                     onClick={() => {
-                      navigate(t.action!.to);
+                      if (t.action!.onClick) t.action!.onClick();
+                      else if (t.action!.to) navigate(t.action!.to);
                       dismiss(t.id);
                     }}
                   >

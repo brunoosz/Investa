@@ -29,20 +29,23 @@ function IndicatorStrip() {
     <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 mb-5">
       {ind?.selic && (
         <div className="surface px-4 py-3 min-w-[132px] shrink-0">
-          <div className="text-[12px] text-muted">Selic</div>
+          <div className="text-footnote text-muted">Selic</div>
           <div className="font-semibold tabular mt-0.5">{num(ind.selic.value)}%</div>
-          <div className="text-[11.5px] text-muted">CDI {ind.cdi ? num(ind.cdi.value) : "—"}%</div>
+          <div className="text-footnote text-muted">CDI {ind.cdi ? num(ind.cdi.value) : "—"}%</div>
         </div>
       )}
       {STRIP.map((s) => {
         const q = quotes[s];
         return (
-          <button key={s} onClick={() => navigate(`/mercado/${encodeURIComponent(s)}`)} className="surface px-4 py-3 min-w-[132px] shrink-0 text-left hover:border-line/20 transition">
-            <div className="text-[12px] text-muted">{catalogAsset(s)?.name ?? displaySymbol(s)}</div>
+          <button key={s} onClick={() => navigate(`/mercado/${encodeURIComponent(s)}`)} className="surface px-4 py-3 min-w-[132px] shrink-0 text-left hover:border-separator/20 pressable transition-[border-color,transform] duration-150">
+            <div className="flex items-center gap-1.5 text-footnote text-muted">
+              <AssetAvatar symbol={s} size={16} />
+              <span className="truncate">{catalogAsset(s)?.name ?? displaySymbol(s)}</span>
+            </div>
             {q ? (
               <>
                 <div className="font-semibold tabular mt-0.5">{s === "BTC-USD" ? `US$ ${num(q.price, 0)}` : quotePrice(q)}</div>
-                <div className={clsx("text-[11.5px] tabular font-medium", toneClass(q.changePercent))}>{pct(q.changePercent)}</div>
+                <div className={clsx("text-footnote tabular font-medium", toneClass(q.changePercent))}>{pct(q.changePercent)}</div>
               </>
             ) : (
               <>
@@ -60,42 +63,42 @@ function IndicatorStrip() {
 function QuoteRow({ symbol, q, name, favorite, failed, onFavorite, onHide }: { symbol: string; q?: Quote; name: string; favorite: boolean; failed?: boolean; onFavorite: () => void; onHide: () => void }) {
   const navigate = useNavigate();
   return (
-    <div className="group flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-line/[0.03] cursor-pointer" onClick={() => navigate(`/mercado/${encodeURIComponent(symbol)}`)}>
+    <div className="group flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-line/[0.04] active:bg-line/[0.07] transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/mercado/${encodeURIComponent(symbol)}`)}>
       <AssetAvatar symbol={symbol} size={40} />
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-[15px]">{displaySymbol(symbol)}</div>
-        <div className="text-[12.5px] text-muted truncate">{q?.name && q.name !== symbol ? q.name : name}</div>
+        <div className="font-semibold text-body">{displaySymbol(symbol)}</div>
+        <div className="text-footnote text-muted truncate">{q?.name && q.name !== symbol ? q.name : name}</div>
       </div>
       <div className="hidden md:block text-right w-[120px]">
         {q?.volume ? (
           <>
-            <div className="text-[11.5px] text-muted">Volume</div>
-            <div className="text-[13px] tabular">{compact(q.volume)}</div>
+            <div className="text-footnote text-muted">Volume</div>
+            <div className="text-footnote tabular">{compact(q.volume)}</div>
           </>
         ) : null}
       </div>
       <div className="hidden lg:block text-right w-[100px]">
         {q?.dividendYield ? (
           <>
-            <div className="text-[11.5px] text-muted">DY 12m</div>
-            <div className="text-[13px] tabular">{num(q.dividendYield)}%</div>
+            <div className="text-footnote text-muted">DY 12m</div>
+            <div className="text-footnote tabular">{num(q.dividendYield)}%</div>
           </>
         ) : q?.pe ? (
           <>
-            <div className="text-[11.5px] text-muted">P/L</div>
-            <div className="text-[13px] tabular">{num(q.pe, 1)}</div>
+            <div className="text-footnote text-muted">P/L</div>
+            <div className="text-footnote tabular">{num(q.pe, 1)}</div>
           </>
         ) : null}
       </div>
       <div className="text-right w-[120px]">
-        {q ? <div className="font-semibold tabular text-[15px]">{quotePrice(q)}</div> : failed ? <span className="text-muted">—</span> : <Skeleton className="h-4 w-20 ml-auto" />}
+        {q ? <div className="font-semibold tabular text-body">{quotePrice(q)}</div> : failed ? <span className="text-muted">—</span> : <Skeleton className="h-4 w-20 ml-auto" />}
       </div>
       <ChangePill value={q?.changePercent} />
       <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onFavorite} className={clsx("h-8 w-8 rounded-lg flex items-center justify-center transition", favorite ? "text-warning" : "text-muted/50 hover:text-fg opacity-0 group-hover:opacity-100")} title={favorite ? "Remover dos favoritos" : "Favoritar"}>
+        <button onClick={onFavorite} className={clsx("pressable h-8 w-8 rounded-chip flex items-center justify-center transition-[opacity,color,transform] duration-150", favorite ? "text-warning" : "text-muted/50 hover:text-fg opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100")} title={favorite ? "Remover dos favoritos" : "Favoritar"}>
           <Star size={17} fill={favorite ? "currentColor" : "none"} />
         </button>
-        <button onClick={onHide} className="h-8 w-8 rounded-lg hidden sm:flex items-center justify-center text-muted/50 hover:text-fg opacity-0 group-hover:opacity-100 transition" title="Ocultar da lista">
+        <button onClick={onHide} className="h-8 w-8 rounded-chip hidden sm:flex items-center justify-center text-muted/50 hover:text-fg opacity-0 group-hover:opacity-100 pressable transition-[opacity,color,transform] duration-150" title="Ocultar da lista">
           <EyeOff size={16} />
         </button>
       </div>
@@ -151,12 +154,12 @@ function QuoteList({ tab }: { tab: Tab }) {
 
   return (
     <Card padded={false} className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 px-4 sm:px-5 py-3 border-b border-line/10">
+      <div className="flex flex-wrap items-center gap-2 px-4 sm:px-5 py-3 border-b border-separator/10">
         <div className="relative flex-1 min-w-[180px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar nesta lista" className="field h-9 pl-9 text-[14px]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar nesta lista" className="field h-9 pl-9 text-callout" />
         </div>
-        <div className="flex items-center gap-1.5 text-[13px] text-muted">
+        <div className="flex items-center gap-1.5 text-footnote text-muted">
           <ArrowDownWideNarrow size={15} />
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="bg-transparent outline-none font-medium text-fg cursor-pointer">
             <option value="variacao">Maior variação</option>
@@ -166,10 +169,10 @@ function QuoteList({ tab }: { tab: Tab }) {
             <option value="nome">Nome (A–Z)</option>
           </select>
         </div>
-        <div className="flex items-center gap-2 text-[12.5px] text-muted ml-auto">
+        <div className="flex items-center gap-2 text-footnote text-muted ml-auto">
           {error ? <span className="text-danger">Sem conexão</span> : <LiveDot />}
           {updatedAt ? `Atualizado ${relativeTime(updatedAt)}` : "Carregando…"}
-          <button onClick={() => void refreshQuotes()} className={clsx("h-7 w-7 rounded-lg flex items-center justify-center hover:bg-line/10", loading && "animate-spin")} aria-label="Atualizar">
+          <button onClick={() => void refreshQuotes()} className={clsx("h-7 w-7 rounded-chip flex items-center justify-center hover:bg-line/10 transition-colors", loading && "animate-spin")} aria-label="Atualizar">
             <RefreshCw size={14} />
           </button>
         </div>
@@ -182,7 +185,7 @@ function QuoteList({ tab }: { tab: Tab }) {
       {rows.length === 0 ? (
         <EmptyState icon={Star} title={tab === "favoritos" ? "Nenhum favorito ainda" : "Nada por aqui"} description={tab === "favoritos" ? "Toque na estrela de qualquer ativo para acompanhá-lo aqui." : "Ajuste o filtro ou adicione ativos em Personalizar."} />
       ) : (
-        <div className="divide-y divide-line/[0.07]">
+        <div className="divide-y divide-separator/10">
           {rows.map((a) => (
             <QuoteRow
               key={a.symbol}
@@ -221,18 +224,18 @@ function TesouroPanel() {
   ];
   return (
     <Card padded={false}>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line/10">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-separator/10">
         <div>
           <div className="font-semibold">Títulos do Tesouro Direto</div>
-          <div className="text-[12.5px] text-muted">{data ? `Fonte: ${data.source} · ${data.updatedAt.length > 10 ? relativeTime(data.updatedAt) : dateBR(data.updatedAt)}` : "Taxas oficiais de compra"}</div>
+          <div className="text-footnote text-muted">{data ? `Fonte: ${data.source} · ${data.updatedAt.length > 10 ? relativeTime(data.updatedAt) : dateBR(data.updatedAt)}` : "Taxas oficiais de compra"}</div>
         </div>
-        <label className="flex items-center gap-2 text-[13px] text-muted">
+        <label className="flex items-center gap-2 text-footnote text-muted">
           <Toggle checked={onlyBuy} onChange={setOnlyBuy} /> Só disponíveis para compra
         </label>
       </div>
       {loading && !data && (
         <div className="p-5 space-y-2">
-          <div className="text-[13px] text-muted mb-1">Baixando a base oficial do Tesouro Direto — na primeira vez pode levar alguns segundos.</div>
+          <div className="text-footnote text-muted mb-1">Baixando a base oficial do Tesouro Direto — na primeira vez pode levar alguns segundos.</div>
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-12" />
           ))}
@@ -247,17 +250,17 @@ function TesouroPanel() {
         const list = titles.filter((t) => t.indexer === g.key);
         if (!list.length) return null;
         return (
-          <div key={g.key} className="px-5 py-4 border-b border-line/[0.07] last:border-0">
+          <div key={g.key} className="px-5 py-4 border-b border-separator/10 last:border-0">
             <div className="mb-2">
-              <div className="font-semibold text-[15px]">{g.label}</div>
-              <div className="text-[12.5px] text-muted">{g.text}</div>
+              <div className="font-semibold text-body">{g.label}</div>
+              <div className="text-footnote text-muted">{g.text}</div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {list.map((t) => (
-                <div key={t.name} className="rounded-2xl bg-line/[0.04] border border-line/10 px-4 py-3">
-                  <div className="text-[13.5px] font-semibold">{t.name}</div>
-                  <div className="text-[18px] font-bold tabular text-primary mt-0.5">{tesouroRate(t)}</div>
-                  <div className="text-[12px] text-muted mt-1">
+                <div key={t.name} className="rounded-control bg-line/[0.04] border border-separator/10 px-4 py-3">
+                  <div className="text-footnote font-semibold">{t.name}</div>
+                  <div className="text-title font-bold tabular text-primary mt-0.5">{tesouroRate(t)}</div>
+                  <div className="text-footnote text-muted mt-1">
                     Vence em {dateBR(t.maturity)}
                     {t.minInvestment ? ` · mínimo ${brl(t.minInvestment)}` : ""}
                     {t.unitPrice ? ` · título ${brl(t.unitPrice)}` : ""}
@@ -318,25 +321,25 @@ function RendaFixaPanel() {
           {products
             .sort((a, b) => b.final - a.final)
             .map((p) => (
-              <div key={p.name} className={clsx("flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3", p.final === best ? "border-success/40 bg-success/[0.06]" : "border-line/10 bg-line/[0.03]")}>
+              <div key={p.name} className={clsx("flex flex-wrap items-center gap-3 rounded-control border px-4 py-3", p.final === best ? "border-success/40 bg-success/[0.06]" : "border-separator/10 bg-line/[0.03]")}>
                 <div className="flex-1 min-w-[180px]">
                   <div className="font-semibold flex items-center gap-2">
                     {p.name} {p.final === best && <Badge tone="success">Melhor</Badge>}
                   </div>
-                  <div className="text-[12.5px] text-muted">{p.note}</div>
+                  <div className="text-footnote text-muted">{p.note}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[12px] text-muted">Bruto ao ano</div>
+                  <div className="text-footnote text-muted">Bruto ao ano</div>
                   <div className="tabular font-medium">{num(p.annual)}%</div>
                 </div>
                 <div className="text-right w-[150px]">
-                  <div className="text-[12px] text-muted">Você terá (líquido)</div>
-                  <div className="tabular font-bold text-[16px]">{brl(p.final)}</div>
+                  <div className="text-footnote text-muted">Você terá (líquido)</div>
+                  <div className="tabular font-bold text-headline">{brl(p.final)}</div>
                 </div>
               </div>
             ))}
         </div>
-        <p className="text-[12px] text-muted mt-3">Taxas dos CDBs, LCIs e LCAs são exemplos típicos de mercado; veja as taxas de cada banco na aba Bancos.</p>
+        <p className="text-footnote text-muted mt-3">Taxas dos CDBs, LCIs e LCAs são exemplos típicos de mercado; veja as taxas de cada banco na aba Bancos.</p>
       </Card>
     </div>
   );
@@ -366,14 +369,14 @@ function CustomizeSheet({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
         <div>
           <div className="label">Categorias visíveis</div>
-          <div className="surface divide-y divide-line/10">
+          <div className="surface divide-y divide-separator/10">
             {CATEGORIES.map((c) => {
               const visible = !settings.hiddenCategories.includes(c.id);
               return (
                 <div key={c.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <div className="font-medium text-[14.5px]">{c.label}</div>
-                    <div className="text-[12.5px] text-muted">{c.description}</div>
+                    <div className="font-medium text-callout">{c.label}</div>
+                    <div className="text-footnote text-muted">{c.description}</div>
                   </div>
                   <Toggle
                     checked={visible}

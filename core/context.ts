@@ -1,9 +1,9 @@
 import type { AiMode, CreditRatesData, Indicators, Quote, UserDataMap } from "@shared/types";
 import { displaySymbol, LIQUID_UNIVERSE } from "@shared/catalog";
 import { institutionLabel } from "@shared/banks";
-import { addMonthsYm, annualRate, currentYm, projectGoal, ratesFromIndicators, summarizeMonth, ymLabel } from "@shared/finance";
+import { addMonthsYm, annualRate, cardsUsage, incomeKindLabel, incomeKindOf, mandatoryTotal, pendingFor, currentYm, monthBudget, projectGoal, ratesFromIndicators, summarizeMonth, ymLabel } from "@shared/finance";
 import { getCopom, getIndicators } from "./bcb";
-import { getCreditRates } from "./banks";
+import { asksAboutDebt, creditRatesForAi, userCreditSection } from "./rates";
 import { getNews } from "./news";
 import { getTesouro, formatTesouroRate } from "./tesouro";
 import { getChart, getQuotes } from "./yahoo";
@@ -15,6 +15,23 @@ const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 const pct = (v: number, d = 2) => `${v >= 0 ? "+" : ""}${v.toFixed(d).replace(".", ",")}%`;
 const n2 = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 const brDate = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+/** Fonte lenta não segura a resposta da IA: passou do prazo, segue sem ela (o cache a traz na próxima). */
+function within<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
 
 function money(q: Quote): string {
   if (q.currency === "BRL") return brl(q.price);
@@ -69,7 +86,7 @@ async function assetDetail(symbol: string, q?: Quote): Promise<string> {
   if (!q) return `- ${displaySymbol(symbol)}: sem cotação disponível agora.`;
   const parts = [`${displaySymbol(symbol)} (${q.name}): ${money(q)} (${pct(q.changePercent)} hoje)`];
   try {
-    const chart = await getChart(symbol, "1A");
+    const chart = await within(getChart(symbol, "1A"), 5_000);
     const pts = chart.points;
     const lastClose = q.price;
     const at = (days: number) => {
@@ -156,7 +173,7 @@ function profileSection(lines: string[], input: ContextInput): void {
   if (p.onboarded) {
     lines.push(`- Perfil de investidor: ${p.riskProfile}; experiência: ${p.experience}; objetivo principal: ${p.mainGoal}${p.age ? `; idade: ${p.age}` : ""}`);
     lines.push(
-      `- Renda líquida mensal: ${brl(p.salary)}${p.extraIncome ? ` + renda extra ${brl(p.extraIncome)}` : ""}; gastos fixos ${brl(p.fixedExpenses)}; gastos variáveis ${brl(p.variableExpenses)}; pode investir ${brl(p.monthlyInvest)}/mês`
+      `- Renda fixa mensal: salário ${brl(p.salary)}${p.payDay ? ` (cai dia ${p.payDay}${p.advanceDay && p.advanceAmount ? `, com adiantamento de ${brl(p.advanceAmount)} no dia ${p.advanceDay}` : ""})` : ""}${p.extraIncome ? ` + outra renda fixa ${brl(p.extraIncome)}` : ""}; gastos fixos ${brl(p.fixedExpenses)}; gastos variáveis ${brl(p.variableExpenses)}; pode investir ${brl(p.monthlyInvest)}/mês`
     );
     lines.push(`- Reserva de emergência atual: ${brl(p.emergencyReserve)}; já investido: ${brl(p.invested)}; dívidas: ${brl(p.debts)}`);
   } else {
@@ -205,7 +222,7 @@ function moneySection(lines: string[], data: UserDataMap, detailed: boolean): vo
   const month = summarizeMonth(data.expenses, ym, p.salary, p.extraIncome);
   if (month.entries.length) {
     lines.push(
-      `- Gastos de ${ymLabel(ym)} até agora: ${brl(month.spent)} (${month.byCategory.slice(0, detailed ? 10 : 5).map((c) => `${c.category} ${brl(c.total)}`).join(", ")}); renda do mês ${brl(month.income)}; saldo previsto ${brl(month.balance)}`
+      `- Gastos de ${ymLabel(ym)} até agora: ${brl(month.spent)} (${month.byCategory.slice(0, detailed ? 10 : 5).map((c) => `${c.category} ${brl(c.total)}`).join(", ")}); renda fixa do mês ${brl(month.income)}; sobra da renda fixa ${brl(month.balance)}`
     );
     if (month.futureInstallments.length) lines.push(`- Parcelas futuras: ${month.futureInstallments.map((f) => `${ymLabel(f.ym)} ${brl(f.total)}`).join("; ")}`);
   } else {
@@ -217,7 +234,31 @@ function moneySection(lines: string[], data: UserDataMap, detailed: boolean): vo
     const biggest = [...month.entries].sort((a, b) => b.amount - a.amount).slice(0, 8);
     if (biggest.length) lines.push(`- Maiores lançamentos do mês: ${biggest.map((e) => `${e.expense.description} ${brl(e.amount)} (${e.expense.category})`).join("; ")}`);
   }
-  const accounts = data.accounts ?? [];
+  const bills = (data.bills ?? []).filter((b) => b.active);
+  const planned = (data.planned ?? []).filter((p) => !p.done);
+  const boxes = (data.boxes ?? []).filter((b) => b.active);
+  const budget = monthBudget(month, data.invoices ?? [], ym, new Date(), pendingFor(bills, planned, ym, boxes));
+  if (boxes.length) {
+    lines.push(`- Caixinhas: ${boxes.map((b) => `${b.name} ${brl(b.balance)}${b.target ? ` de ${brl(b.target)}` : ""} (+${brl(b.monthly)}/mês no dia ${b.day})`).join("; ")}`);
+  }
+  if (planned.length) {
+    lines.push(`- Gastos que vão vir: ${planned.map((p) => `${p.description} ${brl(p.amount)} em ${brDate(p.date)}${p.plan ? " (já tem plano)" : ""}`).join("; ")}`);
+  }
+  if (bills.length) {
+    lines.push(`- Contas fixas: ${bills.map((b) => `${b.name} ${brl(b.amount)} (dia ${b.dueDay}${b.mandatory ? ", obrigatória" : ""}${b.paid.includes(ym) ? ", paga este mês" : ""})`).join("; ")}`);
+    const mandatory = mandatoryTotal(bills);
+    if (mandatory) lines.push(`- Gastos obrigatórios do mês (não dá para cortar): ${brl(mandatory)}.`);
+  }
+  lines.push(
+    `- Disponível para gastar em ${ymLabel(ym)}: ${brl(budget.available)} (renda fixa ${brl(budget.income)} − gastos ${brl(budget.spentDirect)} − faturas ${brl(budget.invoices)} − contas, planejados e caixinhas pendentes ${brl(budget.pendingBills)}; ${n2(budget.ratio * 100)}% da renda comprometida)${budget.perDay !== undefined && budget.available > 0 ? `, cerca de ${brl(budget.perDay)} por dia até o fim do mês` : ""}. O salário não é saldo livre: só o disponível é.`
+  );
+  const cards = cardsUsage(data.accounts ?? [], data.invoices ?? [], data.expenses);
+  if (cards.length) {
+    lines.push(
+      `- Limite dos cartões: ${cards.map((c) => `${institutionLabel(c.institution)} disponível ${brl(c.available)} de ${brl(c.limit)} (usado ${brl(c.used)}${c.closingDay ? `, fecha dia ${c.closingDay}` : ""}${c.dueDay ? `, vence dia ${c.dueDay}` : ""})`).join("; ")}. Compra no crédito acima do disponível não passa.`
+    );
+  }
+  const accounts = (data.accounts ?? []).filter((a) => !a.cardOnly);
   if (accounts.length) {
     const total = accounts.reduce((s, a) => s + a.balance, 0);
     lines.push(`- Saldo nas contas agora (informado pelo usuário): ${brl(total)} — ${accounts.map((a) => `${institutionLabel(a.institution)} ${brl(a.balance)}`).join("; ")}`);
@@ -225,7 +266,10 @@ function moneySection(lines: string[], data: UserDataMap, detailed: boolean): vo
     if (openNow) lines.push(`- Depois de pagar as faturas em aberto do mês, sobram ${brl(total - openNow)} nas contas.`);
   }
   const extras = month.entries.filter((e) => e.expense.type === "receita");
-  if (extras.length) lines.push(`- Entradas extras do mês: ${extras.map((e) => `${e.expense.description} ${brl(e.amount)}`).join("; ")}`);
+  if (extras.length)
+    lines.push(
+      `- Entradas avulsas do mês (NÃO são renda fixa, não conte como salário): ${extras.map((e) => `${e.expense.description} ${brl(e.amount)} (${incomeKindLabel(incomeKindOf(e.expense))})`).join("; ")}`
+    );
   const invoices = (data.invoices ?? []).filter((i) => i.ym >= addMonthsYm(ym, -1));
   if (invoices.length) {
     lines.push("- Faturas de cartão informadas pelo usuário:");
@@ -244,10 +288,11 @@ export const APP_GUIDE = `Telas do Investa e como usar:
 - Início: patrimônio, divisão da carteira, aulas, objetivos, indicadores do dia e notícias.
 - Carteira: botão "Adicionar investimento". Renda variável: buscar o ativo, quantidade e preço médio. Renda fixa: tipo (CDB, LCI, LCA, Tesouro, poupança, debênture), indexador (CDI, Selic, IPCA, prefixado), taxa, valor e data.
 - Mercado: abas por categoria (ações, FIIs, ETFs, BDRs, Tesouro Direto, renda fixa bancária, cripto, moedas, índices, commodities, ações dos EUA). "Personalizar" esconde ou adiciona ativos. Clicar num ativo abre o gráfico (1D a Máx, linha ou candles) e os indicadores; ali há "Favoritar", "Criar alerta", "Simular" e "Perguntar à IA".
-- Aulas: trilha de 30 aulas em 10 módulos. Cada aula termina com um quiz de 3 perguntas; é preciso acertar as 3 para liberar a próxima. Abas Conquistas, Ranking e Glossário.
+- Aulas: trilha de 30 aulas em 10 módulos. Cada aula termina com um quiz de 3 perguntas; é preciso acertar as 3 para liberar a próxima. Abas Conquistas e Glossário.
 - Assistente: esta conversa. Modos: Conversa livre, Professor, Minhas finanças, Analista de mercado, Vale a pena comprar? e Ajuda com o app.
+- Meu plano: questionário de 5 perguntas (objetivo, prazo, quanto por mês — pode ser R$ 1 —, quanto já tem e estilo seguro/equilibrado/crescimento), projeção com juros compostos e marcos, e "Montar meu plano": o Assistente monta um plano de investimento com fases, checklist com datas e PDF, usando livros de finanças e, se ligada, pesquisa na internet.
 - Objetivos: "Nova meta" com valor, prazo e onde o dinheiro está aplicado. "Ver projeção" mostra quanto terá no prazo e a comparação entre bancos.
-- Gastos: "Novo lançamento" (gasto ou receita, categoria, forma de pagamento, banco/cartão e parcelas). Seção Faturas: informar a fatura de cada cartão no mês e pedir ajuda ao Assistente. "Minhas contas" guarda o saldo de cada banco e mostra quanto sobra depois da fatura daquele banco; "Recebi dinheiro" registra uma entrada extra (ex.: venda de um videogame) e pode somar ao saldo da conta. Botões PDF e Excel exportam o mês.
+- Gastos: "Novo lançamento" (gasto ou receita, categoria, forma de pagamento, banco/cartão e parcelas). Seção Faturas: informar a fatura de cada cartão no mês e pedir ajuda ao Assistente. "Minhas contas" guarda o saldo de cada banco, o limite do cartão (com dia de fechamento e vencimento) e mostra o limite disponível; "Recebi dinheiro" registra uma entrada avulsa com o tipo (trabalho, presente/família, venda, reembolso, outro) e o motivo — fica à parte do salário e só soma ao saldo se a pessoa ligar. Contas fixas podem ser marcadas como "Obrigatório" (transporte público, aluguel, luz). "Calendário do mês" mostra o dia do salário e os vencimentos. O dia do pagamento fica em Configurações › Dados financeiros. Botões PDF e Excel exportam o mês.
 - Vale a pena?: cole o link ou o nome de um produto ou jogo; o app busca o preço e diz se é um bom momento e se cabe no orçamento.
 - Bancos: ranking de bancos e corretoras com o motivo de cada nota, rendimento com o CDI do dia e juros de crédito do Banco Central.
 - Simulador: R$ 100 mil virtuais para comprar e vender a preços reais.
@@ -259,6 +304,9 @@ export async function buildAiContext(input: ContextInput): Promise<string> {
   const { data, question, mode } = input;
   const lines: string[] = [];
   dateTimeSection(lines);
+  const memory = data.memory ?? [];
+  lines.push("\n# Memória (o que o usuário contou em conversas anteriores; use para personalizar)");
+  lines.push(memory.length ? memory.map((m) => `- ${m.text}`).join("\n") : "- Nada guardado ainda.");
 
   const mentioned = detectSymbols(question);
   const needsMarket = mode === "mercado" || mode === "professor";
@@ -268,13 +316,14 @@ export async function buildAiContext(input: ContextInput): Promise<string> {
     ? [...LIQUID_UNIVERSE, "^BVSP", "USDBRL=X", "EURBRL=X", "BTC-USD", "IFIX.SA", ...mentioned, ...portfolioSymbols]
     : [...mentioned, ...portfolioSymbols, "USDBRL=X"];
 
+  const wait = 6_000;
   const [indR, copomR, newsR, tesouroR, quotesR, creditR] = await Promise.allSettled([
-    mode === "geral" || mode === "app" ? Promise.reject(new Error("skip")) : getIndicators(),
-    needsMarket ? getCopom() : Promise.reject(new Error("skip")),
-    mode === "mercado" ? getNews() : Promise.reject(new Error("skip")),
-    needsMarket ? getTesouro() : Promise.reject(new Error("skip")),
-    symbols.length ? getQuotes(symbols, 30_000) : Promise.resolve({} as Record<string, Quote>),
-    needsMoney ? getCreditRates() : Promise.reject(new Error("skip")),
+    mode === "geral" || mode === "app" ? Promise.reject(new Error("skip")) : within(getIndicators(), wait),
+    needsMarket ? within(getCopom(), wait) : Promise.reject(new Error("skip")),
+    mode === "mercado" ? within(getNews(), wait) : Promise.reject(new Error("skip")),
+    needsMarket ? within(getTesouro(), wait) : Promise.reject(new Error("skip")),
+    symbols.length ? within(getQuotes(symbols, 30_000), 8_000) : Promise.resolve({} as Record<string, Quote>),
+    needsMoney || asksAboutDebt(question) ? within(creditRatesForAi(), asksAboutDebt(question) ? 15_000 : wait) : Promise.reject(new Error("skip")),
   ]);
   const ind = indR.status === "fulfilled" ? indR.value : undefined;
   const quotes = quotesR.status === "fulfilled" ? quotesR.value : ({} as Record<string, Quote>);
@@ -347,20 +396,23 @@ export async function buildAiContext(input: ContextInput): Promise<string> {
     const buyable = tesouroR.value.titles.filter((t) => t.canBuy);
     if (buyable.length) {
       lines.push(`\n# Tesouro Direto (taxas de compra, ${tesouroR.value.source})`);
-      lines.push(buyable.slice(0, 12).map((t) => `- ${t.name}: ${formatTesouroRate(t)}${t.minInvestment ? `, mínimo ${brl(t.minInvestment)}` : ""}`).join("\n"));
+      lines.push(buyable.slice(0, 10).map((t) => `- ${t.name}: ${formatTesouroRate(t)}${t.minInvestment ? `, mínimo ${brl(t.minInvestment)}` : ""}`).join("\n"));
     }
   }
 
-  if (creditR.status === "fulfilled") creditSection(lines, creditR.value);
+  if (creditR.status === "fulfilled") {
+    creditSection(lines, creditR.value);
+    userCreditSection(lines, data, creditR.value);
+  }
 
   if (mentioned.length) {
     lines.push("\n# Ativos citados na pergunta");
-    for (const sym of mentioned) lines.push(await assetDetail(sym, quotes[sym]));
+    lines.push(...(await Promise.all(mentioned.map((sym) => assetDetail(sym, quotes[sym])))));
   }
 
   if (newsR.status === "fulfilled" && newsR.value.length) {
     lines.push("\n# Notícias recentes do mercado");
-    for (const n of newsR.value.slice(0, 8)) {
+    for (const n of newsR.value.slice(0, 6)) {
       const d = new Date(n.publishedAt);
       lines.push(`- [${n.source}, ${d.toLocaleDateString("pt-BR")} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}] ${n.title}`);
     }
@@ -392,7 +444,7 @@ export async function buildAiContext(input: ContextInput): Promise<string> {
   return lines.join("\n");
 }
 
-const BASE_RULES = `Fale sempre em português do Brasil, de forma clara e direta. Formate em Markdown: parágrafos curtos, listas, **negrito** nos números importantes e tabelas para comparar opções.
+const BASE_RULES = `Fale de forma clara e direta, sem rodeios. O tamanho acompanha o pedido: perguntas simples pedem respostas curtas; planos e comparações podem ser completos. Formate em Markdown: parágrafos curtos, listas, **negrito** nos números importantes e tabelas para comparar opções.
 Nunca invente cotações, taxas, preços, datas ou notícias. Se um dado não estiver no contexto, diga que não tem esse dado agora.`;
 
 const MODE_PROMPTS: Record<AiMode, string> = {
@@ -422,6 +474,15 @@ const MODE_PROMPTS: Record<AiMode, string> = {
   app: `Você é o Assistente do Investa no modo Ajuda com o app. Responda dúvidas sobre como usar o aplicativo Investa, com passos curtos e o nome exato dos botões e telas do guia. Se algo não existir no app, diga que não existe.`,
 };
 
+// Alguns modelos tendem a responder em inglês (os dados e as notícias às vezes vêm em inglês):
+// a regra vai no começo e um lembrete curto depois dos dados, que é o que o modelo lê por último.
+const LANGUAGE_RULE =
+  "IDIOMA: escreva a resposta inteira em português do Brasil, mesmo quando os dados, as notícias ou as fontes estiverem em inglês. Só use outro idioma se o usuário escrever nele ou pedir um texto em outro idioma. Não mostre raciocínio, rascunho ou análise interna: entregue só a resposta final, já organizada.";
+
+export const LANGUAGE_REMINDER = "Lembrete: responda em português do Brasil.";
+
+const MEMORY_RULE = `MEMÓRIA: se o usuário contar algo duradouro sobre ele que ainda não está na seção "Memória" (gostos, hobbies, rotina, objetivos, planos, trabalho ou estudo), termine a resposta com uma linha por fato no formato [[lembrar: fato curto em terceira pessoa]]. Ex.: [[lembrar: gosta de jogar videogame]]. Nada de dados que mudam todo dia, senhas ou documentos. Use a memória para personalizar (numa compra, considere os gostos dele, se parece impulsiva e o impacto nos próximos meses).`;
+
 export function systemPrompt(mode: AiMode): string {
-  return `${MODE_PROMPTS[mode]}\n\n${BASE_RULES}`;
+  return `${LANGUAGE_RULE}\n\n${MODE_PROMPTS[mode]}\n\n${BASE_RULES}\n\n${MEMORY_RULE}`;
 }

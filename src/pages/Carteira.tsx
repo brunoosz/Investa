@@ -12,13 +12,13 @@ import { useQuotes } from "@/store/market";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { useIndicators } from "@/hooks/useMarketData";
-import { AnimatedNumber, Badge, Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui/primitives";
+import { AnimatedNumber, Badge, Card, EmptyState, PageHeader, Private, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, MoneyInput, NumberInput, SegmentedControl, Select } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
 import { BarList, Donut, Legend } from "@/components/charts/small";
 import { AccountsCard } from "@/components/Accounts";
-import { currentYm, summarizeMonth } from "@shared/finance";
+import { currentYm, summarizeMonth, localIsoDate } from "@shared/finance";
 import { AssetAvatar, AssetPicker, categoryLabel, InstitutionSelect } from "@/components/market";
 
 const FIXED_TYPES: { value: FixedType; label: string; rateType: Holding["rateType"]; rate: number }[] = [
@@ -42,7 +42,7 @@ function rateLabel(h: Holding): string {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localIsoDate();
 }
 
 function emptyHolding(kind: Holding["kind"]): Holding {
@@ -115,7 +115,7 @@ function HoldingSheet({ open, onClose, initial }: { open: boolean; onClose: () =
               />
             </Field>
             {q && (
-              <div className="text-[13px] text-muted -mt-2">
+              <div className="text-footnote text-muted -mt-2">
                 Cotação agora: <strong className="text-fg">{money(q.price, q.currency)}</strong> <span className={toneClass(q.changePercent)}>({pct(q.changePercent)})</span>
               </div>
             )}
@@ -188,37 +188,42 @@ function VariableRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => vo
   const h = v.holding;
   const navigate = useNavigate();
   return (
-    <div className="group grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] items-center gap-3 px-5 py-3.5 hover:bg-line/[0.03]">
-      <button className="flex items-center gap-3 min-w-0 text-left" onClick={() => navigate(`/mercado/${encodeURIComponent(h.symbol!)}`)}>
+    <div className="group grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] items-center gap-3 px-5 py-3.5 hover:bg-line/[0.04] transition-colors duration-150">
+      <button className="pressable flex items-center gap-3 min-w-0 text-left" onClick={() => navigate(`/mercado/${encodeURIComponent(h.symbol!)}`)}>
         <AssetAvatar symbol={h.symbol!} category={h.category} size={38} />
         <div className="min-w-0">
           <div className="font-semibold">{displaySymbol(h.symbol!)}</div>
-          <div className="text-[12.5px] text-muted truncate">
-            {num(h.quantity, h.category === "cripto" ? 4 : 0)} × {money(h.avgPrice, v.currency)} · {institutionLabel(h.institution) || "—"}
+          <div className="text-footnote text-muted truncate">
+            <Private>
+              {num(h.quantity, h.category === "cripto" ? 4 : 0)} × {money(h.avgPrice, v.currency)}
+            </Private>{" "}
+            · {institutionLabel(h.institution) || "—"}
           </div>
         </div>
       </button>
       <div className="hidden md:block text-right">
-        <div className="text-[12px] text-muted">Preço atual</div>
+        <div className="text-footnote text-muted">Preço atual</div>
         <div className="tabular font-medium">{v.price !== undefined ? money(v.price, v.currency) : "—"}</div>
       </div>
       <div className="hidden md:block text-right">
-        <div className="text-[12px] text-muted">Hoje</div>
+        <div className="text-footnote text-muted">Hoje</div>
         <div className={clsx("tabular font-medium", toneClass(v.dayChangePct))}>{pct(v.dayChangePct)}</div>
       </div>
       <div className="hidden md:block text-right">
-        <div className="text-[12px] text-muted">Rentabilidade</div>
-        <div className={clsx("tabular font-medium", toneClass(v.gain))}>{pct(v.gainPct)}</div>
+        <div className="text-footnote text-muted">Rentabilidade</div>
+        <div className={clsx("tabular font-medium", toneClass(v.gain))} data-private="">
+          {pct(v.gainPct)}
+        </div>
       </div>
-      <div className="text-right">
+      <div className="text-right" data-private="">
         <div className="tabular font-semibold">{brl(v.value)}</div>
-        <div className={clsx("text-[12.5px] tabular md:hidden", toneClass(v.gain))}>{pct(v.gainPct)}</div>
-        <div className={clsx("text-[12.5px] tabular hidden md:block", toneClass(v.gain))}>
+        <div className={clsx("text-footnote tabular md:hidden", toneClass(v.gain))}>{pct(v.gainPct)}</div>
+        <div className={clsx("text-footnote tabular hidden md:block", toneClass(v.gain))}>
           {v.gain >= 0 ? "+" : ""}
           {brl(v.gain)}
         </div>
       </div>
-      <div className="hidden md:flex gap-1 opacity-0 group-hover:opacity-100 transition">
+      <div className="flex gap-1 shrink-0 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition">
         <Button size="icon-sm" variant="ghost" icon={Pencil} onClick={onEdit} aria-label="Editar" />
         <Button size="icon-sm" variant="ghost" icon={Trash} onClick={onDelete} aria-label="Excluir" />
       </div>
@@ -229,33 +234,35 @@ function VariableRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => vo
 function FixedRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => void; onDelete: () => void }) {
   const h = v.holding;
   return (
-    <div className="group grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr_1fr_auto] items-center gap-3 px-5 py-3.5 hover:bg-line/[0.03]">
+    <div className="group grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr_1fr_auto] items-center gap-3 px-5 py-3.5 hover:bg-line/[0.04] transition-colors duration-150">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="h-[38px] w-[38px] rounded-[12px] flex items-center justify-center shrink-0 font-bold text-[11px]" style={{ background: `${CATEGORY_COLORS[h.category]}1f`, color: CATEGORY_COLORS[h.category] }}>
+        <div className="h-[38px] w-[38px] rounded-chip flex items-center justify-center shrink-0 text-caption font-bold" style={{ background: `${CATEGORY_COLORS[h.category]}1f`, color: CATEGORY_COLORS[h.category] }}>
           {h.category === "tesouro" ? "TD" : (h.fixedType ?? "RF").slice(0, 3).toUpperCase()}
         </div>
         <div className="min-w-0">
           <div className="font-semibold truncate">{h.name}</div>
-          <div className="text-[12.5px] text-muted truncate">
+          <div className="text-footnote text-muted truncate">
             {rateLabel(h)} · {institutionLabel(h.institution) || "—"} · desde {dateBR(h.purchaseDate)}
           </div>
         </div>
       </div>
       <div className="hidden md:block text-right">
-        <div className="text-[12px] text-muted">Aplicado</div>
-        <div className="tabular font-medium">{brl(v.invested)}</div>
+        <div className="text-footnote text-muted">Aplicado</div>
+        <Private block className="tabular font-medium">
+          {brl(v.invested)}
+        </Private>
       </div>
       <div className="hidden md:block text-right">
-        <div className="text-[12px] text-muted">Taxa hoje</div>
+        <div className="text-footnote text-muted">Taxa hoje</div>
         <div className="tabular font-medium">{v.annualRate !== undefined ? `${num(v.annualRate)}% a.a.` : "—"}</div>
       </div>
-      <div className="text-right">
+      <div className="text-right" data-private="">
         <div className="tabular font-semibold">{brl(v.value)}</div>
-        <div className={clsx("text-[12.5px] tabular", toneClass(v.gain))}>
+        <div className={clsx("text-footnote tabular", toneClass(v.gain))}>
           +{brl(v.gain)} · líquido {brl(v.netValue)}
         </div>
       </div>
-      <div className="hidden md:flex gap-1 opacity-0 group-hover:opacity-100 transition">
+      <div className="flex gap-1 shrink-0 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition">
         <Button size="icon-sm" variant="ghost" icon={Pencil} onClick={onEdit} aria-label="Editar" />
         <Button size="icon-sm" variant="ghost" icon={Trash} onClick={onDelete} aria-label="Excluir" />
       </div>
@@ -318,27 +325,33 @@ export function Carteira() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <Card>
-              <div className="text-[13px] text-muted">Patrimônio</div>
-              <div className="text-[24px] font-bold tracking-tight mt-1">
-                <AnimatedNumber value={summary.value} format={brl} />
+              <div className="text-footnote text-muted">Patrimônio</div>
+              <div className="text-[24px] tracking-[-0.02em] font-bold mt-1 tabular">
+                <AnimatedNumber value={summary.value} format={brl} private />
               </div>
             </Card>
             <Card>
-              <div className="text-[13px] text-muted">Total investido</div>
-              <div className="text-[24px] font-bold tracking-tight mt-1 tabular">{brl(summary.invested)}</div>
+              <div className="text-footnote text-muted">Total investido</div>
+              <div className="text-[24px] tracking-[-0.02em] font-bold mt-1 tabular" data-private="">
+                {brl(summary.invested)}
+              </div>
             </Card>
             <Card>
-              <div className="text-[13px] text-muted">Rentabilidade</div>
-              <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(summary.gain))}>{pct(summary.gainPct)}</div>
-              <div className={clsx("text-[13px] tabular", toneClass(summary.gain))}>
+              <div className="text-footnote text-muted">Rentabilidade</div>
+              <div className={clsx("text-[24px] tracking-[-0.02em] font-bold mt-1 tabular", toneClass(summary.gain))} data-private="">
+                {pct(summary.gainPct)}
+              </div>
+              <div className={clsx("text-footnote tabular", toneClass(summary.gain))} data-private="">
                 {summary.gain >= 0 ? "+" : ""}
                 {brl(summary.gain)}
               </div>
             </Card>
             <Card>
-              <div className="text-[13px] text-muted">Variação hoje</div>
-              <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(summary.dayChange))}>{pct(summary.dayChangePct)}</div>
-              <div className={clsx("text-[13px] tabular", toneClass(summary.dayChange))}>
+              <div className="text-footnote text-muted">Variação hoje</div>
+              <div className={clsx("text-[24px] tracking-[-0.02em] font-bold mt-1 tabular", toneClass(summary.dayChange))} data-private="">
+                {pct(summary.dayChangePct)}
+              </div>
+              <div className={clsx("text-footnote tabular", toneClass(summary.dayChange))} data-private="">
                 {summary.dayChange >= 0 ? "+" : ""}
                 {brl(summary.dayChange)}
               </div>
@@ -349,9 +362,9 @@ export function Carteira() {
             <Card className="lg:col-span-2">
               <SectionTitle title="Por classe de ativo" />
               <div className="flex flex-col sm:flex-row items-center gap-6">
-                <Donut data={donut} size={180} center={<div className="text-[13px] text-muted">{portfolio.length} ativos</div>} />
+                <Donut data={donut} size={180} center={<div className="text-footnote text-muted">{portfolio.length} ativos</div>} />
                 <div className="flex-1 w-full">
-                  <Legend data={donut} format={(v) => brl(v)} />
+                  <Legend data={donut} format={(v) => brl(v)} private />
                 </div>
               </div>
             </Card>
@@ -360,6 +373,7 @@ export function Carteira() {
               <BarList
                 data={summary.byInstitution.map((b) => ({ key: b.institution, label: institutionLabel(b.institution) || "Não informado", value: b.value }))}
                 format={(v) => brl(v).replace(/,\d+$/, "")}
+                private
               />
             </Card>
           </div>
@@ -368,9 +382,11 @@ export function Carteira() {
             <Card padded={false} className="mb-4 overflow-hidden">
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <SectionTitle title="Renda variável" subtitle="Cotações reais (B3 com atraso de até 15 min)" />
-                <Badge tone="primary">{brl(variable.reduce((s, v) => s + v.value, 0))}</Badge>
+                <Badge tone="primary">
+                  <Private>{brl(variable.reduce((s, v) => s + v.value, 0))}</Private>
+                </Badge>
               </div>
-              <div className="divide-y divide-line/[0.07]">
+              <div className="divide-y divide-separator/10">
                 {variable.map((v) => (
                   <VariableRow key={v.holding.id} v={v} onEdit={() => setSheet({ open: true, item: v.holding })} onDelete={() => setToDelete(v.holding)} />
                 ))}
@@ -382,16 +398,18 @@ export function Carteira() {
             <Card padded={false} className="overflow-hidden">
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <SectionTitle title="Renda fixa" subtitle={`Rendimento estimado com CDI ${ind?.cdi ? num(ind.cdi.value) + "%" : "—"} e IPCA ${ind?.ipca12m ? num(ind.ipca12m.value) + "%" : "—"} (Banco Central)`} />
-                <Badge tone="warning">{brl(fixed.reduce((s, v) => s + v.value, 0))}</Badge>
+                <Badge tone="warning">
+                  <Private>{brl(fixed.reduce((s, v) => s + v.value, 0))}</Private>
+                </Badge>
               </div>
-              <div className="divide-y divide-line/[0.07]">
+              <div className="divide-y divide-separator/10">
                 {fixed.map((v) => (
                   <FixedRow key={v.holding.id} v={v} onEdit={() => setSheet({ open: true, item: v.holding })} onDelete={() => setToDelete(v.holding)} />
                 ))}
               </div>
             </Card>
           )}
-          <p className="text-[12px] text-muted mt-4">
+          <p className="text-footnote text-muted mt-4">
             Ativos em dólar são convertidos pela cotação atual. Valores líquidos de renda fixa consideram a tabela regressiva de IR. {categoryLabel("acoes")} e FIIs: o IR só é devido na venda com lucro.
           </p>
         </>

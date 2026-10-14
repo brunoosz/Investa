@@ -5,7 +5,7 @@
 // brasileiras não têm API pública de histórico, então o app indica onde
 // conferir.
 import type { DealCheck, DealOffer } from "@shared/types";
-import { cached, fetchWithTimeout, getJson } from "./http";
+import { cached, fetchWithTimeout, getJson, readText } from "./http";
 import { getQuotes } from "./yahoo";
 
 const CHEAPSHARK = "https://www.cheapshark.com/api/1.0";
@@ -118,7 +118,44 @@ export function extractProduct(html: string): PageProduct {
   out.price ??= parseNumber(meta("product:price:amount")) ?? parseNumber(meta("og:price:amount")) ?? parseNumber(meta("price"));
   out.currency ??= meta("product:price:currency") ?? meta("og:price:currency") ?? meta("priceCurrency");
   out.regularPrice = parseNumber(meta("product:original_price:amount"));
+  // Lojas sem dados estruturados: preço dentro do estado da página ou num elemento de preço.
+  out.price ??=
+    parseNumber(/"priceAmount"\s*:\s*([\d.]+)/.exec(html)?.[1]) ??
+    parseNumber(/"price"\s*:\s*\{?\s*"?(?:value"?\s*:\s*)?([\d.]+)\s*,\s*"currency(?:_id|Code)?"\s*:\s*"BRL"/.exec(html)?.[1]) ??
+    parseNumber(/class="a-offscreen"[^>]*>\s*R\$\s*([\d.]+,\d{2})/i.exec(html)?.[1]) ??
+    parseNumber(/(?:class|id)="[^"]*price[^"]*"[^>]*>\s*(?:<[^>]+>\s*)*R\$\s*(?:<[^>]+>\s*)*([\d.]+,\d{2})/i.exec(html)?.[1]);
+  if (out.price && !out.currency) out.currency = "BRL";
   return out;
+}
+
+/** Código do anúncio (MLB123…) ou do produto de catálogo (/p/MLB…) num link do Mercado Livre. */
+export function mercadoLivreIds(url: string): { item?: string; product?: string } {
+  const product = /\/p\/(MLB\d+)/i.exec(url)?.[1]?.toUpperCase();
+  const itemMatch = /(?:item_id[=:]|wid=)(MLB)-?(\d{6,})/i.exec(url) ?? /\/(MLB)-?(\d{6,})/i.exec(url.replace(/\/p\/MLB\d+/i, ""));
+  const item = itemMatch ? `MLB${itemMatch[2]}` : undefined;
+  return { item: item && item !== product ? item : undefined, product };
+}
+
+/** Preço pela API pública do Mercado Livre (mais confiável que ler a página). */
+async function mercadoLivreApi(url: string): Promise<PageProduct | null> {
+  const { item, product } = mercadoLivreIds(url);
+  if (item) {
+    const r = await getJson<{ title?: string; price?: number; original_price?: number | null; currency_id?: string; thumbnail?: string; pictures?: { secure_url?: string }[] }>(
+      `https://api.mercadolibre.com/items/${item}`,
+      {},
+      12_000
+    ).catch(() => null);
+    if (r?.price) return { title: r.title, price: r.price, regularPrice: r.original_price ?? undefined, currency: r.currency_id ?? "BRL", image: r.pictures?.[0]?.secure_url ?? r.thumbnail };
+  }
+  if (product) {
+    const r = await getJson<{ name?: string; buy_box_winner?: { price?: number; original_price?: number | null; currency_id?: string }; pictures?: { url?: string }[] }>(
+      `https://api.mercadolibre.com/products/${product}`,
+      {},
+      12_000
+    ).catch(() => null);
+    if (r?.buy_box_winner?.price) return { title: r.name, price: r.buy_box_winner.price, regularPrice: r.buy_box_winner.original_price ?? undefined, currency: r.buy_box_winner.currency_id ?? "BRL", image: r.pictures?.[0]?.url };
+  }
+  return null;
 }
 
 function storeName(url: string): string {
@@ -134,7 +171,8 @@ function storeName(url: string): string {
   return host;
 }
 
-const GAME_HINT = /\b(jogo|game|steam|epic|gog|playstation|ps5|xbox|nintendo|switch|dlc)\b/i;
+// Só palavras que indicam um jogo de PC; "ps5", "xbox" ou "switch" costumam ser o console (um produto).
+const GAME_HINT = /\b(jogo|game|steam|epic|gog|dlc)\b/i;
 
 export interface DealInput {
   query: string;
@@ -223,21 +261,36 @@ export async function checkDeal(input: DealInput, budget: DealCheck["budget"]): 
   } else {
     if (url) {
       try {
-        const res = await fetchWithTimeout(url, { headers: { Accept: "text/html,application/xhtml+xml" } }, 20_000);
-        const html = await res.text();
-        const p = extractProduct(html);
-        result.title = p.title;
+        let finalUrl = url;
+        let p: PageProduct | null = /mercadoli(vre|bre)\.com/i.test(url) ? await mercadoLivreApi(url) : null;
+        if (!p?.price) {
+          const res = await fetchWithTimeout(
+            url,
+            { headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "pt-BR,pt;q=0.9", "Cache-Control": "no-cache" } },
+            20_000
+          );
+          // Links curtos (meli.la, a.co, amzn.to) chegam na página do produto depois do redirecionamento.
+          finalUrl = res.url || url;
+          const page = extractProduct(await readText(res, 20_000));
+          if (!page.price && /mercadoli(vre|bre)\.com/i.test(finalUrl) && finalUrl !== url) p = await mercadoLivreApi(finalUrl);
+          p = p?.price ? { ...page, ...p } : { ...p, ...page };
+        }
+        result.title = /account-verification|captcha/i.test(finalUrl) ? undefined : p.title;
         result.image = p.image;
-        result.url = url;
-        result.source = storeName(url);
+        result.url = /account-verification|captcha/i.test(finalUrl) ? url : finalUrl;
+        result.source = storeName(finalUrl);
         if (p.price) {
           result.currentPrice = p.price;
           result.currency = p.currency ?? "BRL";
           result.regularPrice = p.regularPrice;
           if (p.regularPrice && p.regularPrice > p.price) result.discountPercent = Math.round((1 - p.price / p.regularPrice) * 100);
-          offers.push({ store: result.source, price: p.price, currency: result.currency, priceBrl: result.currency === "BRL" ? p.price : undefined, regularPrice: p.regularPrice, url });
+          offers.push({ store: result.source, price: p.price, currency: result.currency, priceBrl: result.currency === "BRL" ? p.price : undefined, regularPrice: p.regularPrice, url: finalUrl });
         } else {
-          notes.push(`Não consegui ler o preço na página da ${result.source}. Informe o preço no campo ao lado.`);
+          notes.push(
+            /account-verification|captcha|validatecaptcha|robot/i.test(finalUrl)
+              ? `A ${result.source} pediu uma verificação anti-robô e não mostrou o preço. Informe o preço no campo ao lado (o resto da análise funciona igual).`
+              : `Não consegui ler o preço na página da ${result.source}. Informe o preço no campo ao lado.`
+          );
         }
       } catch {
         notes.push("Não foi possível abrir o link agora. Informe o preço no campo ao lado.");
@@ -257,6 +310,7 @@ export async function checkDeal(input: DealInput, budget: DealCheck["budget"]): 
     result.currency = "BRL";
     notes.push("Preço informado por você.");
   }
+  if (result.currentPrice) result.currentPriceBrl = result.currency === "BRL" ? result.currentPrice : result.currency === "USD" ? toBrl(result.currentPrice) : undefined;
   result.title ??= url ? undefined : query;
   return result;
 }
@@ -272,7 +326,7 @@ export function dealToText(d: DealCheck, installments?: number): string {
   if (d.offers.length > 1) lines.push(`- Outras ofertas agora: ${d.offers.slice(0, 6).map((o) => `${o.store} ${o.currency} ${o.price}${o.priceBrl && o.currency !== "BRL" ? ` (≈ ${brl(o.priceBrl)})` : ""}`).join("; ")}`);
   if (!d.lowestPrice && d.kind === "produto") lines.push("- Sem histórico de preço disponível para esta loja.");
   const b = d.budget;
-  lines.push(`- Orçamento: renda mensal ${brl(b.monthlyIncome)}, saldo previsto do mês ${brl(b.monthBalance)}, faturas em aberto ${brl(b.invoicesOpen)}, reserva de emergência ${brl(b.emergencyReserve)}${b.accountsBalance !== undefined ? `, saldo nas contas hoje ${brl(b.accountsBalance)}` : ""}.`);
+  lines.push(`- Orçamento: renda mensal ${brl(b.monthlyIncome)}, disponível para gastar no mês (já descontando gastos e faturas) ${brl(b.available ?? b.monthBalance)}, faturas em aberto ${brl(b.invoicesOpen)}, reserva de emergência ${brl(b.emergencyReserve)}${b.accountsBalance !== undefined ? `, saldo nas contas hoje ${brl(b.accountsBalance)}` : ""}.`);
   for (const n of d.notes) lines.push(`- Observação: ${n}`);
   return lines.join("\n");
 }

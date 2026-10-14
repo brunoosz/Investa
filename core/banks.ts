@@ -28,7 +28,7 @@ interface TaxaRow {
 
 // Última consulta boa fica em disco: a base do Banco Central é grande e em
 // conexões lentas a consulta pode falhar. Nesse caso o app mostra a anterior.
-const CREDIT_CACHE = "cache-credito.json";
+export const CREDIT_CACHE = "cache-credito.json";
 
 const FIELDS = "InicioPeriodo,FimPeriodo,Segmento,Modalidade,Posicao,InstituicaoFinanceira,TaxaJurosAoMes,TaxaJurosAoAno";
 

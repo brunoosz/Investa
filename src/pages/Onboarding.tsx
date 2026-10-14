@@ -98,7 +98,7 @@ export function Onboarding() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[640px] mx-auto px-6 pb-16">
           <div className="flex items-center gap-3 mb-6">
-            <div className="text-[13px] text-muted font-medium whitespace-nowrap">
+            <div className="text-footnote text-muted font-medium whitespace-nowrap tabular">
               {step + 1} de {STEPS.length} · {STEPS[step]}
             </div>
             <ProgressBar value={(step + 1) / STEPS.length} height={6} />
@@ -111,19 +111,19 @@ export function Onboarding() {
               initial={{ opacity: 0, x: 40 * dir }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 * dir }}
-              transition={{ type: "spring", stiffness: 380, damping: 36 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.3 }}
             >
               {step === 0 && (
                 <div className="text-center pt-6">
                   <div className="flex justify-center mb-6">
                     <AppIcon size={88} />
                   </div>
-                  <h1 className="text-[34px] font-bold tracking-tight">Olá, {firstName(user.name)}!</h1>
-                  <p className="text-muted text-[16px] mt-3 max-w-md mx-auto leading-relaxed">
+                  <h1 className="text-[34px] font-bold tracking-[-0.022em] leading-[1.1]">Olá, {firstName(user.name)}!</h1>
+                  <p className="text-muted text-body mt-3 max-w-md mx-auto leading-relaxed">
                     Vamos conhecer sua vida financeira em poucos passos. Com isso, o Assistente monta o melhor plano para você e o Investa personaliza alertas,
                     metas e aulas.
                   </p>
-                  <div className="mt-6 inline-flex items-center gap-2 text-[13px] text-muted bg-line/[0.06] rounded-full px-3 py-1.5">
+                  <div className="mt-6 inline-flex items-center gap-2 text-footnote text-muted bg-fg/[0.06] rounded-full px-3 py-1.5">
                     <Sparkles size={14} className="text-primary" /> Seus dados ficam salvos só neste aparelho. Você pode alterar tudo depois em Configurações.
                   </div>
                 </div>
@@ -152,7 +152,7 @@ export function Onboarding() {
                   <div className="space-y-5">
                     {RISK_QUESTIONS.map((rq, qi) => (
                       <div key={qi}>
-                        <div className="font-semibold text-[15px] mb-2">{rq.q}</div>
+                        <div className="text-headline mb-2">{rq.q}</div>
                         <div className="grid gap-2">
                           {rq.options.map((o, oi) => (
                             <button
@@ -160,8 +160,8 @@ export function Onboarding() {
                               type="button"
                               onClick={() => setAnswers((a) => a.map((x, i) => (i === qi ? oi : x)))}
                               className={clsx(
-                                "flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-[14px] transition",
-                                answers[qi] === oi ? "border-primary/50 bg-primary/10 font-semibold" : "border-line/10 bg-line/[0.04] hover:bg-line/[0.07]"
+                                "pressable flex items-center justify-between rounded-control border px-4 py-3 text-left text-callout transition-[background-color,border-color,transform] duration-150",
+                                answers[qi] === oi ? "border-primary/50 bg-primary/10 font-semibold" : "border-separator/10 bg-fg/[0.04] hover:bg-fg/[0.07]"
                               )}
                             >
                               {o}
@@ -172,7 +172,7 @@ export function Onboarding() {
                       </div>
                     ))}
                     <div>
-                      <div className="font-semibold text-[15px] mb-2">Qual sua experiência com investimentos?</div>
+                      <div className="text-headline mb-2">Qual sua experiência com investimentos?</div>
                       <div className="grid grid-cols-3 gap-2">
                         {(["nunca", "pouco", "experiente"] as const).map((e) => (
                           <button
@@ -180,8 +180,8 @@ export function Onboarding() {
                             type="button"
                             onClick={() => setExperience(e)}
                             className={clsx(
-                              "rounded-2xl border px-3 py-3 text-[13.5px] font-medium transition",
-                              experience === e ? "border-primary/50 bg-primary/10" : "border-line/10 bg-line/[0.04] text-muted hover:text-fg"
+                              "pressable rounded-control border px-3 py-3 text-footnote font-medium transition-[background-color,border-color,color,transform] duration-150",
+                              experience === e ? "border-primary/50 bg-primary/10" : "border-separator/10 bg-fg/[0.04] text-muted hover:text-fg"
                             )}
                           >
                             {e === "nunca" ? "Nunca investi" : e === "pouco" ? "Um pouco" : "Experiente"}
@@ -204,7 +204,7 @@ export function Onboarding() {
 
               {step === 6 && (
                 <StepCard title="Tudo pronto!" subtitle="Confira o resumo. A partir dele, o Investa monta seu plano.">
-                  <div className="rounded-2xl bg-line/[0.04] border border-line/10 px-4">
+                  <div className="rounded-card bg-fg/[0.04] border border-separator/10 px-4">
                     <SummaryRow label="Renda mensal" value={brl(income)} />
                     <SummaryRow label="Gastos mensais" value={brl(expenses)} />
                     <SummaryRow label="Sobra" value={<span className={income - expenses >= 0 ? "text-success" : "text-danger"}>{brl(income - expenses)}</span>} />
@@ -212,7 +212,7 @@ export function Onboarding() {
                     <SummaryRow label="Reserva ideal" value={brl(idealReserve)} />
                     <SummaryRow label="Perfil" value={RISK_LABEL[risk]} strong />
                   </div>
-                  <div className="mt-4 space-y-2 text-[14px]">
+                  <div className="mt-4 space-y-2 text-callout">
                     {p.debts > 0 && <Tip>Você tem {brl(p.debts)} em dívidas. Priorize quitar as de juros mais altos antes de investir em renda variável.</Tip>}
                     {p.emergencyReserve < idealReserve && (
                       <Tip>Vamos criar a meta “Reserva de emergência” de {brl(idealReserve)} para você acompanhar na aba Objetivos.</Tip>
@@ -253,8 +253,8 @@ export function Onboarding() {
 function StepCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <div>
-      <h1 className="text-[28px] font-bold tracking-tight">{title}</h1>
-      {subtitle && <p className="text-muted mt-1.5 mb-6">{subtitle}</p>}
+      <h1 className="text-large-title">{title}</h1>
+      {subtitle && <p className="text-body text-muted mt-1.5 mb-6">{subtitle}</p>}
       {children}
     </div>
   );
@@ -262,7 +262,7 @@ function StepCard({ title, subtitle, children }: { title: string; subtitle?: str
 
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2.5 rounded-2xl bg-primary/[0.07] px-4 py-3">
+    <div className="flex gap-2.5 rounded-control bg-primary/[0.07] px-4 py-3">
       <Sparkles size={16} className="text-primary shrink-0 mt-0.5" />
       <span>{children}</span>
     </div>

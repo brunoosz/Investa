@@ -95,3 +95,20 @@ export const AI_MODES: AiModeInfo[] = [
 export function modeInfo(id?: AiMode): AiModeInfo {
   return AI_MODES.find((m) => m.id === id) ?? AI_MODES[3];
 }
+
+/** Marcador que o Assistente usa para sugerir algo para a memória: [[lembrar: gosta de jogar videogame]]. */
+const MEMORY_TAG = /\[\[\s*lembrar\s*:\s*([^\]]+?)\s*\]\]/gi;
+
+/** Separa o texto da resposta das sugestões de memória (e esconde marcador ainda incompleto no streaming). */
+export function splitMemory(content: string): { text: string; items: string[] } {
+  const items: string[] = [];
+  const text = content
+    .replace(MEMORY_TAG, (_, fact: string) => {
+      items.push(fact.trim());
+      return "";
+    })
+    .replace(/\[\[[^\]]*$/, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+  return { text, items: [...new Set(items)].filter((x) => x.length > 2) };
+}

@@ -46,6 +46,13 @@ function cssColor(name: string, alpha = 1): string {
   return alpha === 1 ? `rgb(${v})` : `rgba(${v}, ${alpha})`;
 }
 
+/** Cor da série: nome de token ("primary", "chart-3"…) ou hex. */
+function seriesColor(c: string, alpha = 1): string {
+  if (!c.startsWith("#")) return cssColor(c, alpha);
+  if (alpha === 1) return c;
+  return c + Math.round(alpha * 255).toString(16).padStart(2, "0");
+}
+
 const tzOffset = () => -new Date().getTimezoneOffset() * 60;
 
 export function Chart({
@@ -106,15 +113,15 @@ export function Chart({
       const id = s.id ?? `s${i}`;
       if (s.kind === "area") {
         const a = chart.addSeries(AreaSeries, {
-          lineColor: s.color,
-          topColor: `${s.color}55`,
-          bottomColor: `${s.color}00`,
+          lineColor: seriesColor(s.color),
+          topColor: seriesColor(s.color, 0.33),
+          bottomColor: seriesColor(s.color, 0),
           lineWidth: 2,
           priceLineVisible: false,
           lastValueVisible: showPriceAxis,
           crosshairMarkerRadius: 5,
           crosshairMarkerBorderColor: "#fff",
-          crosshairMarkerBackgroundColor: s.color,
+          crosshairMarkerBackgroundColor: seriesColor(s.color),
         });
         a.setData(s.data.map((p) => ({ time: (p.time + shift) as UTCTimestamp, value: p.value })));
         if (baseline !== undefined && i === 0) {
@@ -123,7 +130,7 @@ export function Chart({
         apis.push({ id, api: a as ISeriesApi<SeriesType> });
       } else if (s.kind === "line") {
         const l = chart.addSeries(LineSeries, {
-          color: s.color,
+          color: seriesColor(s.color),
           lineWidth: (s.width ?? 2) as 1 | 2 | 3 | 4,
           lineStyle: s.dashed ? LineStyle.Dashed : LineStyle.Solid,
           priceLineVisible: false,

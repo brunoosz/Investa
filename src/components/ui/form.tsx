@@ -9,7 +9,7 @@ export function Field({ label, error, hint, children, className }: { label?: Rea
     <div className={className}>
       {label && <label className="label">{label}</label>}
       {children}
-      {error ? <p className="text-[12.5px] text-danger mt-1.5">{error}</p> : hint ? <p className="text-[12.5px] text-muted mt-1.5">{hint}</p> : null}
+      {error ? <p className="text-footnote text-danger mt-1.5">{error}</p> : hint ? <p className="text-footnote text-muted mt-1.5">{hint}</p> : null}
     </div>
   );
 }
@@ -25,7 +25,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ i
     <div className="relative">
       {Icon && <Icon size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />}
       <input ref={ref} className={clsx("field", Icon && "pl-10", suffix && "pr-12", invalid && "field-error", className)} {...rest} />
-      {suffix && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-[13px]">{suffix}</div>}
+      {suffix && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-footnote">{suffix}</div>}
     </div>
   );
 });
@@ -40,7 +40,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(function P
         type="button"
         tabIndex={-1}
         onClick={() => setShow((s) => !s)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-fg hover:bg-line/10"
+        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-chip flex items-center justify-center text-muted hover:text-fg hover:bg-line/10"
         aria-label={show ? "Ocultar senha" : "Mostrar senha"}
       >
         {show ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -73,7 +73,7 @@ export function MoneyInput({
   }, [value]);
   return (
     <div className="relative">
-      {prefix && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-[15px] pointer-events-none">{prefix}</span>}
+      {prefix && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-body pointer-events-none">{prefix}</span>}
       <input
         className={clsx("field tabular", prefix && "pl-10", invalid && "field-error")}
         inputMode="decimal"
@@ -113,7 +113,7 @@ export function NumberInput({ value, onChange, suffix, step = 1, min, max, decim
           onChange(v);
         }}
       />
-      {suffix && <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted text-[14px] pointer-events-none">{suffix}</span>}
+      {suffix && <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted text-callout pointer-events-none">{suffix}</span>}
     </div>
   );
 }
@@ -178,7 +178,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const id = useId();
   return (
-    <div className={clsx("no-drag relative inline-flex p-1 rounded-xl bg-line/[0.08] border border-line/10", block && "w-full", className)}>
+    <div className={clsx("no-drag relative inline-flex max-w-full overflow-x-auto no-scrollbar p-1 rounded-control bg-line/[0.08] border border-separator/10 [&>button]:shrink-0", block && "w-full", className)}>
       {options.map((o) => {
         const active = o.value === value;
         const Icon = o.icon;
@@ -189,7 +189,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(o.value)}
             className={clsx(
               "relative flex-1 inline-flex items-center justify-center gap-1.5 font-semibold whitespace-nowrap transition-colors",
-              size === "sm" ? "h-7 px-2.5 text-[12.5px] rounded-lg" : "h-8 px-3.5 text-[13.5px] rounded-[10px]",
+              size === "sm" ? "h-7 px-2.5 text-footnote rounded-chip" : "h-8 px-3.5 text-footnote rounded-[10px]",
               active ? "text-fg" : "text-muted hover:text-fg"
             )}
           >
@@ -217,12 +217,27 @@ export function Chip({ active, children, onClick, icon: Icon }: { active?: boole
       type="button"
       onClick={onClick}
       className={clsx(
-        "no-drag inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[13px] font-medium border transition whitespace-nowrap",
-        active ? "bg-primary/15 border-primary/40 text-primary" : "border-line/15 text-muted hover:text-fg hover:bg-line/[0.06]"
+        "no-drag pressable inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-footnote font-semibold border transition-colors whitespace-nowrap",
+        active ? "bg-primary/15 border-primary/40 text-primary" : "border-separator/15 text-muted hover:text-fg hover:bg-line/[0.06]"
       )}
     >
       {Icon && <Icon size={14} />}
       {children}
     </button>
+  );
+}
+
+/** Dia do mês (1 a 31). */
+export function DayInput({ value, onChange, placeholder }: { value?: number; onChange: (v: number | undefined) => void; placeholder?: string }) {
+  return (
+    <Input
+      inputMode="numeric"
+      value={value ?? ""}
+      onChange={(e) => {
+        const n = Number(e.target.value.replace(/\D/g, "").slice(0, 2));
+        onChange(n >= 1 ? Math.min(31, n) : undefined);
+      }}
+      placeholder={placeholder}
+    />
   );
 }

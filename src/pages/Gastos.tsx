@@ -28,13 +28,13 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import type { Expense, PaymentMethod } from "@shared/types";
-import { addMonthsYm, currentYm, EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_LABEL, summarizeMonth, ymLabel, type MonthEntry } from "@shared/finance";
+import { addMonthsYm, cardsUsage, pendingFor, currentYm, mandatoryTotal, monthBudget, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_KINDS, incomeKindLabel, PAYMENT_LABEL, summarizeMonth, ymLabel, type MonthEntry, localIsoDate } from "@shared/finance";
 import { institutionLabel } from "@shared/banks";
 import { api, uid } from "@/lib/api";
 import { brl, dateBR, pct } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
-import { Card, EmptyState, PageHeader, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Private, ProgressBar, SectionTitle, toneColor } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Chip, Field, Input, MoneyInput, SegmentedControl, Select, Toggle } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -42,6 +42,9 @@ import { BarList, Donut, Legend, PALETTE } from "@/components/charts/small";
 import { InstitutionSelect } from "@/components/market";
 import { InvoicesCard } from "@/components/Invoices";
 import { AccountsCard } from "@/components/Accounts";
+import { BillsCard } from "@/components/Bills";
+import { PlannedCard } from "@/components/Planned";
+import { MonthCalendarCard } from "@/components/MonthCalendar";
 import { useAssistant } from "@/store/assistant";
 import { useAsync } from "@/hooks/useAsync";
 
@@ -61,6 +64,8 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
   Presentes: Gift,
   "Salário extra": Briefcase,
   Freelance: Briefcase,
+  Trabalho: Briefcase,
+  "Presente/família": Gift,
 };
 
 function catColor(category: string): string {
@@ -74,8 +79,9 @@ function emptyExpense(type: Expense["type"] = "despesa"): Expense {
     type,
     description: "",
     amount: 0,
-    date: new Date().toISOString().slice(0, 10),
-    category: type === "despesa" ? "Alimentação" : "Freelance",
+    date: localIsoDate(),
+    category: type === "despesa" ? "Alimentação" : "Trabalho",
+    incomeKind: type === "receita" ? "trabalho" : undefined,
     method: type === "despesa" ? "credito" : "pix",
     institution: "",
     installments: 1,
@@ -85,6 +91,9 @@ function emptyExpense(type: Expense["type"] = "despesa"): Expense {
 function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; initial: Expense | null; onClose: () => void; onDelete: (e: Expense) => void }) {
   const update = useSession((s) => s.update);
   const toast = useUi((s) => s.toast);
+  const accounts = useUserData("accounts");
+  const invoices = useUserData("invoices");
+  const expenses = useUserData("expenses");
   const [e, setE] = useState<Expense>(initial ?? emptyExpense());
   const [lastOpen, setLastOpen] = useState(false);
   if (open !== lastOpen) {
@@ -92,6 +101,12 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
     if (open) setE(initial ? { ...initial } : emptyExpense());
   }
   const cats = e.type === "despesa" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  // Limite do cartão sem contar a própria compra (ao editar).
+  const card =
+    e.type === "despesa" && e.method === "credito" && e.institution
+      ? cardsUsage(accounts.filter((a) => a.institution === e.institution), invoices, expenses.filter((x) => x.id !== e.id))[0]
+      : undefined;
+  const overLimit = !!card && e.amount > card.available;
   const valid = e.description.trim() && e.amount > 0 && e.date;
   const save = () => {
     const item = { ...e, description: e.description.trim(), installments: e.method === "credito" ? e.installments : 1 };
@@ -127,11 +142,14 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
           onChange={(t) => setE({ ...emptyExpense(t), id: e.id, description: e.description, amount: e.amount, date: e.date })}
           options={[
             { value: "despesa", label: "Gasto" },
-            { value: "receita", label: "Receita extra" },
+            { value: "receita", label: "Entrada extra" },
           ]}
         />
-        <Field label="Descrição">
-          <Input autoFocus value={e.description} onChange={(ev) => setE({ ...e, description: ev.target.value })} placeholder={e.type === "despesa" ? "Ex.: Tênis novo" : "Ex.: Freela de design"} />
+        {e.type === "receita" && (
+          <div className="text-footnote text-muted -mt-1">Dinheiro avulso, fora do salário. Aparece à parte e não aumenta sua renda do mês.</div>
+        )}
+        <Field label={e.type === "despesa" ? "Descrição" : "Motivo"}>
+          <Input autoFocus value={e.description} onChange={(ev) => setE({ ...e, description: ev.target.value })} placeholder={e.type === "despesa" ? "Ex.: Tênis novo" : "Ex.: presente da vó, freela de design…"} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={e.installments > 1 ? "Valor total da compra" : "Valor"}>
@@ -141,13 +159,19 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
             <Input type="date" value={e.date} onChange={(ev) => setE({ ...e, date: ev.target.value })} />
           </Field>
         </div>
-        <Field label="Categoria">
+        <Field label={e.type === "despesa" ? "Categoria" : "De onde veio?"}>
           <div className="flex flex-wrap gap-1.5">
-            {cats.map((c) => (
-              <Chip key={c} active={e.category === c} icon={CATEGORY_ICON[c]} onClick={() => setE({ ...e, category: c })}>
-                {c}
-              </Chip>
-            ))}
+            {e.type === "despesa"
+              ? cats.map((c) => (
+                  <Chip key={c} active={e.category === c} icon={CATEGORY_ICON[c]} onClick={() => setE({ ...e, category: c })}>
+                    {c}
+                  </Chip>
+                ))
+              : INCOME_KINDS.map((k) => (
+                  <Chip key={k.id} active={e.category === k.label || e.incomeKind === k.id} icon={CATEGORY_ICON[k.label]} onClick={() => setE({ ...e, category: incomeKindLabel(k.id), incomeKind: k.id })}>
+                    {k.label}
+                  </Chip>
+                ))}
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -175,6 +199,11 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
             </Select>
           </Field>
         )}
+        {card && (
+          <div className={clsx("rounded-control px-4 py-3 text-footnote", overLimit ? "bg-danger/10 text-danger" : "bg-line/[0.04] text-muted")} data-testid="limit-hint">
+            {overLimit ? "Passa do limite! " : ""}Limite disponível no {institutionLabel(card.institution)}: <Private>{brl(card.available)}</Private> de <Private>{brl(card.limit)}</Private>.
+          </div>
+        )}
       </div>
     </Sheet>
   );
@@ -185,19 +214,19 @@ function EntryRow({ entry, onClick }: { entry: MonthEntry; onClick: () => void }
   const Icon = CATEGORY_ICON[e.category] ?? (e.type === "receita" ? Wallet : Receipt);
   const color = catColor(e.category);
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-line/[0.03] text-left">
-      <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}1f`, color }}>
+    <button onClick={onClick} className="w-full flex items-center gap-3 px-5 py-3 min-h-[56px] hover:bg-line/[0.04] active:bg-line/[0.07] transition-colors text-left">
+      <div className="h-10 w-10 rounded-chip flex items-center justify-center shrink-0" style={{ background: toneColor(color, 0.14), color }}>
         <Icon size={18} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">{e.description}</div>
-        <div className="text-[12.5px] text-muted truncate">
+        <div className="text-body font-medium truncate">{e.description}</div>
+        <div className="text-footnote text-muted truncate">
           {e.category} · {PAYMENT_LABEL[e.method]}
           {e.institution ? ` · ${institutionLabel(e.institution)}` : ""}
           {entry.totalInstallments > 1 ? ` · parcela ${entry.installment}/${entry.totalInstallments}` : ""}
         </div>
       </div>
-      <div className={clsx("font-semibold tabular", e.type === "receita" ? "text-success" : "")}>
+      <div className={clsx("font-semibold tabular", e.type === "receita" ? "text-success" : "")} data-private="">
         {e.type === "receita" ? "+" : "−"} {brl(entry.amount)}
       </div>
     </button>
@@ -219,6 +248,12 @@ export function Gastos() {
   const navigate = useNavigate();
   const summary = useMemo(() => summarizeMonth(expenses, ym, profile.salary, profile.extraIncome), [expenses, ym, profile.salary, profile.extraIncome]);
   const planned = profile.fixedExpenses + profile.variableExpenses;
+  const invoices = useUserData("invoices");
+  const bills = useUserData("bills");
+  const plannedList = useUserData("planned");
+  const boxes = useUserData("boxes");
+  const budget = useMemo(() => monthBudget(summary, invoices, ym, new Date(), pendingFor(bills, plannedList, ym, boxes)), [summary, invoices, bills, plannedList, boxes, ym]);
+  const mandatory = mandatoryTotal(bills);
   const donut = summary.byCategory.map((c) => ({ label: c.category, value: c.total, color: catColor(c.category) }));
 
   const grouped = useMemo(() => {
@@ -250,7 +285,7 @@ export function Gastos() {
         actions={
           <>
             {ai.data?.hasKey && (
-              <label className="flex items-center gap-2 text-[13px] text-muted mr-1" title="O Assistente escreve um resumo do mês com pontos de atenção e sugestões dentro do PDF ou da planilha.">
+              <label className="flex items-center gap-2 text-footnote text-muted mr-1" title="O Assistente escreve um resumo do mês com pontos de atenção e sugestões dentro do PDF ou da planilha.">
                 <Toggle checked={withAi} onChange={setWithAi} label="Incluir análise do Assistente" /> Com análise da IA
               </label>
             )}
@@ -271,7 +306,7 @@ export function Gastos() {
         <Button size="icon" variant="secondary" onClick={() => setYm(addMonthsYm(ym, -1))} aria-label="Mês anterior">
           <ChevronLeft size={18} />
         </Button>
-        <div className="min-w-[180px] text-center font-semibold text-[17px] first-letter:uppercase">{ymLabel(ym)}</div>
+        <div className="min-w-[180px] text-center font-semibold text-headline first-letter:uppercase">{ymLabel(ym)}</div>
         <Button size="icon" variant="secondary" onClick={() => setYm(addMonthsYm(ym, 1))} aria-label="Próximo mês">
           <ChevronRight size={18} />
         </Button>
@@ -298,34 +333,87 @@ export function Gastos() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Card>
-          <div className="text-[13px] text-muted">Renda do mês</div>
-          <div className="text-[22px] font-bold tabular mt-1">{brl(summary.income + summary.extraIncome)}</div>
-          {summary.extraIncome > 0 && <div className="text-[12.5px] text-success">+ {brl(summary.extraIncome)} extras</div>}
+          <div className="text-footnote text-muted">Renda do mês</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="" data-testid="income-month">
+            {brl(summary.income)}
+          </div>
+          <div className="text-footnote text-muted">
+            {summary.extraIncome > 0 ? (
+              <>
+                salário · <Private className="text-success">+ {brl(summary.extraIncome)}</Private> extras à parte
+              </>
+            ) : (
+              "salário e renda fixa"
+            )}
+          </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Gastos</div>
-          <div className="text-[22px] font-bold tabular mt-1">{brl(summary.spent)}</div>
-          {planned > 0 && (
-            <>
-              <ProgressBar value={summary.spent / planned} className="mt-2" height={6} color={summary.spent > planned ? "rgb(var(--danger))" : undefined} />
-              <div className="text-[12px] text-muted mt-1">{pct((summary.spent / planned) * 100, 0, false)} do planejado ({brl(planned)})</div>
-            </>
-          )}
+          <div className="text-footnote text-muted">Comprometido</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
+            {brl(budget.committed)}
+          </div>
+          <ProgressBar
+            value={Math.min(1, budget.ratio)}
+            className="mt-2"
+            height={6}
+            color={budget.ratio > 1 ? toneColor("danger") : budget.ratio > 0.8 ? toneColor("warning") : undefined}
+          />
+          <div className="text-footnote text-muted mt-1">
+            {pct(budget.ratio * 100, 0, false)} da renda · gastos <Private>{brl(budget.spentDirect)}</Private>
+            {budget.invoices > 0 && (
+              <>
+                {" "}
+                + faturas <Private>{brl(budget.invoices)}</Private>
+              </>
+            )}
+            {budget.pendingBills > 0 && (
+              <>
+                {" "}
+                + contas, planejados e caixinhas <Private>{brl(budget.pendingBills)}</Private>
+              </>
+            )}
+          </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Saldo</div>
-          <div className={clsx("text-[22px] font-bold tabular mt-1", summary.balance >= 0 ? "text-success" : "text-danger")}>{brl(summary.balance)}</div>
-          <div className="text-[12.5px] text-muted">{summary.balance >= 0 ? "dá para investir" : "gastou mais do que ganhou"}</div>
+          <div className="text-footnote text-muted">Disponível para gastar</div>
+          <div className={clsx("text-[22px] tracking-[-0.02em] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="" data-testid="available-month">
+            {brl(budget.available)}
+          </div>
+          <div className="text-footnote text-muted">
+            {budget.available < 0
+              ? <>passou da renda em <Private>{brl(-budget.available)}</Private></>
+              : budget.perDay !== undefined
+                ? <><Private>{brl(budget.perDay)}</Private> por dia até o fim do mês</>
+                : planned > 0 && summary.spent > planned
+                  ? "acima do planejado"
+                  : "depois de gastos e faturas"}
+          </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Parcelas futuras</div>
-          <div className="text-[22px] font-bold tabular mt-1">{brl(summary.futureInstallments.reduce((s, f) => s + f.total, 0))}</div>
-          <div className="text-[12.5px] text-muted">nos próximos 6 meses</div>
+          <div className="text-footnote text-muted">Parcelas futuras</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
+            {brl(summary.futureInstallments.reduce((s, f) => s + f.total, 0))}
+          </div>
+          <div className="text-footnote text-muted">nos próximos 6 meses</div>
         </Card>
       </div>
 
+      <div className="mb-4 rounded-control bg-primary/[0.06] px-4 py-3 text-footnote text-muted">
+        <span className="text-fg font-medium">Salário não é saldo livre.</span> Disponível = salário − gastos obrigatórios
+        {mandatory > 0 && (
+          <>
+            {" "}
+            (<Private>{brl(mandatory)}</Private>)
+          </>
+        )}{" "}
+        − contas − faturas − caixinhas − o que já gastou. Entradas extras ficam à parte.
+      </div>
+
+      <MonthCalendarCard ym={ym} />
       <AccountsCard ym={ym} summary={summary} />
       <InvoicesCard ym={ym} summary={summary} />
+      <BillsCard ym={ym} />
+      <PlannedCard />
 
       {summary.entries.length === 0 ? (
         <Card>
@@ -345,8 +433,8 @@ export function Gastos() {
           <Card padded={false} className="lg:col-span-2 overflow-hidden">
             {grouped.map(([day, list]) => (
               <div key={day}>
-                <div className="px-5 pt-4 pb-1 text-[12.5px] font-semibold text-muted first-letter:uppercase">{day}</div>
-                <div className="divide-y divide-line/[0.06]">
+                <div className="px-5 pt-4 pb-1 text-footnote font-semibold text-muted first-letter:uppercase">{day}</div>
+                <div className="divide-y divide-separator/[0.06]">
                   {list.map((entry) => (
                     <EntryRow key={`${entry.expense.id}-${entry.installment}`} entry={entry} onClick={() => setSheet({ open: true, item: entry.expense })} />
                   ))}
@@ -359,19 +447,19 @@ export function Gastos() {
               <SectionTitle title="Por categoria" />
               {donut.length ? (
                 <div className="flex flex-col items-center gap-4">
-                  <Donut data={donut} size={160} center={<div className="text-[14px] font-bold">{brl(summary.spent).replace(/,\d+$/, "")}</div>} />
+                  <Donut data={donut} size={160} center={<Private block className="text-callout font-bold">{brl(summary.spent).replace(/,\d+$/, "")}</Private>} />
                   <div className="w-full">
-                    <Legend data={donut} format={(v) => brl(v).replace(/,\d+$/, "")} />
+                    <Legend data={donut} format={(v) => brl(v).replace(/,\d+$/, "")} private />
                   </div>
                 </div>
               ) : (
-                <div className="text-[14px] text-muted">Sem gastos neste mês.</div>
+                <div className="text-callout text-muted">Sem gastos neste mês.</div>
               )}
             </Card>
             {summary.byInstitution.length > 0 && (
               <Card>
                 <SectionTitle title="Por banco / cartão" />
-                <BarList data={summary.byInstitution.map((b) => ({ key: b.institution, label: institutionLabel(b.institution) || "Não informado", value: b.total }))} format={(v) => brl(v)} />
+                <BarList data={summary.byInstitution.map((b) => ({ key: b.institution, label: institutionLabel(b.institution) || "Não informado", value: b.total }))} format={(v) => brl(v)} private />
               </Card>
             )}
             {summary.futureInstallments.length > 0 && (
@@ -379,9 +467,9 @@ export function Gastos() {
                 <SectionTitle title="Próximas faturas (parcelas)" />
                 <div className="space-y-2">
                   {summary.futureInstallments.map((f) => (
-                    <div key={f.ym} className="flex justify-between text-[14px]">
+                    <div key={f.ym} className="flex justify-between text-callout">
                       <span className="inline-block first-letter:uppercase text-muted">{ymLabel(f.ym)}</span>
-                      <span className="font-semibold tabular">{brl(f.total)}</span>
+                      <Private className="font-semibold tabular">{brl(f.total)}</Private>
                     </div>
                   ))}
                 </div>

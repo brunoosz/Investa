@@ -1,5 +1,6 @@
 export const INVOKE_CHANNELS = [
   "app:info",
+  "app:icon",
   "auth:session",
   "auth:register",
   "auth:login",
@@ -12,6 +13,17 @@ export const INVOKE_CHANNELS = [
   "users:resetPassword",
   "users:delete",
   "cloud:sync",
+  "plans:expense",
+  "plans:export",
+  "plans:wealth",
+  "search:test",
+  "voice:listen",
+  "ai:logs",
+  "ai:logs:clear",
+  "insight:get",
+  "insight:refresh",
+  "backup:export",
+  "backup:import",
   "data:getAll",
   "data:set",
   "notifications:list",
@@ -31,7 +43,6 @@ export const INVOKE_CHANNELS = [
   "market:ipcaHistory",
   "portfolio:history",
   "banks:get",
-  "learning:leaderboard",
   "ai:info",
   "ai:setConfig",
   "ai:catalog",
@@ -39,6 +50,7 @@ export const INVOKE_CHANNELS = [
   "ai:chat",
   "ai:cancel",
   "reports:export",
+  "shopping:export",
   "deals:check",
   "deals:context",
   "window:setTheme",
@@ -47,5 +59,5 @@ export const INVOKE_CHANNELS = [
 
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number];
 
-export const EVENT_CHANNELS = ["notifications:new", "ai:event", "navigate", "data:changed", "session:ended"] as const;
+export const EVENT_CHANNELS = ["notifications:new", "ai:event", "navigate", "data:changed", "session:ended", "insight:new"] as const;
 export type EventChannel = (typeof EVENT_CHANNELS)[number];

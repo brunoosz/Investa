@@ -7,6 +7,7 @@ import type { PublicUser, Role, UserDataMap, UserStatus } from "@shared/types";
 import type { Store, UserRecord } from "./store";
 import { AppError } from "./auth";
 import { fetchWithTimeout } from "./http";
+import { INBOX_KEY, isEmptyInbox, mergeInbox, parseInbox, pruneInbox, sameInbox, sameItems } from "./inbox";
 
 declare const __INVESTA_CLOUD_URL__: string | undefined;
 declare const __INVESTA_CLOUD_KEY__: string | undefined;
@@ -51,9 +52,28 @@ export interface CloudState {
   sessions?: Record<string, Tokens>;
   /** data_updated_at da nuvem na última sincronização de cada conta. */
   syncedAt?: Record<string, string>;
-  /** Contas com mudanças locais ainda não enviadas. */
+  /** Contas com mudanças locais ainda não enviadas (legado, antes do controle por chave). */
   dirty?: Record<string, number>;
+  /** Por conta: chave dos dados → quando mudou aqui e ainda não subiu. */
+  dirtyKeys?: Record<string, Record<string, number>>;
+  /** Contas que já foram ligadas à nuvem neste aparelho. */
+  linked?: Record<string, boolean>;
   aiUpdatedAt?: string;
+  /** Configuração da IA que o Dono mudou e ainda não chegou à nuvem (sem internet). */
+  aiPending?: AiCloudConfig;
+}
+
+/** Configuração da IA guardada na nuvem (uma para todas as contas). */
+export interface AiCloudConfig {
+  apiKey?: string | null;
+  model?: string;
+  baseUrl?: string;
+  searchKey?: string | null;
+  groqKey?: string | null;
+  groqModel?: string;
+  primary?: "nvidia" | "groq";
+  /** Quando o Dono mudou; a versão mais nova vence. */
+  changedAt?: string;
 }
 
 class NetworkError extends Error {}
@@ -61,6 +81,8 @@ class NetworkError extends Error {}
 export class CloudService {
   readonly enabled = !!(CLOUD_URL && CLOUD_KEY);
   private pushTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private pushing = new Set<string>();
+  private pushAgain = new Set<string>();
 
   constructor(private store: Store) {}
 
@@ -122,7 +144,7 @@ export class CloudService {
       });
       return this.saveTokens(userId, r).access;
     } catch (err) {
-      if (err instanceof AppError) {
+      if (err instanceof AppError && (err as { status?: number }).status !== 429) {
         delete this.state.sessions?.[userId];
         this.store.save();
         throw new AppError("CLOUD_SESSION", "Sua sessão na nuvem expirou. Entre novamente.");
@@ -197,6 +219,7 @@ export class CloudService {
     local.avatarHue = p.avatar_hue;
     if (password) Object.assign(local, (({ hash, salt }) => ({ passwordHash: hash, salt }))(hashPassword(password)));
     local.lastLoginAt = new Date().toISOString();
+    this.state.linked = { ...(this.state.linked ?? {}), [p.id]: true };
     this.store.save();
     return local;
   }
@@ -218,7 +241,9 @@ export class CloudService {
     } catch (err) {
       if (err instanceof NetworkError) return null;
       const existing = this.store.findUserByUsername(username);
-      if (existing && existing.salt && local.verify(existing, password)) {
+      // Só sobe para a nuvem uma conta que nunca esteve lá. Se ela já esteve e o
+      // login falhou, a senha mudou em outro aparelho ou o Dono excluiu a conta.
+      if (existing && existing.salt && !this.state.linked?.[existing.id] && local.verify(existing, password)) {
         try {
           session = await this.signUp({ username: existing.username, password, name: existing.name, email: existing.email, avatarHue: existing.avatarHue });
           migrated = existing;
@@ -231,18 +256,16 @@ export class CloudService {
         throw new AppError("WRONG_PASSWORD", "Usuário ou senha incorretos.");
       }
     }
-    const tokens = this.saveTokens(session.user.id, session);
-    const p = await this.profile(session.user.id, tokens.access);
+    const p = await this.profile(session.user.id, session.access_token);
     if (!p) throw new AppError("USER_NOT_FOUND", "Esta conta foi excluída.");
-    if (p.status === "bloqueado") throw new AppError("BLOCKED", "Esta conta está bloqueada. Fale com o dono do aplicativo.");
+    if (p.status === "bloqueado") throw new AppError("BLOCKED", "Esta conta está bloqueada ou aguardando liberação. Fale com o Dono do aplicativo.");
+    const tokens = this.saveTokens(session.user.id, session);
     const user = this.adopt(p, password, local.hash);
     if (migrated) {
       // Conta criada antes da nuvem: os dados deste aparelho sobem.
-      this.markDirty(user.id);
-      await this.push(user.id).catch(() => undefined);
-    } else {
-      await this.pull(user.id, p).catch(() => undefined);
+      this.markDirty(user.id, [...Object.keys(this.store.rawData(user.id)), INBOX_KEY]);
     }
+    await this.pull(user.id, p).catch(() => undefined);
     void this.request(`/rest/v1/profiles?id=eq.${user.id}`, { method: "PATCH", token: tokens.access, body: { last_login_at: new Date().toISOString() } }).catch(() => undefined);
     return user;
   }
@@ -262,10 +285,21 @@ export class CloudService {
       if ((err as { cloudCode?: string }).cloudCode === "user_already_exists") throw new AppError("USERNAME_TAKEN", "Esse nome de usuário já está em uso. Escolha outro.");
       throw err;
     }
-    const tokens = this.saveTokens(session.user.id, session);
-    const p = await this.profile(session.user.id, tokens.access);
+    const p = await this.profile(session.user.id, session.access_token);
     if (!p) throw new AppError("CLOUD", "A conta foi criada, mas o perfil não apareceu. Confira se o supabase/schema.sql foi aplicado.");
+    // Contas novas podem precisar da liberação do Dono (supabase/schema.sql).
+    if (p.status === "bloqueado") throw new AppError("PENDING", "Conta criada! Agora peça ao Dono do app para liberar seu acesso. Depois é só entrar.");
+    this.saveTokens(session.user.id, session);
     return this.adopt(p, input.password, hash);
+  }
+
+  get aiPending(): CloudState["aiPending"] {
+    return this.state.aiPending;
+  }
+
+  set aiPending(v: CloudState["aiPending"]) {
+    this.state.aiPending = v;
+    this.store.save();
   }
 
   logout(userId: string | null): void {
@@ -274,16 +308,36 @@ export class CloudService {
   }
 
   // ---- dados ----
+  // Os dados de cada conta ficam num documento só na nuvem. Para dois aparelhos
+  // não apagarem as mudanças um do outro: cada aparelho marca quais partes
+  // (gastos, faturas, metas…) mudou; o envio só vale se a nuvem ainda estiver
+  // na versão que o aparelho conhece; se outro aparelho mudou antes, o app
+  // junta as duas versões (as partes mudadas aqui + o resto da nuvem) e envia
+  // de novo. Os avisos (notificações, o que já foi avisado e o estado dos
+  // alertas) vão juntos, em INBOX_KEY, e sempre se somam (core/inbox.ts).
 
-  markDirty(userId: string): void {
-    this.state.dirty = { ...(this.state.dirty ?? {}), [userId]: Date.now() };
+  markDirty(userId: string, keys: string[]): void {
+    if (!keys.length) return;
+    const now = Date.now();
+    const cur = { ...(this.state.dirtyKeys?.[userId] ?? {}) };
+    for (const k of keys) cur[k] = now;
+    this.state.dirtyKeys = { ...(this.state.dirtyKeys ?? {}), [userId]: cur };
     this.store.save();
   }
 
+  private dirtyOf(userId: string): Record<string, number> {
+    // Migra o formato antigo (conta inteira marcada).
+    if (this.state.dirty?.[userId]) {
+      delete this.state.dirty[userId];
+      this.markDirty(userId, Object.keys(this.store.rawData(userId)));
+    }
+    return this.state.dirtyKeys?.[userId] ?? {};
+  }
+
   /** Envia os dados da conta alguns segundos depois da última mudança. */
-  schedulePush(userId: string): void {
+  schedulePush(userId: string, keys: string[]): void {
     if (!this.enabled) return;
-    this.markDirty(userId);
+    this.markDirty(userId, keys);
     clearTimeout(this.pushTimers.get(userId));
     this.pushTimers.set(
       userId,
@@ -292,22 +346,47 @@ export class CloudService {
   }
 
   async push(userId: string): Promise<void> {
-    if (!this.enabled || !this.state.dirty?.[userId]) return;
-    const token = await this.token(userId);
-    const now = new Date().toISOString();
-    const rows = await this.request<CloudProfile[]>(`/rest/v1/profiles?id=eq.${userId}&select=data_updated_at`, {
-      method: "PATCH",
-      token,
-      prefer: "return=representation",
-      body: { data: this.store.rawData(userId), data_updated_at: now },
-    });
-    this.state.syncedAt = { ...(this.state.syncedAt ?? {}), [userId]: rows[0]?.data_updated_at ?? now };
-    delete this.state.dirty[userId];
-    this.store.save();
+    if (!this.enabled) return;
+    const dirty = this.dirtyOf(userId);
+    if (!Object.keys(dirty).length) return;
+    if (this.pushing.has(userId)) {
+      this.pushAgain.add(userId);
+      return;
+    }
+    this.pushing.add(userId);
+    try {
+      const synced = this.state.syncedAt?.[userId];
+      // Sem saber a versão da nuvem, primeiro busca e junta.
+      if (!synced) {
+        await this.pull(userId, undefined, true);
+        return;
+      }
+      const sent = { ...dirty };
+      const token = await this.token(userId);
+      // O documento da nuvem é trocado inteiro, então os avisos vão sempre junto.
+      const data = { ...this.store.rawData(userId), [INBOX_KEY]: pruneInbox(this.store.inbox(userId)) };
+      const rows = await this.request<CloudProfile[]>(
+        `/rest/v1/profiles?id=eq.${userId}&data_updated_at=eq.${encodeURIComponent(synced)}&select=data_updated_at`,
+        { method: "PATCH", token, prefer: "return=representation", body: { data, data_updated_at: new Date().toISOString() } }
+      );
+      if (!rows.length) {
+        // Outro aparelho mudou a nuvem antes: junta e tenta de novo.
+        await this.pull(userId, undefined, true);
+        return;
+      }
+      this.state.syncedAt = { ...(this.state.syncedAt ?? {}), [userId]: rows[0].data_updated_at };
+      // Só limpa o que foi enviado; o que mudou durante o envio continua pendente.
+      const cur = this.state.dirtyKeys?.[userId] ?? {};
+      for (const [k, t] of Object.entries(sent)) if (cur[k] === t) delete cur[k];
+      this.store.save();
+    } finally {
+      this.pushing.delete(userId);
+      if (this.pushAgain.delete(userId)) void this.push(userId).catch(() => undefined);
+    }
   }
 
-  /** Traz os dados da nuvem quando lá estão mais novos. Devolve true se algo mudou aqui. */
-  async pull(userId: string, known?: CloudProfile): Promise<boolean> {
+  /** Traz os dados da nuvem e junta com as mudanças locais ainda não enviadas. Devolve true se algo mudou aqui. */
+  async pull(userId: string, known?: CloudProfile, fromPush = false): Promise<boolean> {
     if (!this.enabled) return false;
     const token = await this.token(userId);
     const p = known ?? (await this.profile(userId, token));
@@ -321,29 +400,70 @@ export class CloudService {
       changed = true;
     }
     const synced = this.state.syncedAt?.[userId];
-    const remoteNewer = !synced || Date.parse(p.data_updated_at) > Date.parse(synced);
-    const remoteEmpty = !p.data || Object.keys(p.data).length === 0;
-    const dirtyAt = this.state.dirty?.[userId];
-    if (remoteEmpty) {
-      this.markDirty(userId);
-      await this.push(userId);
-    } else if (remoteNewer && (!dirtyAt || Date.parse(p.data_updated_at) > dirtyAt)) {
-      this.store.replaceData(userId, p.data);
+    const dirty = this.dirtyOf(userId);
+    const localData = { ...this.store.rawData(userId) } as Record<string, unknown>;
+    const remote = { ...(p.data ?? {}) } as Record<string, unknown>;
+    const remoteInbox = parseInbox(remote[INBOX_KEY]);
+    delete localData[INBOX_KEY];
+    delete remote[INBOX_KEY];
+    if (p.data_updated_at !== synced || !Object.keys(remote).length) {
+      // Junta os avisos: o que foi lido ou apagado em qualquer aparelho fica
+      // lido ou apagado, e o que já foi avisado não é avisado de novo aqui.
+      const mine = this.store.inbox(userId);
+      const inbox = remoteInbox ? mergeInbox(mine, remoteInbox) : mine;
+      if (!sameInbox(inbox, mine)) {
+        this.store.setInbox(userId, inbox);
+        if (!sameItems(inbox.items, mine.items)) changed = true;
+      }
+      if (remoteInbox ? !sameInbox(inbox, remoteInbox) : !isEmptyInbox(inbox)) this.markDirty(userId, [INBOX_KEY]);
+    }
+    if (!Object.keys(remote).length) {
+      // Nuvem vazia (conta nova ou recém-migrada): tudo daqui sobe.
       this.state.syncedAt = { ...(this.state.syncedAt ?? {}), [userId]: p.data_updated_at };
-      if (this.state.dirty) delete this.state.dirty[userId];
-      changed = true;
-    } else if (dirtyAt) {
-      await this.push(userId);
+      this.markDirty(userId, Object.keys(localData));
+    } else if (p.data_updated_at !== synced) {
+      const merged: Record<string, unknown> = { ...remote };
+      for (const k of Object.keys(dirty)) if (localData[k] !== undefined) merged[k] = localData[k];
+      if (!synced) {
+        // Primeira vez deste aparelho com a nuvem: guarda uma cópia do que havia
+        // aqui e mantém as partes que a nuvem ainda não tem.
+        if (Object.keys(localData).length) this.store.writeExtra(`investa-backup-antes-da-nuvem-${userId}.json`, JSON.stringify(localData));
+        const extra = Object.keys(localData).filter((k) => merged[k] === undefined);
+        for (const k of extra) merged[k] = localData[k];
+        this.markDirty(userId, extra);
+      }
+      if (JSON.stringify(merged) !== JSON.stringify(localData)) {
+        this.store.replaceData(userId, merged);
+        changed = true;
+      }
+      this.state.syncedAt = { ...(this.state.syncedAt ?? {}), [userId]: p.data_updated_at };
     }
     this.store.save();
+    if (Object.keys(this.state.dirtyKeys?.[userId] ?? {}).length) {
+      if (fromPush) this.pushAgain.add(userId);
+      else await this.push(userId);
+    }
     return changed;
   }
 
   // ---- administração ----
 
+  /** Função do schema.sql; se o servidor ainda está na versão antiga, usa o caminho de antes. */
+  private async rpcOr<T>(fn: string, token: string, body: Record<string, unknown>, fallback: () => Promise<T>): Promise<T> {
+    try {
+      return await this.request<T>(`/rest/v1/rpc/${fn}`, { method: "POST", token, body });
+    } catch (err) {
+      if ((err as { cloudCode?: string }).cloudCode === "PGRST202") return fallback();
+      throw err;
+    }
+  }
+
   async listUsers(actorId: string): Promise<PublicUser[]> {
     const token = await this.token(actorId);
-    const rows = await this.request<CloudProfile[]>("/rest/v1/profiles?select=id,username,name,email,role,status,avatar_hue,created_at,last_login_at,onboarded:data->profile->onboarded&order=created_at", { token });
+    type Row = Omit<CloudProfile, "data" | "data_updated_at"> & { onboarded?: boolean };
+    const rows = await this.rpcOr<Row[]>("admin_list_users", token, {}, () =>
+      this.request<Row[]>("/rest/v1/profiles?select=id,username,name,email,role,status,avatar_hue,created_at,last_login_at,onboarded:data->profile->onboarded&order=created_at", { token })
+    );
     return rows.map((p) => ({
       id: p.id,
       name: p.name,
@@ -354,7 +474,7 @@ export class CloudService {
       createdAt: p.created_at,
       lastLoginAt: p.last_login_at ?? undefined,
       avatarHue: p.avatar_hue,
-      onboarded: !!(p as unknown as { onboarded?: boolean }).onboarded,
+      onboarded: !!p.onboarded,
     }));
   }
 
@@ -363,7 +483,8 @@ export class CloudService {
       if ((err as { cloudCode?: string }).cloudCode === "user_already_exists") throw new AppError("USERNAME_TAKEN", "Esse nome de usuário já está em uso. Escolha outro.");
       throw err;
     });
-    if (input.role && input.role !== "usuario") await this.updateUser(actorId, created.user.id, { role: input.role });
+    // Conta criada pelo Dono ou Administrador já entra liberada.
+    await this.updateUser(actorId, created.user.id, { status: "ativo", role: input.role && input.role !== "usuario" ? input.role : undefined });
   }
 
   async updateUser(actorId: string, id: string, patch: { name?: string; email?: string; role?: Role; status?: UserStatus }): Promise<void> {
@@ -373,8 +494,11 @@ export class CloudService {
     if (patch.email !== undefined) body.email = patch.email.trim() || null;
     if (patch.role) body.role = patch.role;
     if (patch.status) body.status = patch.status;
-    const rows = await this.request<unknown[]>(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", token, body, prefer: "return=representation" });
-    if (!rows.length) throw new AppError("FORBIDDEN", "Você não pode alterar esta conta.");
+    const args = { target: id, new_name: body.name ?? null, new_email: patch.email === undefined ? null : patch.email.trim(), new_role: body.role ?? null, new_status: body.status ?? null };
+    await this.rpcOr("admin_update_user", token, args, async () => {
+      const rows = await this.request<unknown[]>(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", token, body, prefer: "return=representation" });
+      if (!rows.length) throw new AppError("FORBIDDEN", "Você não pode alterar esta conta.");
+    });
   }
 
   async resetPassword(actorId: string, id: string, password: string): Promise<void> {
@@ -395,24 +519,20 @@ export class CloudService {
     await this.request("/auth/v1/user", { method: "PUT", token: await this.token(userId), body: { password: next } });
   }
 
-  async leaderboard(userId: string): Promise<{ id: string; name: string; username: string; avatar_hue: number; learning: UserDataMap["learning"] }[]> {
-    return this.request("/rest/v1/rpc/leaderboard", { method: "POST", token: await this.token(userId), body: {} });
-  }
-
   // ---- configuração da IA (uma para todas as contas) ----
 
-  async pullAi(userId: string): Promise<{ apiKey?: string; model?: string; baseUrl?: string } | null> {
-    const rows = await this.request<{ ai: { apiKey?: string; model?: string; baseUrl?: string }; updated_at: string }[]>("/rest/v1/app_settings?id=eq.1&select=ai,updated_at", {
+  async pullAi(userId: string, force = false): Promise<AiCloudConfig | null> {
+    const rows = await this.request<{ ai: AiCloudConfig; updated_at: string }[]>("/rest/v1/app_settings?id=eq.1&select=ai,updated_at", {
       token: await this.token(userId),
     });
     const row = rows[0];
-    if (!row || row.updated_at === this.state.aiUpdatedAt) return null;
+    if (!row || (!force && row.updated_at === this.state.aiUpdatedAt)) return null;
     this.state.aiUpdatedAt = row.updated_at;
     this.store.save();
     return row.ai ?? {};
   }
 
-  async pushAi(userId: string, ai: { apiKey?: string | null; model?: string; baseUrl?: string }): Promise<void> {
+  async pushAi(userId: string, ai: AiCloudConfig): Promise<void> {
     const rows = await this.request<{ updated_at: string }[]>("/rest/v1/app_settings?id=eq.1", {
       method: "PATCH",
       token: await this.token(userId),

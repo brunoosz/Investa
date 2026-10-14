@@ -1,7 +1,13 @@
 import type {
+  AiLogEntry,
+  DailyInsight,
+  SavingPlan,
+  WealthAnswers,
+  WealthPlan,
   AiCatalog,
   AiConfigInfo,
   AiMode,
+  AiProvider,
   DealCheck,
   AiEvent,
   AlertRuntimeState,
@@ -13,7 +19,6 @@ import type {
   CopomInfo,
   Holding,
   Indicators,
-  LeaderboardEntry,
   NewsItem,
   PortfolioHistoryPoint,
   PublicUser,
@@ -116,23 +121,48 @@ export const api = {
 
   portfolioHistory: (range: ChartRange, holdings?: Holding[]) => call<PortfolioHistoryPoint[]>("portfolio:history", { range, holdings }),
   banks: () => call<BanksData>("banks:get"),
-  leaderboard: () => call<LeaderboardEntry[]>("learning:leaderboard"),
 
   ai: {
     info: () => call<AiConfigInfo>("ai:info"),
-    setConfig: (patch: { apiKey?: string | null; model?: string; baseUrl?: string }) => call<AiConfigInfo>("ai:setConfig", patch),
+    setConfig: (patch: {
+      apiKey?: string | null;
+      model?: string;
+      baseUrl?: string;
+      searchKey?: string | null;
+      groqKey?: string | null;
+      groqModel?: string;
+      primary?: AiProvider;
+    }) => call<AiConfigInfo>("ai:setConfig", patch),
     catalog: (force = false) => call<AiCatalog>("ai:catalog", { force }),
-    test: () => call<string>("ai:test"),
-    chat: (requestId: string, messages: { role: "user" | "assistant"; content: string }[], mode: AiMode, attachment?: string) =>
-      call<boolean>("ai:chat", { requestId, messages, mode, attachment }),
+    /** Testa a conexão (só com um provedor, se indicado; com `key`, testa a chave antes de salvar). */
+    test: (provider?: AiProvider, key?: string) => call<string>("ai:test", { provider, key }),
+    chat: (requestId: string, messages: { role: "user" | "assistant"; content: string }[], mode: AiMode, attachment?: string, web?: boolean) =>
+      call<boolean>("ai:chat", { requestId, messages, mode, attachment, web }),
+    testSearch: (key: string) => call<number>("search:test", { key }),
+    logs: () => call<AiLogEntry[]>("ai:logs"),
+    clearLogs: () => call<boolean>("ai:logs:clear"),
+    insight: () => call<DailyInsight | null>("insight:get"),
+    refreshInsight: () => call<DailyInsight | null>("insight:refresh"),
     cancel: (requestId: string) => call<boolean>("ai:cancel", { requestId }),
   },
 
+  exportShopping: (format: "pdf" | "xlsx") => call<{ path: string } | null>("shopping:export", { format }),
   exportReport: (ym: string, format: "pdf" | "xlsx", withAi = false) => call<{ path: string } | null>("reports:export", { ym, format, withAi }),
+  backup: {
+    export: () => call<{ path: string } | null>("backup:export"),
+    import: (json: string) => call<UserDataMap>("backup:import", { json }),
+  },
+  voice: () => call<{ mode: "text" | "system"; text?: string }>("voice:listen"),
+  plans: {
+    forExpense: (id: string) => call<SavingPlan>("plans:expense", { id }),
+    exportPdf: (title: string, markdown: string, subtitle?: string) => call<{ path: string } | null>("plans:export", { title, markdown, subtitle }),
+    wealth: (answers: WealthAnswers) => call<WealthPlan>("plans:wealth", { answers }),
+  },
   deals: {
     check: (query: string, price?: number) => call<DealCheck>("deals:check", { query, price }),
     context: (deal: DealCheck, installments?: number) => call<string>("deals:context", { deal, installments }),
   },
+  appIcon: (variant?: "dark" | "light") => call<{ variant: "dark" | "light"; supported: boolean }>("app:icon", variant ? { variant } : undefined),
   setTheme: (theme: "dark" | "light") => call<boolean>("window:setTheme", { theme }),
   openExternal: (url: string) => call<boolean>("shell:openExternal", { url }),
 

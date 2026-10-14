@@ -54,6 +54,20 @@ function positive(v: any): number | undefined {
   return n !== undefined && n > 0 ? n : undefined;
 }
 
+// Grãos, café, açúcar, algodão e boi vêm do Yahoo em centavos (USX); o resto
+// do app espera a moeda cheia para converter em reais.
+const CENTS: Record<string, string> = { USX: "USD", GBp: "GBP", GBX: "GBP", ZAc: "ZAR", ILA: "ILS" };
+
+const PRICE_FIELDS = ["price", "change", "previousClose", "open", "dayHigh", "dayLow", "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "fiftyDayAverage", "twoHundredDayAverage", "eps"] as const;
+
+function fromCents(q: Quote): Quote {
+  const unit = CENTS[q.currency];
+  if (!unit) return q;
+  const out: Quote = { ...q, currency: unit };
+  for (const f of PRICE_FIELDS) if (out[f] !== undefined) out[f] = out[f]! / 100;
+  return out;
+}
+
 function mapQuote(q: any): Quote | null {
   const price = num(q.regularMarketPrice);
   if (price === undefined || price <= 0) return null;
@@ -62,7 +76,7 @@ function mapQuote(q: any): Quote | null {
   const changePercent = num(q.regularMarketChangePercent) ?? (prev ? ((price - prev) / prev) * 100 : 0);
   const dy = num(q.dividendYield) ?? (num(q.trailingAnnualDividendYield) !== undefined ? num(q.trailingAnnualDividendYield)! * 100 : undefined);
   const time = num(q.regularMarketTime);
-  return {
+  return fromCents({
     symbol: q.symbol,
     name: q.longName || q.shortName || q.displayName || q.symbol,
     price,
@@ -87,7 +101,7 @@ function mapQuote(q: any): Quote | null {
     exchange: q.fullExchangeName || q.exchange,
     delayMinutes: num(q.exchangeDataDelayedBy),
     time: time ? time * 1000 : Date.now(),
-  };
+  });
 }
 
 async function fetchQuoteBatch(symbols: string[]): Promise<Quote[]> {
@@ -111,7 +125,7 @@ async function quoteFromChart(symbol: string): Promise<Quote | null> {
   if (!m || !m.regularMarketPrice) return null;
   const prev = num(m.chartPreviousClose) ?? num(m.previousClose);
   const price = m.regularMarketPrice as number;
-  return {
+  return fromCents({
     symbol,
     name: m.longName || m.shortName || symbol,
     price,
@@ -126,7 +140,7 @@ async function quoteFromChart(symbol: string): Promise<Quote | null> {
     currency: m.currency || "BRL",
     exchange: m.fullExchangeName || m.exchangeName,
     time: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now(),
-  };
+  });
 }
 
 const quoteCache = new Map<string, { q: Quote; at: number }>();
@@ -236,6 +250,12 @@ export async function getChart(symbol: string, range: ChartRange): Promise<Chart
         data.previousClose = before[before.length - 1]?.close ?? data.previousClose;
         data.lastSession = true;
       }
+    }
+    const unit = CENTS[data.currency];
+    if (unit) {
+      data.currency = unit;
+      data.previousClose = data.previousClose !== undefined ? data.previousClose / 100 : undefined;
+      data.points = data.points.map((p) => ({ ...p, open: p.open / 100, high: p.high / 100, low: p.low / 100, close: p.close / 100 }));
     }
     return data;
   });

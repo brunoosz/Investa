@@ -1,18 +1,26 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, safeStorage, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, safeStorage, session, shell, Tray } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
+import { spawn } from "node:child_process";
 import { INVOKE_CHANNELS } from "@shared/ipc";
-import { Backend } from "../core/backend";
-import { setBrowserFetch } from "../core/http";
+import { Backend, safeExternalUrl } from "../core/backend";
+import { fallbackFetch, setBrowserFetch, setStreamFetch } from "../core/http";
 import type { AiFileConfig, FileStore, Platform } from "../core/platform";
 
 const isDev = process.argv.includes("--dev");
 const DEV_URL = "http://localhost:5173";
+const APP_HTML = path.resolve(__dirname, "..", "dist", "index.html");
 
 if (process.env.INVESTA_USER_DATA) app.setPath("userData", process.env.INVESTA_USER_DATA);
-if (process.platform === "win32") app.setAppUserModelId("com.investa.app");
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.investa.app");
+  // O Chromium às vezes acha que a janela está coberta por outra e para de
+  // desenhar: a tela fica parada e os cliques parecem não funcionar.
+  app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -24,7 +32,14 @@ let quitting = false;
 let backend: Backend;
 
 const resourcesDir = app.isPackaged ? path.join(process.resourcesPath, "resources") : path.join(__dirname, "..", "resources");
-const iconPath = path.join(resourcesDir, "icon.png");
+const defaultIcon = path.join(resourcesDir, "icon.png");
+
+/** Ícone escolhido em Configurações → Trocar ícone (escuro ou claro). */
+function iconFile(variant?: "dark" | "light"): string | undefined {
+  const file = path.join(resourcesDir, `icon-${variant ?? backend?.store.app.appIcon ?? "dark"}.png`);
+  if (fs.existsSync(file)) return file;
+  return fs.existsSync(defaultIcon) ? defaultIcon : undefined;
+}
 
 function themeColors(theme: "dark" | "light") {
   return theme === "light" ? { bg: "#F2F4F8", symbol: "#334155" } : { bg: "#0B0F1A", symbol: "#CBD5E1" };
@@ -65,8 +80,11 @@ function aiFileConfig(dirs: string[]): AiFileConfig | null {
     const env = path.join(dir, ".env");
     try {
       if (fs.existsSync(env)) {
-        const m = /^\s*NVIDIA_API_KEY\s*=\s*"?([^"\r\n]+)"?/m.exec(fs.readFileSync(env, "utf8"));
-        if (m) return { nvidiaApiKey: m[1].trim() };
+        const text = fs.readFileSync(env, "utf8");
+        const read = (name: string) => new RegExp(`^\\s*${name}\\s*=\\s*"?([^"\\r\\n]+)"?`, "m").exec(text)?.[1].trim();
+        const nvidiaApiKey = read("NVIDIA_API_KEY");
+        const groqApiKey = read("GROQ_API_KEY");
+        if (nvidiaApiKey || groqApiKey) return { nvidiaApiKey, groqApiKey };
       }
     } catch {
       // ignora
@@ -100,7 +118,7 @@ function createPlatform(): Platform {
     notify(n, settings) {
       const focused = win?.isFocused() && win.isVisible();
       if (settings.desktopNotifications && !focused && Notification.isSupported()) {
-        const toast = new Notification({ title: n.title, body: n.message, icon: fs.existsSync(iconPath) ? iconPath : undefined, silent: false });
+        const toast = new Notification({ title: n.title, body: n.message, icon: iconFile(), silent: false });
         toast.on("click", () => showWindow(n.link ?? "/alertas"));
         toast.show();
       }
@@ -108,13 +126,18 @@ function createPlatform(): Platform {
     aiFileConfig: () => aiFileConfig(configDirs),
     async saveReport(report) {
       const result = await dialog.showSaveDialog(win!, {
-        title: "Salvar relatório de gastos",
+        title: report.format === "json" ? "Salvar backup" : "Salvar arquivo",
         defaultPath: path.join(app.getPath("documents"), report.fileName),
-        filters: report.format === "pdf" ? [{ name: "PDF", extensions: ["pdf"] }] : [{ name: "Excel", extensions: ["xlsx"] }],
+        filters:
+          report.format === "pdf" ? [{ name: "PDF", extensions: ["pdf"] }] : report.format === "json" ? [{ name: "Backup do Investa", extensions: ["json"] }] : [{ name: "Excel", extensions: ["xlsx"] }],
       });
       if (result.canceled || !result.filePath) return null;
-      if (report.format === "xlsx") {
+      if (report.format === "json") {
+        fs.writeFileSync(result.filePath, report.json?.() ?? "{}", "utf8");
+      } else if (report.format === "xlsx") {
         fs.writeFileSync(result.filePath, await report.xlsx());
+      } else if (!report.html) {
+        fs.writeFileSync(result.filePath, await report.pdf());
       } else {
         const tmp = path.join(os.tmpdir(), `investa-relatorio-${Date.now()}.html`);
         fs.writeFileSync(tmp, report.html(), "utf8");
@@ -131,7 +154,21 @@ function createPlatform(): Platform {
       shell.showItemInFolder(result.filePath);
       return { path: result.filePath };
     },
-    openExternal: (url) => void shell.openExternal(url),
+    openExternal: (url) => openOutside(url),
+    // Abre a digitação por voz do Windows (Win+H), que escreve no campo focado em português.
+    async voiceInput() {
+      if (process.platform !== "win32") throw new Error("A digitação por voz está disponível no Windows e no celular.");
+      const script =
+        "Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class K{[DllImport(\"user32.dll\")]public static extern void keybd_event(byte b,byte s,uint f,UIntPtr e);}';" +
+        "[K]::keybd_event(0x5B,0,0,[UIntPtr]::Zero);[K]::keybd_event(0x48,0,0,[UIntPtr]::Zero);[K]::keybd_event(0x48,0,2,[UIntPtr]::Zero);[K]::keybd_event(0x5B,0,2,[UIntPtr]::Zero)";
+      spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script], { windowsHide: true, stdio: "ignore" }).on("error", () => undefined);
+      return { mode: "system" as const };
+    },
+    setAppIcon(variant) {
+      const file = iconFile(variant);
+      if (file) win?.setIcon(nativeImage.createFromPath(file));
+      tray?.setImage(trayImage(variant));
+    },
     setTheme(theme) {
       const c = themeColors(theme);
       if (win && process.platform !== "darwin") {
@@ -157,7 +194,7 @@ function createWindow(): void {
     show: false,
     title: "Investa",
     backgroundColor: colors.bg,
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: iconFile(),
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
     trafficLightPosition: { x: 18, y: 16 },
     titleBarOverlay: process.platform === "darwin" ? undefined : { color: colors.bg, symbolColor: colors.symbol, height: 44 },
@@ -166,20 +203,27 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
+      devTools: !app.isPackaged,
       spellcheck: false,
     },
   });
 
   win.once("ready-to-show", () => win?.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    openOutside(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
     if (!isTrustedUrl(url)) {
       e.preventDefault();
-      if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+      openOutside(url);
     }
+  });
+  win.webContents.on("will-redirect", (e, url) => {
+    if (!isTrustedUrl(url)) e.preventDefault();
   });
   win.on("close", (e) => {
     if (quitting) return;
@@ -191,13 +235,17 @@ function createWindow(): void {
   });
 
   if (isDev) void win.loadURL(DEV_URL);
-  else void win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  else void win.loadFile(APP_HTML);
+}
+
+function trayImage(variant?: "dark" | "light") {
+  const file = iconFile(variant);
+  return file ? nativeImage.createFromPath(file).resize({ width: 16, height: 16 }) : nativeImage.createEmpty();
 }
 
 function ensureTray(): void {
   if (tray) return;
-  const image = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 }) : nativeImage.createEmpty();
-  tray = new Tray(image);
+  tray = new Tray(trayImage());
   tray.setToolTip("Investa — alertas ativos");
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -223,14 +271,48 @@ function showWindow(route?: string): void {
   if (route) send("navigate", route);
 }
 
+/** Só a tela do próprio app (dist/index.html) fala com o motor; outro arquivo local, não. */
 function isTrustedUrl(url: string): boolean {
-  return url.startsWith("file://") || (isDev && url.startsWith(DEV_URL));
+  if (isDev) return url === DEV_URL || url.startsWith(`${DEV_URL}/`);
+  if (!url.startsWith("file:")) return false;
+  try {
+    const u = new URL(url);
+    u.hash = "";
+    u.search = "";
+    const file = path.resolve(fileURLToPath(u));
+    return process.platform === "win32" ? file.toLowerCase() === APP_HTML.toLowerCase() : file === APP_HTML;
+  } catch {
+    return false;
+  }
 }
+
+/** Links externos abrem no navegador, e só se forem https. */
+function openOutside(url: string): void {
+  const safe = safeExternalUrl(url);
+  if (safe) void shell.openExternal(safe);
+}
+
+function hardenSession(): void {
+  // O app não usa câmera, microfone nem localização; só copia texto.
+  const allowed = new Set(["clipboard-sanitized-write"]);
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(allowed.has(permission)));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
+}
+
+app.on("web-contents-created", (_e, contents) => {
+  contents.on("will-attach-webview", (e) => e.preventDefault());
+  contents.setWindowOpenHandler(({ url }) => {
+    openOutside(url);
+    return { action: "deny" };
+  });
+});
 
 app.on("second-instance", () => showWindow());
 
 app.whenReady().then(() => {
   setBrowserFetch((url, init) => net.fetch(url, init));
+  setStreamFetch(fallbackFetch((url, init) => fetch(url, init), (url, init) => net.fetch(url, init)));
+  hardenSession();
   backend = new Backend(createPlatform());
   for (const channel of INVOKE_CHANNELS) {
     ipcMain.handle(channel, (event, args) => {

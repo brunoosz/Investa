@@ -1,36 +1,35 @@
 import { useId } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { LOGO_BARS, LOGO_SKEW } from "@shared/brand";
+import { ICON_BG, LOGO_GRADIENT, LOGO_PATHS, LOGO_STOPS, type IconVariant } from "@shared/brand";
+import { useIconVariant } from "@/lib/appIcon";
 
 export function LogoMark({ size = 32, animated = false, className }: { size?: number; animated?: boolean; className?: string }) {
   const id = useId().replace(/:/g, "");
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden>
       <defs>
-        <linearGradient id={`lg-${id}`} x1="6" y1="60" x2="58" y2="4" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#5AB0FF" />
-          <stop offset="0.45" stopColor="#4F8CFF" />
-          <stop offset="1" stopColor="#A78BFA" />
+        <linearGradient id={`lg-${id}`} {...LOGO_GRADIENT} gradientUnits="userSpaceOnUse">
+          {LOGO_STOPS.map((s) => (
+            <stop key={s.offset} offset={s.offset} stopColor={s.color} />
+          ))}
         </linearGradient>
       </defs>
-      <g transform={`skewY(${LOGO_SKEW})`} fill={`url(#lg-${id})`}>
-        {LOGO_BARS.map((b, i) =>
-          animated ? (
-            <motion.rect
-              key={i}
-              x={b.x}
-              width={b.w}
-              rx={3.6}
-              initial={{ y: b.y + b.h, height: 0 }}
-              animate={{ y: b.y, height: b.h }}
-              transition={{ delay: 0.12 * i, type: "spring", stiffness: 160, damping: 16 }}
-            />
-          ) : (
-            <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={3.6} />
-          )
-        )}
-      </g>
+      {LOGO_PATHS.map((d, i) =>
+        animated ? (
+          <motion.path
+            key={i}
+            d={d}
+            fill={`url(#lg-${id})`}
+            style={{ transformBox: "fill-box", transformOrigin: "50% 100%" }}
+            initial={{ scaleY: 0, opacity: 0 }}
+            animate={{ scaleY: 1, opacity: 1 }}
+            transition={{ delay: 0.12 * i, type: "spring", stiffness: 160, damping: 16 }}
+          />
+        ) : (
+          <path key={i} d={d} fill={`url(#lg-${id})`} />
+        )
+      )}
     </svg>
   );
 }
@@ -49,7 +48,11 @@ export function Logo({ size = 32, showTagline = false, className, textClassName 
   );
 }
 
-export function AppIcon({ size = 64 }: { size?: number }) {
+export function AppIcon({ size = 64, variant, animated = false }: { size?: number; variant?: IconVariant; animated?: boolean }) {
+  const chosen = useIconVariant();
+  const v = variant ?? chosen;
+  const bg = ICON_BG[v];
+  const light = v === "light";
   return (
     <div
       className="flex items-center justify-center shadow-2xl"
@@ -57,11 +60,13 @@ export function AppIcon({ size = 64 }: { size?: number }) {
         width: size,
         height: size,
         borderRadius: size * 0.23,
-        background: "radial-gradient(circle at 50% 42%, rgba(79,140,255,0.28), transparent 62%), linear-gradient(135deg, #232B45, #0B0F1A)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12), 0 20px 50px -12px rgba(79,140,255,0.45)",
+        background: `radial-gradient(circle at 50% 50%, rgba(79,140,255,${light ? 0.1 : 0.26}), transparent 62%), linear-gradient(135deg, ${bg[0]}, ${bg[1]} 55%, ${bg[2]})`,
+        boxShadow: light
+          ? "inset 0 0 0 1px rgba(11,15,26,0.06), 0 20px 50px -12px rgba(79,140,255,0.35)"
+          : "inset 0 1px 0 rgba(255,255,255,0.12), 0 20px 50px -12px rgba(79,140,255,0.45)",
       }}
     >
-      <LogoMark size={size * 0.64} />
+      <LogoMark size={size * 0.72} animated={animated} />
     </div>
   );
 }

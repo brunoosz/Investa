@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CalendarClock, ChartLine, Landmark, Pencil, Plus, Target, Trash, TrendingUp } from "lucide-react";
 import clsx from "clsx";
 import type { AllocationType, Goal, GoalAllocation, RateType } from "@shared/types";
@@ -10,8 +11,9 @@ import { GOAL_COLORS, GOAL_ICONS, iconFor } from "@/lib/icons";
 import { useSession, useUserData } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { useIndicators } from "@/hooks/useMarketData";
-import { Badge, Card, EmptyState, PageHeader, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
+import { BoxesCard } from "@/components/Boxes";
 import { Field, Input, MoneyInput, NumberInput, Select } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
 import { Chart, type SeriesSpec } from "@/components/charts/Chart";
@@ -60,7 +62,7 @@ function newGoal(): Goal {
 function AllocationEditor({ a, onChange, onRemove }: { a: GoalAllocation; onChange: (a: GoalAllocation) => void; onRemove?: () => void }) {
   const variable = a.rateType === "variavel";
   return (
-    <div className="rounded-2xl border border-line/10 bg-line/[0.03] p-4 space-y-3">
+    <div className="rounded-control border border-separator/10 bg-line/[0.03] p-4 space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Onde vai investir">
           <Select
@@ -111,7 +113,7 @@ function AllocationEditor({ a, onChange, onRemove }: { a: GoalAllocation; onChan
         </Field>
       </div>
       {onRemove && (
-        <button type="button" onClick={onRemove} className="text-[13px] text-danger font-semibold inline-flex items-center gap-1">
+        <button type="button" onClick={onRemove} className="pressable text-footnote text-danger font-semibold inline-flex items-center gap-1">
           <Trash size={14} /> Remover este investimento
         </button>
       )}
@@ -119,14 +121,14 @@ function AllocationEditor({ a, onChange, onRemove }: { a: GoalAllocation; onChan
   );
 }
 
-function GoalSheet({ open, initial, onClose }: { open: boolean; initial: Goal | null; onClose: () => void }) {
+function GoalSheet({ open, initial, preset, onClose }: { open: boolean; initial: Goal | null; preset?: Partial<Goal>; onClose: () => void }) {
   const update = useSession((s) => s.update);
   const toast = useUi((s) => s.toast);
   const [g, setG] = useState<Goal>(initial ?? newGoal());
   const [lastOpen, setLastOpen] = useState(false);
   if (open !== lastOpen) {
     setLastOpen(open);
-    if (open) setG(initial ? structuredClone(initial) : newGoal());
+    if (open) setG(initial ? structuredClone(initial) : { ...newGoal(), ...preset });
   }
   const valid = g.name.trim() && g.target > 0 && g.deadline >= currentYm();
   const save = () => {
@@ -167,7 +169,7 @@ function GoalSheet({ open, initial, onClose }: { open: boolean; initial: Goal | 
           <Field label="Cor">
             <div className="flex gap-1.5 h-11 items-center">
               {GOAL_COLORS.map((c) => (
-                <button key={c} type="button" onClick={() => setG({ ...g, color: c })} className={clsx("h-7 w-7 rounded-full transition", g.color === c && "ring-2 ring-offset-2 ring-offset-surface")} style={{ background: c, ["--tw-ring-color" as string]: c }} />
+                <button key={c} type="button" onClick={() => setG({ ...g, color: c })} className={clsx("pressable h-7 w-7 rounded-full transition-[transform,box-shadow] duration-150", g.color === c && "ring-2 ring-offset-2 ring-offset-surface")} style={{ background: c, ["--tw-ring-color" as string]: c }} />
               ))}
             </div>
           </Field>
@@ -177,7 +179,7 @@ function GoalSheet({ open, initial, onClose }: { open: boolean; initial: Goal | 
             {GOAL_ICONS.map((key) => {
               const I = iconFor(key);
               return (
-                <button key={key} type="button" onClick={() => setG({ ...g, icon: key })} className={clsx("h-10 w-10 rounded-xl flex items-center justify-center border transition", g.icon === key ? "border-transparent text-white" : "border-line/10 text-muted hover:text-fg")} style={g.icon === key ? { background: g.color } : undefined}>
+                <button key={key} type="button" onClick={() => setG({ ...g, icon: key })} className={clsx("pressable h-10 w-10 rounded-chip flex items-center justify-center border transition-[transform,color,background-color,border-color] duration-150", g.icon === key ? "border-transparent text-white" : "border-separator/10 text-muted hover:text-fg")} style={g.icon === key ? { background: g.color } : undefined}>
                   <I size={18} />
                 </button>
               );
@@ -213,8 +215,8 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
     const toTime = (ym: string) => Math.floor(new Date(`${ym}-01T12:00:00`).getTime() / 1000);
     return [
       { kind: "area", id: "valor", color: goal.color, data: p.points.map((x) => ({ time: toTime(x.ym), value: x.value })) },
-      { kind: "line", id: "aplicado", color: "#94A3B8", dashed: true, width: 1, data: p.points.map((x) => ({ time: toTime(x.ym), value: x.invested })) },
-      { kind: "line", id: "meta", color: "#FBBF24", dashed: true, width: 1, data: p.points.map((x) => ({ time: toTime(x.ym), value: goal.target })) },
+      { kind: "line", id: "aplicado", color: "muted", dashed: true, width: 1, data: p.points.map((x) => ({ time: toTime(x.ym), value: x.invested })) },
+      { kind: "line", id: "meta", color: "warning", dashed: true, width: 1, data: p.points.map((x) => ({ time: toTime(x.ym), value: goal.target })) },
     ];
   }, [p, goal]);
   const fmt = useCallback((v: number) => brl(v).replace(/,\d+$/, ""), []);
@@ -231,30 +233,52 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
 
   const Icon = iconFor(goal.icon);
   return (
-    <Sheet open onClose={onClose} width="xl" title={goal.name} subtitle={`Meta de ${brl(goal.target)} até ${ymLabelShort(goal.deadline)} · ${p.months} meses`}>
+    <Sheet
+      open
+      onClose={onClose}
+      width="xl"
+      title={goal.name}
+      subtitle={
+        <>
+          Meta de <Private>{brl(goal.target)}</Private> até {ymLabelShort(goal.deadline)} · {p.months} meses
+        </>
+      }
+    >
       <div className="grid gap-4 md:grid-cols-3 mb-4">
-        <div className="rounded-2xl bg-line/[0.04] p-4">
-          <div className="text-[12.5px] text-muted">No prazo você terá</div>
-          <div className="text-[22px] font-bold tabular">{brl(p.valueAtDeadline)}</div>
-          <div className="text-[12.5px] text-muted">líquido de IR ≈ {brl(p.netValueAtDeadline)}</div>
-        </div>
-        <div className="rounded-2xl bg-line/[0.04] p-4">
-          <div className="text-[12.5px] text-muted">Rendimento médio estimado</div>
-          <div className="text-[22px] font-bold tabular">{num(p.blendedAnnual)}% a.a.</div>
-          <div className="text-[12.5px] text-muted">com CDI {num(rates.cdi)}% · IPCA {num(rates.ipca12m)}%</div>
-        </div>
-        <div className={clsx("rounded-2xl p-4", p.reachesTarget ? "bg-success/10" : "bg-warning/10")}>
-          <div className="text-[12.5px] text-muted">{p.reachesTarget ? "Você chega lá" : "Para chegar no prazo"}</div>
-          <div className={clsx("text-[22px] font-bold tabular", p.reachesTarget ? "text-success" : "text-warning")}>
-            {p.reachesTarget ? (p.monthsToTarget !== null ? ymLabelShort(addMonthsYm(currentYm(), p.monthsToTarget)) : "no prazo") : `${brl(p.requiredMonthly)}/mês`}
+        <div className="rounded-control bg-line/[0.04] p-4">
+          <div className="text-footnote text-muted">No prazo você terá</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular" data-private="">
+            {brl(p.valueAtDeadline)}
           </div>
-          <div className="text-[12.5px] text-muted">{p.reachesTarget ? "mantendo os aportes atuais" : `hoje você aplica ${brl(p.monthlyTotal)}/mês`}</div>
+          <div className="text-footnote text-muted">
+            líquido de IR ≈ <Private>{brl(p.netValueAtDeadline)}</Private>
+          </div>
+        </div>
+        <div className="rounded-control bg-line/[0.04] p-4">
+          <div className="text-footnote text-muted">Rendimento médio estimado</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular">{num(p.blendedAnnual)}% a.a.</div>
+          <div className="text-footnote text-muted">com CDI {num(rates.cdi)}% · IPCA {num(rates.ipca12m)}%</div>
+        </div>
+        <div className={clsx("rounded-control p-4", p.reachesTarget ? "bg-success/10" : "bg-warning/10")}>
+          <div className="text-footnote text-muted">{p.reachesTarget ? "Você chega lá" : "Para chegar no prazo"}</div>
+          <div className={clsx("text-[22px] tracking-[-0.02em] font-bold tabular", p.reachesTarget ? "text-success" : "text-warning")}>
+            {p.reachesTarget ? (p.monthsToTarget !== null ? ymLabelShort(addMonthsYm(currentYm(), p.monthsToTarget)) : "no prazo") : <Private>{brl(p.requiredMonthly)}/mês</Private>}
+          </div>
+          <div className="text-footnote text-muted">
+            {p.reachesTarget ? (
+              "mantendo os aportes atuais"
+            ) : (
+              <>
+                hoje você aplica <Private>{brl(p.monthlyTotal)}/mês</Private>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      <div className="rounded-2xl border border-line/10 p-2 mb-2">
+      <Private block className="rounded-control border border-separator/10 p-2 mb-2">
         <Chart series={series} height={260} formatter={fmt} />
-      </div>
-      <div className="flex items-center gap-4 text-[12px] text-muted mb-5 px-1">
+      </Private>
+      <div className="flex items-center gap-4 text-footnote text-muted mb-5 px-1">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: goal.color }} /> Projeção
         </span>
@@ -267,21 +291,21 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
       </div>
 
       <SectionTitle title="Seus investimentos nesta meta" />
-      <div className="surface divide-y divide-line/10 mb-5">
+      <div className="surface divide-y divide-separator/10 mb-5">
         {goal.allocations.map((a) => (
           <div key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center" style={{ background: `${goal.color}22`, color: goal.color }}>
+            <div className="h-9 w-9 rounded-chip flex items-center justify-center" style={{ background: `${goal.color}22`, color: goal.color }}>
               <Icon size={17} />
             </div>
             <div className="flex-1 min-w-[160px]">
-              <div className="font-semibold text-[14.5px]">
+              <div className="font-semibold text-callout">
                 {a.asset || typeLabel(a.type)} <span className="text-muted font-normal">· {institutionLabel(a.institution) || "sem banco"}</span>
               </div>
-              <div className="text-[12.5px] text-muted">
+              <div className="text-footnote text-muted">
                 {typeLabel(a.type)} · {rateText(a)}
               </div>
             </div>
-            <div className="text-right text-[13px]">
+            <div className="text-right text-footnote" data-private="">
               <div className="tabular">{brl(a.amount)} aplicado</div>
               <div className="text-muted tabular">+ {brl(a.monthly)}/mês</div>
             </div>
@@ -292,19 +316,19 @@ function GoalDetail({ goal, rates, onClose }: { goal: Goal; rates: Rates; onClos
       {comparison.length > 0 && (
         <>
           <SectionTitle title="Faz diferença o banco?" subtitle="Simulação trocando a parte em CDB/LCI/LCA pelo CDB de cada banco (taxas de referência)." />
-          <div className="surface divide-y divide-line/10">
+          <div className="surface divide-y divide-separator/10">
             {comparison.slice(0, 8).map((c) => (
               <div key={c.bank.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold tracking-tight" style={{ background: c.bank.color, fontSize: c.bank.short.length <= 3 ? 11 : 8 }}>
+                <div className="h-8 w-8 rounded-chip flex items-center justify-center text-white font-bold tracking-tight" style={{ background: c.bank.color, fontSize: c.bank.short.length <= 3 ? 11 : 8 }}>
                   {c.bank.short}
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium text-[14px]">{c.bank.name}</div>
-                  <div className="text-[12px] text-muted">{c.pctCDI}% do CDI</div>
+                  <div className="font-medium text-callout">{c.bank.name}</div>
+                  <div className="text-footnote text-muted">{c.pctCDI}% do CDI</div>
                 </div>
-                <div className="text-right">
-                  <div className="font-semibold tabular text-[14px]">{brl(c.net)}</div>
-                  <div className={clsx("text-[12px] tabular", c.diff > 1 ? "text-success" : c.diff < -1 ? "text-danger" : "text-muted")}>
+                <div className="text-right" data-private="">
+                  <div className="font-semibold tabular text-callout">{brl(c.net)}</div>
+                  <div className={clsx("text-footnote tabular", c.diff > 1 ? "text-success" : c.diff < -1 ? "text-danger" : "text-muted")}>
                     {Math.abs(c.diff) < 1 ? "igual ao seu plano" : `${c.diff > 0 ? "+" : ""}${brl(c.diff)}`}
                   </div>
                 </div>
@@ -323,7 +347,17 @@ export function Objetivos() {
   const update = useSession((s) => s.update);
   const { data: ind } = useIndicators();
   const rates = useMemo(() => ratesFromIndicators(ind), [ind]);
-  const [sheet, setSheet] = useState<{ open: boolean; goal: Goal | null }>({ open: false, goal: null });
+  // Vindo do "Meu plano": /objetivos?novo=1&nome=…&valor=…&prazo=AAAA-MM abre uma meta já preenchida.
+  const [params, setParams] = useSearchParams();
+  const [preset] = useState<Partial<Goal> | undefined>(() =>
+    params.get("novo")
+      ? { name: params.get("nome") ?? "", target: Number(params.get("valor")) || 0, ...(params.get("prazo") ? { deadline: params.get("prazo")! } : {}) }
+      : undefined
+  );
+  const [sheet, setSheet] = useState<{ open: boolean; goal: Goal | null }>({ open: !!preset, goal: null });
+  useEffect(() => {
+    if (params.get("novo")) setParams({}, { replace: true });
+  }, [params, setParams]);
   const [detail, setDetail] = useState<Goal | null>(null);
   const [toDelete, setToDelete] = useState<Goal | null>(null);
   const projections = useMemo(() => new Map(goals.map((g) => [g.id, projectGoal(g, rates)])), [goals, rates]);
@@ -343,31 +377,37 @@ export function Objetivos() {
         }
       />
 
+      <BoxesCard />
+
       {goals.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <Card>
-            <div className="text-[13px] text-muted">Guardado nas metas</div>
-            <div className="text-[22px] font-bold tabular mt-1">{brl(totalSaved)}</div>
+            <div className="text-footnote text-muted">Guardado nas metas</div>
+            <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
+              {brl(totalSaved)}
+            </div>
           </Card>
           <Card>
-            <div className="text-[13px] text-muted">Aportes por mês</div>
-            <div className="text-[22px] font-bold tabular mt-1">{brl(totalMonthly)}</div>
+            <div className="text-footnote text-muted">Aportes por mês</div>
+            <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
+              {brl(totalMonthly)}
+            </div>
             {profile.monthlyInvest > 0 && (
-              <div className={clsx("text-[12.5px]", totalMonthly > profile.monthlyInvest ? "text-warning" : "text-muted")}>
+              <div className={clsx("text-footnote", totalMonthly > profile.monthlyInvest ? "text-warning" : "text-muted")}>
                 {pct((totalMonthly / profile.monthlyInvest) * 100, 0, false)} do que você pode investir
               </div>
             )}
           </Card>
           <Card>
-            <div className="text-[13px] text-muted">Metas no caminho certo</div>
-            <div className="text-[22px] font-bold tabular mt-1">
+            <div className="text-footnote text-muted">Metas no caminho certo</div>
+            <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1">
               {onTrack}/{goals.length}
             </div>
           </Card>
           <Card>
-            <div className="text-[13px] text-muted">CDI hoje</div>
-            <div className="text-[22px] font-bold tabular mt-1">{rates.cdi ? `${num(rates.cdi)}%` : "—"}</div>
-            <div className="text-[12.5px] text-muted">Banco Central</div>
+            <div className="text-footnote text-muted">CDI hoje</div>
+            <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1">{rates.cdi ? `${num(rates.cdi)}%` : "—"}</div>
+            <div className="text-footnote text-muted">Banco Central</div>
           </Card>
         </div>
       )}
@@ -394,12 +434,12 @@ export function Objetivos() {
             return (
               <Card key={g.id} className="flex flex-col">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 text-white" style={{ background: g.color, boxShadow: `0 10px 24px -12px ${g.color}` }}>
+                  <div className="h-12 w-12 rounded-control flex items-center justify-center shrink-0 text-white" style={{ background: g.color, boxShadow: `0 10px 24px -12px ${g.color}` }}>
                     <Icon size={22} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-[16px] truncate">{g.name}</div>
-                    <div className="text-[12.5px] text-muted flex items-center gap-1">
+                    <div className="font-semibold text-headline truncate">{g.name}</div>
+                    <div className="text-footnote text-muted flex items-center gap-1">
                       <CalendarClock size={13} /> até {ymLabelShort(g.deadline)} · {left} {left === 1 ? "mês" : "meses"}
                     </div>
                   </div>
@@ -410,10 +450,14 @@ export function Objetivos() {
                 </div>
                 <div className="mt-4 flex items-end justify-between">
                   <div>
-                    <div className="text-[22px] font-bold tabular">{brl(p.current)}</div>
-                    <div className="text-[12.5px] text-muted">de {brl(g.target)}</div>
+                    <div className="text-[22px] tracking-[-0.02em] font-bold tabular" data-private="">
+                      {brl(p.current)}
+                    </div>
+                    <div className="text-footnote text-muted">
+                      de <Private>{brl(g.target)}</Private>
+                    </div>
                   </div>
-                  <div className="text-[15px] font-bold tabular" style={{ color: g.color }}>
+                  <div className="text-body font-bold tabular" style={{ color: g.color }}>
                     {Math.round(p.progress * 100)}%
                   </div>
                 </div>
@@ -421,17 +465,19 @@ export function Objetivos() {
                 <div className="mt-3">
                   {p.reachesTarget ? (
                     <Badge tone="success" icon={TrendingUp}>
-                      No caminho certo · {brl(p.valueAtDeadline).replace(/,\d+$/, "")} no prazo
+                      No caminho certo · <Private>{brl(p.valueAtDeadline).replace(/,\d+$/, "")}</Private> no prazo
                     </Badge>
                   ) : (
-                    <Badge tone="warning">Precisa de {brl(p.requiredMonthly).replace(/,\d+$/, "")}/mês para chegar</Badge>
+                    <Badge tone="warning">
+                      Precisa de <Private>{brl(p.requiredMonthly).replace(/,\d+$/, "")}</Private>/mês para chegar
+                    </Badge>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {g.allocations.map((a) => (
-                    <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-line/[0.07] px-2.5 py-1 text-[12px]">
+                    <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-line/[0.07] px-2.5 py-1 text-footnote">
                       <Landmark size={12} className="text-muted" />
-                      {a.asset || typeLabel(a.type)} · {institutionLabel(a.institution) || "—"} · {brl(a.monthly).replace(/,\d+$/, "")}/mês
+                      {a.asset || typeLabel(a.type)} · {institutionLabel(a.institution) || "—"} · <Private>{brl(a.monthly).replace(/,\d+$/, "")}/mês</Private>
                     </span>
                   ))}
                 </div>
@@ -445,7 +491,7 @@ export function Objetivos() {
         </div>
       )}
 
-      <GoalSheet open={sheet.open} initial={sheet.goal} onClose={() => setSheet({ open: false, goal: null })} />
+      <GoalSheet open={sheet.open} initial={sheet.goal} preset={sheet.goal ? undefined : preset} onClose={() => setSheet({ open: false, goal: null })} />
       {detail && <GoalDetail goal={goals.find((g) => g.id === detail.id) ?? detail} rates={rates} onClose={() => setDetail(null)} />}
       <ConfirmDialog
         open={!!toDelete}

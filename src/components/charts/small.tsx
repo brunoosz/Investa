@@ -84,31 +84,45 @@ export function Donut({ data, size = 180, thickness = 22, center, onHover }: { d
   );
 }
 
-export function Legend({ data, format }: { data: DonutSlice[]; format: (v: number) => string }) {
+export function Legend({ data, format, private: priv }: { data: DonutSlice[]; format: (v: number) => string; private?: boolean }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   return (
     <div className="flex flex-col gap-2 min-w-0">
       {data.map((d) => (
-        <div key={d.label} className="flex items-center gap-2.5 text-[13.5px]">
+        <div key={d.label} className="flex items-center gap-2.5 text-footnote">
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: d.color }} />
           <span className="truncate flex-1">{d.label}</span>
           <span className="text-muted tabular">{total ? ((d.value / total) * 100).toFixed(1).replace(".", ",") : 0}%</span>
-          <span className="font-semibold tabular w-[96px] text-right">{format(d.value)}</span>
+          <span className="font-semibold tabular w-[96px] text-right" data-private={priv ? "" : undefined}>
+            {format(d.value)}
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
-export function BarList({ data, format, max: maxProp }: { data: { label: ReactNode; value: number; color?: string; key: string }[]; format: (v: number) => string; max?: number }) {
+export function BarList({
+  data,
+  format,
+  max: maxProp,
+  private: priv,
+}: {
+  data: { label: ReactNode; value: number; color?: string; key: string }[];
+  format: (v: number) => string;
+  max?: number;
+  private?: boolean;
+}) {
   const max = maxProp ?? Math.max(1, ...data.map((d) => d.value));
   return (
     <div className="space-y-3">
       {data.map((d, i) => (
         <div key={d.key}>
-          <div className="flex items-center justify-between text-[13.5px] mb-1.5">
+          <div className="flex items-center justify-between text-footnote mb-1.5">
             <span className="truncate">{d.label}</span>
-            <span className="font-semibold tabular">{format(d.value)}</span>
+            <span className="font-semibold tabular" data-private={priv ? "" : undefined}>
+              {format(d.value)}
+            </span>
           </div>
           <div className="h-2 rounded-full bg-line/10 overflow-hidden">
             <motion.div
@@ -125,4 +139,4 @@ export function BarList({ data, format, max: maxProp }: { data: { label: ReactNo
   );
 }
 
-export const PALETTE = ["#4F8CFF", "#A78BFA", "#34D399", "#FBBF24", "#F87171", "#22D3EE", "#F472B6", "#FB923C", "#94A3B8", "#10B981", "#6366F1"];
+export const PALETTE = Array.from({ length: 11 }, (_, i) => `rgb(var(--chart-${i + 1}))`);

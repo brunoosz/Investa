@@ -8,7 +8,7 @@ import { dateBR, relativeTime } from "@/lib/format";
 import { useSession } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
 import { useAsync } from "@/hooks/useAsync";
-import { Avatar, Badge, Card, EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { Avatar, Badge, Card, EmptyState, ErrorState, PageHeader, Skeleton, toneColor } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, PasswordInput, SegmentedControl, Select, Toggle } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -105,10 +105,10 @@ function EditUserSheet({ user, me, onClose, onSaved }: { user: PublicUser | null
           />
         </Field>
         {user && user.id !== me.id && (
-          <label className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+          <label className="flex items-center justify-between rounded-card bg-line/[0.04] px-4 py-3">
             <div>
-              <div className="font-medium text-[14.5px]">Conta ativa</div>
-              <div className="text-[12.5px] text-muted">Contas bloqueadas não conseguem entrar.</div>
+              <div className="font-medium text-callout">Conta ativa</div>
+              <div className="text-footnote text-muted">Contas bloqueadas não conseguem entrar.</div>
             </div>
             <Toggle checked={form.status === "ativo"} onChange={(v) => setForm({ ...form, status: v ? "ativo" : "bloqueado" })} />
           </label>
@@ -350,19 +350,19 @@ export function Usuarios() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         {[
-          { label: "Total de contas", value: counts.todos, icon: Users, color: "#4F8CFF" },
-          { label: "Usuários", value: counts.usuario, icon: User, color: "#94A3B8" },
-          { label: "Administradores", value: counts.adm, icon: ShieldCheck, color: "#A78BFA" },
-          { label: "Bloqueados", value: counts.bloqueados, icon: Ban, color: "#F87171" },
+          { label: "Total de contas", value: counts.todos, icon: Users, color: "primary" },
+          { label: "Usuários", value: counts.usuario, icon: User, color: "muted" },
+          { label: "Administradores", value: counts.adm, icon: ShieldCheck, color: "secondary" },
+          { label: "Bloqueados", value: counts.bloqueados, icon: Ban, color: "danger" },
         ].map((s) => (
           <Card key={s.label}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: `${s.color}22`, color: s.color }}>
+              <div className="h-10 w-10 rounded-[10px] flex items-center justify-center" style={{ background: toneColor(s.color, 0.14), color: toneColor(s.color) }}>
                 <s.icon size={19} />
               </div>
               <div>
                 <div className="text-[22px] font-bold tabular leading-none">{s.value}</div>
-                <div className="text-[12.5px] text-muted mt-1">{s.label}</div>
+                <div className="text-footnote text-muted mt-1">{s.label}</div>
               </div>
             </div>
           </Card>
@@ -370,7 +370,7 @@ export function Usuarios() {
       </div>
 
       <Card padded={false} className="overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-line/10">
+        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-separator/10">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
             <input className="field pl-10" placeholder="Pesquisar por nome, usuário ou e-mail" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -400,7 +400,7 @@ export function Usuarios() {
         ) : list.length === 0 ? (
           <EmptyState icon={Search} title="Nenhum usuário encontrado" description="Tente outro nome ou mude o filtro." />
         ) : (
-          <div className="divide-y divide-line/[0.07]">
+          <div className="divide-y divide-separator/[0.07]">
             {list.map((u) => {
               const RIcon = ROLE_ICON[u.role];
               const manageable = canManage(u);
@@ -418,12 +418,12 @@ export function Usuarios() {
                       {u.status === "bloqueado" && <Badge tone="danger" icon={Ban}>Bloqueado</Badge>}
                       {!u.onboarded && <Badge>Sem perfil financeiro</Badge>}
                     </div>
-                    <div className="text-[13px] text-muted">
+                    <div className="text-footnote text-muted">
                       @{u.username}
                       {u.email ? ` · ${u.email}` : ""}
                     </div>
                   </div>
-                  <div className="text-[12.5px] text-muted text-right hidden md:block min-w-[150px]">
+                  <div className="text-footnote text-muted text-right hidden md:block min-w-[150px]">
                     <div>Criado em {dateBR(u.createdAt)}</div>
                     <div>{u.lastLoginAt ? `Último acesso ${relativeTime(u.lastLoginAt)}` : "Nunca entrou"}</div>
                   </div>

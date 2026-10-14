@@ -3,7 +3,7 @@ import { Briefcase, Car, GraduationCap, House, Landmark, Plane, PiggyBank, Shiel
 import clsx from "clsx";
 import type { Experience, FinancialProfile, RiskProfile } from "@shared/types";
 import { brl } from "@/lib/format";
-import { Field, MoneyInput, SegmentedControl } from "@/components/ui/form";
+import { DayInput, Field, MoneyInput, SegmentedControl } from "@/components/ui/form";
 
 export const GOAL_OPTIONS = [
   { id: "reserva", label: "Montar minha reserva", icon: Shield },
@@ -34,9 +34,20 @@ export function IncomeFields({ value, onChange }: { value: FinancialProfile; onC
       <Field label="Salário / renda líquida mensal" hint="O valor que cai na conta, já com descontos.">
         <MoneyInput value={value.salary} onChange={(v) => onChange({ ...value, salary: v })} />
       </Field>
-      <Field label="Renda extra mensal (opcional)" hint="Freelas, aluguéis, bicos…">
+      <Field label="Outra renda fixa por mês (opcional)" hint="Só o que entra todo mês, como um aluguel. Dinheiro avulso vai em “Recebi dinheiro”.">
         <MoneyInput value={value.extraIncome} onChange={(v) => onChange({ ...value, extraIncome: v })} />
       </Field>
+      <Field label="Dia do pagamento" hint="Dia em que o salário cai na conta.">
+        <DayInput value={value.payDay} onChange={(v) => onChange({ ...value, payDay: v })} placeholder="Ex.: 5" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Adiantamento: dia" hint="Se recebe em duas vezes.">
+          <DayInput value={value.advanceDay} onChange={(v) => onChange({ ...value, advanceDay: v })} placeholder="Ex.: 20" />
+        </Field>
+        <Field label="Valor do adiantamento">
+          <MoneyInput value={value.advanceAmount ?? 0} onChange={(v) => onChange({ ...value, advanceAmount: v || undefined })} />
+        </Field>
+      </div>
     </div>
   );
 }
@@ -68,7 +79,7 @@ export function InvestFields({ value, onChange }: { value: FinancialProfile; onC
           leftover > 0 ? (
             <span>
               Sobram cerca de <strong className="text-fg">{brl(leftover)}</strong> por mês.{" "}
-              <button type="button" className="text-primary font-semibold" onClick={() => onChange({ ...value, monthlyInvest: Math.round(leftover * 0.8) })}>
+              <button type="button" className="pressable inline-block text-primary font-semibold" onClick={() => onChange({ ...value, monthlyInvest: Math.round(leftover * 0.8) })}>
                 Usar {brl(Math.round(leftover * 0.8))} (80% da sobra)
               </button>
             </span>
@@ -132,8 +143,8 @@ export function GoalPicker({ value, onChange }: { value: string; onChange: (v: s
             type="button"
             onClick={() => onChange(g.id)}
             className={clsx(
-              "flex items-center gap-2.5 rounded-2xl border px-3 py-3 text-left text-[13.5px] font-medium transition",
-              active ? "border-primary/50 bg-primary/10 text-fg" : "border-line/10 bg-line/[0.04] text-muted hover:text-fg hover:bg-line/[0.07]"
+              "pressable flex items-center gap-2.5 rounded-control border px-3 py-3 text-left text-footnote font-medium transition-[background-color,border-color,color,transform] duration-150",
+              active ? "border-primary/50 bg-primary/10 text-fg" : "border-separator/10 bg-fg/[0.04] text-muted hover:text-fg hover:bg-fg/[0.07]"
             )}
           >
             <g.icon size={18} className={active ? "text-primary" : ""} />
@@ -147,9 +158,9 @@ export function GoalPicker({ value, onChange }: { value: string; onChange: (v: s
 
 export function SummaryRow({ label, value, strong }: { label: ReactNode; value: ReactNode; strong?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-line/10 last:border-0">
-      <span className="text-muted text-[14px]">{label}</span>
-      <span className={clsx("tabular text-[15px]", strong ? "font-bold" : "font-semibold")}>{value}</span>
+    <div className="flex items-center justify-between py-2.5 border-b border-separator/10 last:border-0">
+      <span className="text-muted text-callout">{label}</span>
+      <span className={clsx("tabular text-body", strong ? "font-bold" : "font-semibold")}>{value}</span>
     </div>
   );
 }

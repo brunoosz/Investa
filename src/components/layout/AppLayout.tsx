@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, CheckCheck, LogOut, Menu, Search } from "lucide-react";
+import { Bell, CheckCheck, Eye, EyeOff, LogOut, Menu, Search } from "lucide-react";
 import clsx from "clsx";
 import type { AppNotification, PublicUser } from "@shared/types";
 import { api, platform } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
-import { isManager, useSession } from "@/store/session";
+import { applyRemoteData, useSession } from "@/store/session";
 import { useUi } from "@/store/ui";
 import { Toaster } from "@/components/ui/Toaster";
 import { Sheet } from "@/components/ui/Sheet";
+import { PrivateAmounts } from "@/components/ui/primitives";
 import { LogoMark } from "@/components/Logo";
 import { NotificationIcon } from "@/components/NotificationIcon";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
-import { ALL_NAV, isActive } from "./nav";
+import { isActive } from "./nav";
+import { navFor, tabItems, useTabs } from "./tabBar";
 
 function NotificationsPopover({ onClose }: { onClose: () => void }) {
   const notifications = useSession((s) => s.notifications);
@@ -22,11 +24,19 @@ function NotificationsPopover({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    // Toque fora fecha; o próprio sino é ignorado aqui porque ele já alterna (abre/fecha).
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Element;
+      if (target.closest?.("[data-notifications-toggle]")) return;
+      if (ref.current && !ref.current.contains(target)) onClose();
     };
-    setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-    return () => window.removeEventListener("mousedown", onDown);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    setTimeout(() => window.addEventListener("pointerdown", onDown), 0);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [onClose]);
   const open = (n: AppNotification) => {
     void api.notifications.markRead(n.id).then(setNotifications);
@@ -40,31 +50,31 @@ function NotificationsPopover({ onClose }: { onClose: () => void }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 500, damping: 36 }}
-      className="no-drag absolute right-0 top-11 w-[380px] max-w-[calc(100vw-1.5rem)] glass border border-line/15 rounded-2xl shadow-2xl overflow-hidden z-50"
+      className="no-drag absolute right-0 top-11 w-[380px] max-w-[calc(100vw-1.5rem)] glass border border-separator/15 rounded-card shadow-2xl overflow-hidden z-50"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line/10">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-separator/10">
         <div className="font-semibold">Notificações</div>
-        <button className="text-[13px] text-primary font-semibold inline-flex items-center gap-1" onClick={() => void api.notifications.markRead().then(setNotifications)}>
+        <button className="text-footnote text-primary font-semibold inline-flex items-center gap-1" onClick={() => void api.notifications.markRead().then(setNotifications)}>
           <CheckCheck size={15} /> Marcar todas como lidas
         </button>
       </div>
       <div className="max-h-[420px] overflow-y-auto">
-        {notifications.length === 0 && <div className="px-4 py-10 text-center text-muted text-[14px]">Nenhuma notificação por enquanto.</div>}
+        {notifications.length === 0 && <div className="px-4 py-10 text-center text-muted text-callout">Nenhuma notificação por enquanto.</div>}
         {notifications.slice(0, 8).map((n) => (
-          <button key={n.id} onClick={() => open(n)} className="w-full text-left flex gap-3 px-4 py-3 hover:bg-line/[0.05] border-b border-line/[0.06] last:border-0">
+          <button key={n.id} onClick={() => open(n)} className="w-full text-left flex gap-3 px-4 py-3 hover:bg-line/[0.05] border-b border-separator/[0.06] last:border-0">
             <NotificationIcon n={n} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className={clsx("text-[13.5px] truncate", n.read ? "font-medium" : "font-semibold")}>{n.title}</div>
+                <div className={clsx("text-footnote truncate", n.read ? "font-medium" : "font-semibold")}>{n.title}</div>
                 {!n.read && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
               </div>
-              <div className="text-[12.5px] text-muted line-clamp-2 mt-0.5">{n.message}</div>
+              <div className="text-footnote text-muted line-clamp-2 mt-0.5">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</div>
               <div className="text-[11.5px] text-muted/70 mt-1">{relativeTime(n.createdAt)}</div>
             </div>
           </button>
         ))}
       </div>
-      <Link to="/alertas" onClick={onClose} className="block text-center text-[13px] font-semibold text-primary py-2.5 border-t border-line/10 hover:bg-line/[0.04]">
+      <Link to="/alertas" onClick={onClose} className="block text-center text-footnote font-semibold text-primary py-2.5 border-t border-separator/10 hover:bg-line/[0.04]">
         Ver todas
       </Link>
     </motion.div>
@@ -89,19 +99,22 @@ function TitleBar({ onSearch }: { onSearch: () => void }) {
       <div className="flex-1" />
       <button
         onClick={onSearch}
-        className="no-drag hidden md:flex shrink-0 whitespace-nowrap items-center gap-2 h-9 w-[270px] px-3 rounded-xl bg-line/[0.07] border border-line/10 text-muted text-[13.5px] hover:bg-line/[0.1] transition"
+        className="no-drag hidden md:flex shrink-0 whitespace-nowrap items-center gap-2 h-9 w-[270px] px-3 rounded-control bg-line/[0.07] border border-separator/10 text-muted text-footnote hover:bg-line/[0.1] transition-colors"
       >
         <Search size={15} />
         <span className="flex-1 text-left">Buscar ativos, páginas…</span>
         <kbd className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-line/10">Ctrl K</kbd>
       </button>
-      <button onClick={onSearch} className="no-drag md:hidden h-9 w-9 rounded-xl flex items-center justify-center text-muted hover:text-fg hover:bg-line/10" aria-label="Buscar">
+      <PrivacyButton />
+      <button onClick={onSearch} className="no-drag md:hidden h-9 w-9 rounded-control flex items-center justify-center text-muted hover:text-fg hover:bg-line/10" aria-label="Buscar">
         <Search size={18} />
       </button>
       <div className="relative no-drag">
         <button
+          data-notifications-toggle
           onClick={() => setOpen((o) => !o)}
-          className="relative h-9 w-9 rounded-xl flex items-center justify-center text-muted hover:text-fg hover:bg-line/10 transition"
+          aria-expanded={open}
+          className="relative h-9 w-9 rounded-control flex items-center justify-center text-muted hover:text-fg hover:bg-line/10 transition-colors"
           aria-label="Notificações"
         >
           <Bell size={18} />
@@ -117,28 +130,75 @@ function TitleBar({ onSearch }: { onSearch: () => void }) {
   );
 }
 
+const PRIVACY_KEY = "investa-privacidade";
+
+/** Modo privacidade: esconde os valores pessoais (útil em público). Fica salvo neste aparelho. */
+export function applyPrivacy(on: boolean): void {
+  document.documentElement.classList.toggle("privacy", on);
+}
+
+function PrivacyButton() {
+  const [on, setOn] = useState(() => {
+    try {
+      return localStorage.getItem(PRIVACY_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    applyPrivacy(on);
+    try {
+      localStorage.setItem(PRIVACY_KEY, on ? "1" : "0");
+    } catch {
+      // armazenamento indisponível
+    }
+  }, [on]);
+  return (
+    <button
+      onClick={() => setOn((v) => !v)}
+      className={clsx("no-drag h-9 w-9 rounded-control flex items-center justify-center hover:bg-line/10 transition", on ? "text-primary" : "text-muted hover:text-fg")}
+      aria-label={on ? "Mostrar valores" : "Esconder valores"}
+      aria-pressed={on}
+      title={on ? "Mostrar valores" : "Esconder valores (modo privacidade)"}
+    >
+      {on ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  );
+}
+
 function MobileNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const user = useSession((s) => s.user);
   const signOut = useSession((s) => s.signOut);
   const [more, setMore] = useState(false);
-  const main = ALL_NAV.filter((i) => ["/", "/mercado", "/aulas", "/assistente"].includes(i.to));
-  const rest = ALL_NAV.filter((i) => !main.includes(i) && (!i.managerOnly || isManager(user)));
+  const tabs = useTabs();
+  const main = tabItems(tabs, user);
+  const rest = navFor(user).filter((i) => !main.includes(i));
   return (
     <>
-      <nav className="sm:hidden glass border-t border-line/10 grid grid-cols-5 h-[64px] shrink-0">
+      <nav
+        className="sm:hidden material-regular border-t hairline grid shrink-0 px-1.5 pt-1.5"
+        style={{ gridTemplateColumns: `repeat(${main.length + 1}, minmax(0, 1fr))`, paddingBottom: "max(6px, env(safe-area-inset-bottom))" }}
+        aria-label="Navegação principal"
+      >
         {main.map((item) => {
           const active = isActive(pathname, item.to);
           const Icon = item.icon;
           return (
-            <Link key={item.to} to={item.to} className={clsx("flex flex-col items-center justify-center gap-1 text-[10.5px] font-medium", active ? "text-primary" : "text-muted")}>
-              <Icon size={21} strokeWidth={active ? 2.3 : 1.9} />
-              {item.label}
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-current={active ? "page" : undefined}
+              className={clsx("pressable relative min-w-0 h-[54px] flex flex-col items-center justify-center gap-[3px] text-[10.5px] font-semibold tracking-[0.01em]", active ? "text-primary" : "text-muted")}
+            >
+              {active && <motion.span layoutId="tab-active" className="absolute inset-x-1.5 inset-y-1 rounded-[var(--radius-md)] bg-primary/[0.12]" transition={{ type: "spring", bounce: 0, duration: 0.3 }} />}
+              <Icon size={21} strokeWidth={active ? 2.3 : 1.9} className="relative" />
+              <span className="relative max-w-full truncate px-0.5">{item.short ?? item.label}</span>
             </Link>
           );
         })}
-        <button onClick={() => setMore(true)} className="flex flex-col items-center justify-center gap-1 text-[10.5px] font-medium text-muted">
+        <button onClick={() => setMore(true)} className="pressable h-[54px] flex flex-col items-center justify-center gap-[3px] text-[10.5px] font-semibold tracking-[0.01em] text-muted">
           <Menu size={21} />
           Mais
         </button>
@@ -154,7 +214,7 @@ function MobileNav() {
                   setMore(false);
                   navigate(item.to);
                 }}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-line/[0.06] py-4 text-[12.5px] font-medium"
+                className="flex flex-col items-center gap-2 rounded-card bg-line/[0.06] py-4 text-footnote font-medium"
               >
                 <Icon size={22} className="text-primary" />
                 {item.label}
@@ -166,7 +226,7 @@ function MobileNav() {
               setMore(false);
               await signOut();
             }}
-            className="flex flex-col items-center gap-2 rounded-2xl bg-danger/10 text-danger py-4 text-[12.5px] font-medium"
+            className="flex flex-col items-center gap-2 rounded-card bg-danger/10 text-danger py-4 text-footnote font-medium"
           >
             <LogOut size={22} />
             Sair
@@ -215,9 +275,9 @@ export function AppLayout() {
     const offNav = api.on<string>("navigate", (path) => navigate(path));
     // Mudanças feitas em outro aparelho chegaram pela nuvem.
     const offData = api.on<PublicUser | null>("data:changed", (user) => {
-      const s = useSession.getState();
-      if (!user || !s.user) return;
-      void api.data.getAll().then((data) => useSession.setState({ user: { ...s.user!, ...user }, data }));
+      if (!user || !useSession.getState().user) return;
+      void api.data.getAll().then((data) => applyRemoteData(user, data));
+      void useSession.getState().refreshNotifications();
     });
     const offEnded = api.on<string>("session:ended", (message) => {
       void useSession.getState().signOut();

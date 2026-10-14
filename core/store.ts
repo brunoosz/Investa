@@ -1,7 +1,8 @@
-import type { AlertRuntimeState, AppNotification, PublicUser, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
+import type { AiLogEntry, AlertRuntimeState, DailyInsight, AppNotification, PublicUser, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
 import { defaultUserData } from "@shared/defaults";
 import type { FileStore } from "./platform";
 import type { CloudState } from "./cloud";
+import { INBOX_KEY, mergeInbox, parseInbox, pruneInbox, type Inbox } from "./inbox";
 
 const DB_FILE = "investa-data.json";
 const BACKUP_FILE = "investa-data.bak.json";
@@ -24,6 +25,8 @@ export interface UserRecord {
 export interface EngineState {
   keys: Record<string, string>;
   alertState: Record<string, AlertRuntimeState>;
+  removed?: Record<string, number>;
+  seeded?: boolean;
 }
 
 export interface AiStoredConfig {
@@ -36,10 +39,25 @@ export interface AiStoredConfig {
   catalog?: { ids: string[]; updatedAt: string };
   /** Modelos que responderam 404/410 e foram retirados da escolha automática. */
   retired?: string[];
-  /** Último modelo usado de fato, para avisar o Dono quando ele mudar. */
+  /** Último modelo que respondeu (só para mostrar; não muda a escolha). */
   lastUsed?: string;
   /** Modelos que falharam há pouco (erro 5xx, sem resposta): ficam de fora até o horário indicado. */
   cooldown?: Record<string, number>;
+  /** Tempo médio (ms) até a primeira palavra de cada modelo, para preferir os rápidos. */
+  latency?: Record<string, number>;
+  /** Chave da pesquisa na internet (Tavily "tvly-…" ou Brave). */
+  searchKeyEnc?: string;
+  searchKeyMode?: "safe" | "plain";
+  /** Chave da Groq ("gsk_…"), opcional e mais rápida. */
+  groqKeyEnc?: string;
+  groqKeyMode?: "safe" | "plain";
+  /** "auto" (padrão) ou o id de um modelo da Groq. */
+  groqModel?: string;
+  groqCatalog?: { ids: string[]; updatedAt: string };
+  /** Qual provedor tenta primeiro quando os dois têm chave (padrão: Groq). */
+  primary?: "nvidia" | "groq";
+  /** Quando o Dono mudou a configuração pela última vez (para a nuvem não trazer uma versão mais antiga). */
+  changedAt?: string;
 }
 
 interface DBShape {
@@ -52,7 +70,12 @@ interface DBShape {
     ai?: AiStoredConfig;
     session?: { userId: string; token: string; expiresAt: string };
     lastTheme?: "dark" | "light";
+    /** Ícone do app escolhido neste aparelho (Configurações → Aparência). */
+    appIcon?: "dark" | "light";
     cloud?: CloudState;
+    aiLog?: AiLogEntry[];
+    /** Última análise diária da IA de cada conta, neste aparelho. */
+    insights?: Record<string, DailyInsight>;
   };
 }
 
@@ -66,6 +89,14 @@ export class Store {
 
   constructor(private files: FileStore) {
     this.db = this.load();
+    // Versões antigas guardavam a caixa de avisos da nuvem junto com os dados.
+    for (const [userId, data] of Object.entries(this.db.data)) {
+      const raw = data as Record<string, unknown>;
+      if (raw[INBOX_KEY] === undefined) continue;
+      const legacy = parseInbox(raw[INBOX_KEY]);
+      delete raw[INBOX_KEY];
+      if (legacy) this.setInbox(userId, mergeInbox(this.inbox(userId), legacy));
+    }
   }
 
   private load(): DBShape {
@@ -143,6 +174,15 @@ export class Store {
     this.save();
   }
 
+  /** Grava um arquivo extra na pasta de dados (ex.: cópia de segurança). */
+  writeExtra(name: string, data: string): void {
+    try {
+      this.files.write(name, data);
+    } catch {
+      // sem disco: segue sem a cópia
+    }
+  }
+
   rawData(userId: string): Partial<UserDataMap> {
     return this.db.data[userId] ?? {};
   }
@@ -208,8 +248,31 @@ export class Store {
   }
 
   setNotifications(userId: string, list: AppNotification[]): void {
-    this.db.notifications[userId] = list.slice(0, 300);
+    this.db.notifications[userId] = list.slice(0, 200);
     this.save();
+  }
+
+  /** Notificações, avisos já dados e estado dos alertas da conta (o que vai para a nuvem). */
+  inbox(userId: string): Inbox {
+    const st = this.engine(userId);
+    return { items: this.getNotifications(userId), seen: st.keys, removed: st.removed ?? {}, alertState: st.alertState, ...(st.seeded ? { seeded: true } : {}) };
+  }
+
+  setInbox(userId: string, x: Inbox): void {
+    const st = this.engine(userId);
+    st.keys = x.seen;
+    st.alertState = x.alertState;
+    st.removed = x.removed;
+    st.seeded = x.seeded || undefined;
+    this.db.notifications[userId] = x.items;
+    this.save();
+  }
+
+  /** Aplica uma mudança na caixa de avisos e devolve a lista atualizada. */
+  updateInbox(userId: string, fn: (x: Inbox) => Inbox): AppNotification[] {
+    const next = pruneInbox(fn(this.inbox(userId)));
+    this.setInbox(userId, next);
+    return next.items;
   }
 
   // ---- motor de alertas ----
