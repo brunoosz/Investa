@@ -45,18 +45,18 @@ function WeekCard() {
   const diff = w.previous ? Math.round(((w.spent - w.previous) / w.previous) * 100) : null;
   return (
     <Card>
-      <SectionTitle title="Sua semana" subtitle="Últimos 7 dias" action={<Link to="/gastos" className="text-[13px] text-primary font-medium">Gastos</Link>} />
-      <div className="text-[26px] font-bold tabular" data-private="">
+      <SectionTitle title="Sua semana" subtitle="Últimos 7 dias" action={<Link to="/gastos" className="pressable text-footnote text-primary font-semibold">Gastos</Link>} />
+      <div className="text-[26px] font-bold tabular tracking-[-0.02em]" data-private="">
         {brl(w.spent)}
       </div>
-      <div className="text-[13px] text-muted">
+      <div className="text-footnote text-muted">
         {diff === null ? "gastos lançados na semana" : `${diff >= 0 ? "+" : ""}${diff}% em relação à semana anterior`}
         {w.topCategory ? ` · mais em ${w.topCategory.category}` : ""}
       </div>
       {w.dueSoon.length > 0 ? (
         <div className="mt-3 space-y-1.5">
           {w.dueSoon.slice(0, 3).map((d) => (
-            <div key={d.name + d.date} className="flex justify-between text-[13.5px]">
+            <div key={d.name + d.date} className="flex justify-between text-footnote">
               <span className="truncate">
                 {d.name} <span className="text-muted">· {dateBR(d.date, { day: "2-digit", month: "short" })}</span>
               </span>
@@ -65,7 +65,7 @@ function WeekCard() {
           ))}
         </div>
       ) : (
-        <div className="mt-3 text-[13px] text-muted">Nenhuma conta fixa vence nos próximos 7 dias.</div>
+        <div className="mt-3 text-footnote text-muted">Nenhuma conta fixa vence nos próximos 7 dias.</div>
       )}
       <NextDatesLine />
     </Card>
@@ -92,21 +92,21 @@ function MoneyTodayCard() {
     <Card className="lg:col-span-2">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-[13px] text-muted font-medium">Seu dinheiro hoje</div>
-          <div className="text-[34px] font-bold tracking-tight mt-0.5 tabular" data-private="">
+          <div className="text-footnote text-muted font-medium">Seu dinheiro hoje</div>
+          <div className="text-[34px] font-bold tracking-[-0.02em] mt-0.5 tabular" data-private="">
             {accounts.length ? brl(total) : "—"}
           </div>
-          <div className="text-[13.5px] text-muted mt-0.5">
+          <div className="text-footnote text-muted mt-0.5">
             {accounts.length ? `em ${accounts.length} ${accounts.length === 1 ? "conta" : "contas"} · ainda sem investimentos` : "Informe o saldo dos seus bancos para acompanhar aqui."}
           </div>
         </div>
-        <div className="rounded-2xl bg-line/[0.05] px-4 py-3 min-w-[180px]">
-          <div className="text-[12.5px] text-muted">Disponível para gastar no mês</div>
-          <div className={clsx("text-[20px] font-bold tabular", budget.available >= 0 ? "text-success" : "text-danger")} data-private="">
+        <div className="rounded-card bg-line/[0.05] px-4 py-3 min-w-[180px]">
+          <div className="text-footnote text-muted">Disponível para gastar no mês</div>
+          <div className={clsx("text-[22px] font-bold tabular tracking-[-0.02em]", budget.available >= 0 ? "text-success" : "text-danger")} data-private="">
             {brl(budget.available)}
           </div>
           {budget.perDay !== undefined && budget.available > 0 && (
-            <div className="text-[12px] text-muted">
+            <div className="text-footnote text-muted">
               <Private>{brl(budget.perDay)}</Private> por dia
             </div>
           )}
@@ -115,15 +115,15 @@ function MoneyTodayCard() {
       {accounts.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {accounts.map((a) => (
-            <span key={a.id} className="rounded-full bg-line/[0.06] px-3 py-1 text-[13px]">
+            <span key={a.id} className="rounded-full bg-line/[0.06] px-3 py-1 text-footnote">
               {institutionLabel(a.institution)} <Private className="tabular font-medium">{brl(a.balance)}</Private>
             </span>
           ))}
         </div>
       )}
-      <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/[0.06] p-4">
-        <div className="font-semibold">Comece a investir, nem que seja com R$ 1</div>
-        <div className="text-[13.5px] text-muted mt-0.5">O gráfico do patrimônio começa no primeiro investimento. As aulas explicam do zero por onde começar.</div>
+      <div className="mt-5 rounded-card border border-primary/20 bg-primary/[0.06] p-4">
+        <div className="text-headline">Comece a investir, nem que seja com R$ 1</div>
+        <div className="text-footnote text-muted mt-0.5">O gráfico do patrimônio começa no primeiro investimento. As aulas explicam do zero por onde começar.</div>
         <div className="flex flex-wrap gap-2 mt-3">
           <Button size="sm" icon={Plus} onClick={() => navigate("/carteira?novo=1")}>
             Adicionar investimento
@@ -155,8 +155,8 @@ function PatrimonyCard() {
   const series = useMemo<SeriesSpec[]>(() => {
     const pts = hist.data ?? [];
     return [
-      { kind: "area", id: "value", color: "#4F8CFF", data: pts.map((p) => ({ time: p.time, value: p.value })) },
-      { kind: "line", id: "invested", color: "#94A3B8", dashed: true, width: 1, data: pts.map((p) => ({ time: p.time, value: p.invested })) },
+      { kind: "area", id: "value", color: "primary", data: pts.map((p) => ({ time: p.time, value: p.value })) },
+      { kind: "line", id: "invested", color: "muted", dashed: true, width: 1, data: pts.map((p) => ({ time: p.time, value: p.invested })) },
     ];
   }, [hist.data]);
   const fmt = useCallback((v: number) => brl(v), []);
@@ -171,11 +171,11 @@ function PatrimonyCard() {
     <Card className="lg:col-span-2" padded={false}>
       <div className="p-5 pb-0 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[13px] text-muted font-medium">{hover ? dateBR(hover.time * 1000, { day: "2-digit", month: "short", year: "numeric" }) : "Seu patrimônio"}</div>
-          <div className="text-[34px] font-bold tracking-tight mt-0.5">
+          <div className="text-footnote text-muted font-medium">{hover ? dateBR(hover.time * 1000, { day: "2-digit", month: "short", year: "numeric" }) : "Seu patrimônio"}</div>
+          <div className="text-[34px] font-bold tracking-[-0.02em] mt-0.5 tabular">
             <AnimatedNumber value={shown} format={brl} private />
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] mt-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-footnote mt-0.5">
             {!hover && (
               <span className={toneClass(summary.dayChange)}>
                 <Private>
@@ -195,7 +195,7 @@ function PatrimonyCard() {
             </span>
           </div>
           {!hover && accountsTotal !== 0 && (
-            <div className="text-[13px] text-muted mt-1">
+            <div className="text-footnote text-muted mt-1">
               + <Private>{brl(accountsTotal)}</Private> nos bancos · total <Private className="text-fg font-semibold tabular">{brl(summary.value + accountsTotal)}</Private>
             </div>
           )}
@@ -225,7 +225,7 @@ function PatrimonyCard() {
           </Private>
         )}
       </div>
-      <div className="flex items-center gap-4 px-5 pb-4 text-[12px] text-muted">
+      <div className="flex items-center gap-4 px-5 pb-4 text-footnote text-muted">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-primary" /> Valor da carteira
         </span>
@@ -253,8 +253,8 @@ function AllocationCard() {
             size={170}
             center={
               <div>
-                <div className="text-[12px] text-muted">{data.length} classes</div>
-                <div className="text-[15px] font-bold" data-private="">
+                <div className="text-caption uppercase text-muted">{data.length} classes</div>
+                <div className="text-body font-bold tabular" data-private="">
                   {brl(summary.value).replace(/,\d+$/, "")}
                 </div>
               </div>
@@ -265,7 +265,7 @@ function AllocationCard() {
           </div>
         </div>
       ) : (
-        <div className="text-muted text-[14px] py-8 text-center">Adicione investimentos para ver a divisão da sua carteira.</div>
+        <div className="text-muted text-callout py-8 text-center">Adicione investimentos para ver a divisão da sua carteira.</div>
       )}
     </Card>
   );
@@ -281,23 +281,23 @@ function LearningCard() {
     <Card>
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[13px] text-muted font-medium">Sua trilha</div>
-          <div className="text-[18px] font-semibold mt-0.5">{lvl.current.name}</div>
+          <div className="text-footnote text-muted font-medium">Sua trilha</div>
+          <div className="text-title mt-0.5">{lvl.current.name}</div>
         </div>
         {learning.streak.count > 0 && (
-          <div className="flex items-center gap-1 text-warning font-semibold text-[13px]">
+          <div className="flex items-center gap-1 text-warning font-semibold text-footnote">
             <Flame size={16} /> {learning.streak.count} {learning.streak.count === 1 ? "dia" : "dias"}
           </div>
         )}
       </div>
       <div className="flex items-center gap-4 mt-4">
         <ProgressRing value={done / TOTAL_LESSONS} size={64}>
-          <span className="text-[13px] font-bold">{Math.round((done / TOTAL_LESSONS) * 100)}%</span>
+          <span className="text-footnote font-bold">{Math.round((done / TOTAL_LESSONS) * 100)}%</span>
         </ProgressRing>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] text-muted">{next ? "Próxima aula" : "Trilha concluída!"}</div>
+          <div className="text-footnote text-muted">{next ? "Próxima aula" : "Trilha concluída!"}</div>
           <div className="font-semibold truncate">{next ? next.lesson.title : "Você zerou o Investa"}</div>
-          <div className="text-[12.5px] text-muted">{num(learning.xp, 0)} XP · {done}/{TOTAL_LESSONS} aulas</div>
+          <div className="text-footnote text-muted">{num(learning.xp, 0)} XP · {done}/{TOTAL_LESSONS} aulas</div>
         </div>
       </div>
       <Button className="mt-4" block variant="secondary" icon={GraduationCap} onClick={() => navigate(next ? `/aula/${next.lesson.id}` : "/aulas")}>
@@ -317,14 +317,14 @@ function GoalsCard() {
       <SectionTitle
         title="Seus objetivos"
         action={
-          <Link to="/objetivos" className="text-[13px] text-primary font-semibold">
+          <Link to="/objetivos" className="pressable text-footnote text-primary font-semibold">
             Ver todos
           </Link>
         }
       />
       {goals.length === 0 ? (
         <div className="text-center py-4">
-          <p className="text-muted text-[14px]">Defina metas e veja quanto investir por mês.</p>
+          <p className="text-muted text-callout">Defina metas e veja quanto investir por mês.</p>
           <Button className="mt-3" variant="secondary" icon={Target} onClick={() => navigate("/objetivos")}>
             Criar meta
           </Button>
@@ -337,16 +337,16 @@ function GoalsCard() {
             return (
               <div key={g.id}>
                 <div className="flex items-center gap-2.5 mb-2">
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: `${g.color}22`, color: g.color }}>
+                  <div className="h-8 w-8 rounded-chip flex items-center justify-center" style={{ background: `${g.color}22`, color: g.color }}>
                     <Icon size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-semibold truncate">{g.name}</div>
-                    <div className="text-[12px] text-muted" data-private="">
+                    <div className="text-callout font-semibold truncate">{g.name}</div>
+                    <div className="text-footnote text-muted" data-private="">
                       {brl(p.current)} de {brl(g.target)}
                     </div>
                   </div>
-                  <span className="text-[13px] font-semibold tabular">{Math.round(p.progress * 100)}%</span>
+                  <span className="text-footnote font-semibold tabular">{Math.round(p.progress * 100)}%</span>
                 </div>
                 <ProgressBar value={p.progress} color={g.color} height={6} />
               </div>
@@ -377,10 +377,10 @@ function IndicatorsCard() {
         <div className="space-y-2.5">
           {rows.map((r) => (
             <div key={r.label} className="flex items-center justify-between">
-              <span className="text-[14px] text-muted">{r.label}</span>
+              <span className="text-callout text-muted">{r.label}</span>
               <span className="text-right">
-                {r.value === undefined && loading ? <Skeleton className="h-4 w-16" /> : <span className="font-semibold tabular text-[15px]">{r.value ?? "—"}</span>}
-                <span className={`ml-2 text-[12px] ${r.tone !== undefined ? toneClass(r.tone) : "text-muted"}`}>{r.sub}</span>
+                {r.value === undefined && loading ? <Skeleton className="h-4 w-16" /> : <span className="font-semibold tabular text-body">{r.value ?? "—"}</span>}
+                <span className={`ml-2 text-footnote ${r.tone !== undefined ? toneClass(r.tone) : "text-muted"}`}>{r.sub}</span>
               </span>
             </div>
           ))}
@@ -401,7 +401,7 @@ function FavoritesCard() {
           title="Ativos em destaque"
           subtitle="Seus favoritos, em tempo real"
           action={
-            <Link to="/mercado" className="text-[13px] text-primary font-semibold">
+            <Link to="/mercado" className="pressable text-footnote text-primary font-semibold">
               Mercado
             </Link>
           }
@@ -411,21 +411,21 @@ function FavoritesCard() {
         {favorites.slice(0, 6).map((s) => {
           const q = quotes[s];
           return (
-            <button key={s} onClick={() => navigate(`/mercado/${encodeURIComponent(s)}`)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-line/[0.04] text-left">
+            <button key={s} onClick={() => navigate(`/mercado/${encodeURIComponent(s)}`)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-line/[0.04] transition-colors duration-150 text-left">
               <AssetAvatar symbol={s} size={36} />
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-[14px] truncate">{displaySymbol(s)}</div>
-                <div className="text-[12.5px] text-muted truncate">{q?.name ?? "…"}</div>
+                <div className="text-callout font-semibold truncate">{displaySymbol(s)}</div>
+                <div className="text-footnote text-muted truncate">{q?.name ?? "…"}</div>
               </div>
               {/* No celular a variação fica embaixo do preço para sobrar espaço ao nome. */}
               <div className="shrink-0 flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
-                <div className="text-[14px] font-semibold tabular whitespace-nowrap">{q ? quotePrice(q) : <Skeleton className="h-4 w-16" />}</div>
+                <div className="text-callout font-semibold tabular whitespace-nowrap">{q ? quotePrice(q) : <Skeleton className="h-4 w-16" />}</div>
                 <ChangePill value={q?.changePercent} size="sm" />
               </div>
             </button>
           );
         })}
-        {favorites.length === 0 && <div className="px-5 pb-4 text-muted text-[14px]">Marque ativos com a estrela no Mercado.</div>}
+        {favorites.length === 0 && <div className="px-5 pb-4 text-muted text-callout">Marque ativos com a estrela no Mercado.</div>}
       </div>
     </Card>
   );
@@ -452,19 +452,19 @@ function NewsCard() {
           </div>
         )}
         {data?.slice(0, 5).map((n) => (
-          <button key={n.id} onClick={() => void api.openExternal(n.link)} className="w-full flex gap-3 px-5 py-2.5 hover:bg-line/[0.04] text-left group">
+          <button key={n.id} onClick={() => void api.openExternal(n.link)} className="w-full flex gap-3 px-5 py-2.5 hover:bg-line/[0.04] transition-colors duration-150 text-left group">
             {n.image ? (
-              <img src={n.image} alt="" className="h-12 w-16 rounded-lg object-cover shrink-0 bg-line/10" loading="lazy" />
+              <img src={n.image} alt="" className="h-12 w-16 rounded-chip object-cover shrink-0 bg-line/10" loading="lazy" />
             ) : (
-              <div className="h-12 w-16 rounded-lg bg-primary/10 shrink-0" />
+              <div className="h-12 w-16 rounded-chip bg-primary/10 shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[13.5px] font-medium line-clamp-2 break-words group-hover:text-primary transition">{n.title}</div>
-              <div className="text-[12px] text-muted mt-0.5 truncate">
+              <div className="text-footnote font-medium line-clamp-2 break-words group-hover:text-primary transition-colors duration-150">{n.title}</div>
+              <div className="text-footnote text-muted mt-0.5 truncate">
                 {n.source} · {relativeTime(n.publishedAt)}
               </div>
             </div>
-            <ArrowUpRight size={15} className="hidden sm:block text-muted shrink-0 opacity-0 group-hover:opacity-100" />
+            <ArrowUpRight size={15} className="hidden sm:block text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
           </button>
         ))}
       </div>
@@ -479,12 +479,12 @@ export function Inicio() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
-          <div className="text-[13px] text-muted font-medium">{todayLabel()}</div>
-          <h1 className="text-[30px] md:text-[34px] font-bold tracking-tight">
+          <div className="text-footnote text-muted font-medium">{todayLabel()}</div>
+          <h1 className="text-large-title md:text-[34px]">
             {greeting()}, {firstName(user.name)}
           </h1>
         </div>
-        <div className="flex items-center gap-2 text-[13px] text-muted rounded-full bg-line/[0.06] border border-line/10 px-3 py-1.5">
+        <div className="flex items-center gap-2 text-footnote text-muted rounded-full bg-line/[0.06] border border-separator/10 px-3 py-1.5">
           {open ? <LiveDot /> : <span className="h-2 w-2 rounded-full bg-muted/60" />}
           {open ? "B3 aberta · dados em tempo real" : "B3 fechada · últimos preços"}
         </div>
