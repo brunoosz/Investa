@@ -106,11 +106,15 @@ export class AuthService {
       throw new AppError("LOCKED", `Muitas tentativas. Aguarde ${secs} segundos e tente novamente.`);
     }
     const user = this.store.findUserByUsername(username);
-    if (!user) throw new AppError("USER_NOT_FOUND", "Usuário não encontrado. Verifique o nome ou crie uma conta.");
-    if (!this.verifyPassword(password, user.salt, user.passwordHash)) {
+    // Mesma resposta (e o mesmo trabalho de conferir senha) para usuário que não
+    // existe e senha errada: assim ninguém descobre quais usuários existem.
+    const ok = user ? this.verifyPassword(password, user.salt, user.passwordHash) : (this.hashPassword(password), false);
+    if (!user || !ok) {
       const count = (lock?.count ?? 0) + 1;
-      attempts.set(key, { count, until: count >= 5 ? Date.now() + 30_000 : 0 });
-      throw new AppError("WRONG_PASSWORD", count >= 5 ? "Senha incorreta. Muitas tentativas: aguarde 30 segundos." : "Senha incorreta.");
+      // A partir da 5ª tentativa errada, espera 30 s, depois 1, 2, 4… minutos (até 15).
+      const wait = count >= 5 ? Math.min(15 * 60_000, 30_000 * 2 ** (count - 5)) : 0;
+      attempts.set(key, { count, until: wait ? Date.now() + wait : 0 });
+      throw new AppError("WRONG_PASSWORD", wait ? `Usuário ou senha incorretos. Muitas tentativas: aguarde ${Math.ceil(wait / 1000)} segundos.` : "Usuário ou senha incorretos.");
     }
     attempts.delete(key);
     if (user.status === "bloqueado") throw new AppError("BLOCKED", "Esta conta está bloqueada. Fale com o dono do aplicativo.");
