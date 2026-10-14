@@ -416,3 +416,25 @@ export function sanitizeShoppingItem(raw: Partial<ShoppingItem>): ShoppingItem {
     createdAt: raw.createdAt ?? new Date().toISOString(),
   };
 }
+
+/**
+ * Gastos novos que correspondem a itens pendentes: devolve a lista com esses
+ * itens marcados como comprados (data e valor pago do gasto) e quais mudaram.
+ */
+export function strikeFromExpenses(
+  before: { id: string }[],
+  after: { id: string; type: string; description: string; amount: number; date: string }[],
+  items: ShoppingItem[]
+): { items: ShoppingItem[]; struck: ShoppingItem[] } {
+  const old = new Set(before.map((e) => e.id));
+  let list = items;
+  const struck: ShoppingItem[] = [];
+  for (const e of after) {
+    if (old.has(e.id) || e.type !== "despesa") continue;
+    const hit = matchShopping(e.description, list);
+    if (!hit) continue;
+    struck.push(hit);
+    list = list.map((i) => (i.id === hit.id ? { ...i, status: "comprado", boughtAt: e.date, paid: e.amount > 0 ? e.amount : undefined, expenseId: e.id } : i));
+  }
+  return { items: list, struck };
+}

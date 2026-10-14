@@ -8,7 +8,7 @@ export interface Toast {
   title: string;
   message?: string;
   tone: ToastTone;
-  action?: { label: string; to: string };
+  action?: { label: string; to?: string; onClick?: () => void };
 }
 
 interface UiState {
@@ -34,7 +34,7 @@ export const useUi = create<UiState>((set, get) => ({
   toast: (t) => {
     const id = crypto.randomUUID();
     set((s) => ({ toasts: [...s.toasts.slice(-3), { id, tone: "info", ...t }] }));
-    setTimeout(() => get().dismiss(id), t.tone === "error" ? 6500 : 4200);
+    setTimeout(() => get().dismiss(id), t.tone === "error" || t.action?.onClick ? 6500 : 4200);
   },
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
   applyTheme: (theme) => {

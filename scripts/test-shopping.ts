@@ -1,4 +1,4 @@
-import { SHOPPING_CATALOG, matchShopping, findCatalog, suggestCatalog, itemPrice, summarizeShopping } from "@shared/shopping";
+import { strikeFromExpenses, SHOPPING_CATALOG, matchShopping, findCatalog, suggestCatalog, itemPrice, summarizeShopping } from "@shared/shopping";
 const it = (name: string, extra: any = {}) => ({ id: name, name, quantity: 1, category: "alimentos", status: "pendente", createdAt: "", ...extra }) as any;
 const ok = (c: boolean, m: string) => { console.log((c ? "OK  " : "FAIL") + " " + m); if (!c) process.exitCode = 1; };
 ok(SHOPPING_CATALOG.length >= 145, "catálogo " + SHOPPING_CATALOG.length);
@@ -20,3 +20,8 @@ ok(itemPrice(it("xyzabc")).source === "sem", "sem preço");
 const s = summarizeShopping([it("leite"), it("xyz"), it("arroz", { price: 30 }), it("Fone", { category: "eletronicos", status: "comprado", paid: 70 })]);
 ok(s.pending.count === 3 && s.pending.noPrice === 1 && s.pending.informed === 30 && s.pending.estimated === 5.5, "totais pendentes");
 ok(s.bought.informed === 70, "comprado usa pago");
+{
+  const items = [it("Leite integral"), it("Arroz")];
+  const r = strikeFromExpenses([{ id: "a" }], [{ id: "a", type: "despesa", description: "Leite", amount: 9, date: "2026-10-01" }, { id: "b", type: "despesa", description: "leites", amount: 12, date: "2026-10-14" }, { id: "c", type: "receita", description: "Arroz", amount: 1, date: "2026-10-14" }], items);
+  ok(r.struck.length === 1 && r.items[0].status === "comprado" && r.items[0].paid === 12 && r.items[0].boughtAt === "2026-10-14" && r.items[1].status === "pendente", "risco automático só para gasto novo");
+}

@@ -31,7 +31,8 @@ export function Toaster() {
                   <button
                     className="text-[13px] font-semibold text-primary mt-1.5"
                     onClick={() => {
-                      navigate(t.action!.to);
+                      if (t.action!.onClick) t.action!.onClick();
+                      else if (t.action!.to) navigate(t.action!.to);
                       dismiss(t.id);
                     }}
                   >
