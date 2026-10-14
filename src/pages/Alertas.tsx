@@ -74,21 +74,21 @@ function Notifications() {
         </Card>
       ) : (
         <Card padded={false} className="overflow-hidden">
-          <div className="divide-y divide-line/[0.07]">
+          <div className="divide-y divide-separator/[0.07]">
             {list.map((n) => (
               <div key={n.id} className={clsx("group flex gap-3.5 px-5 py-4", !n.read && "bg-primary/[0.04]")}>
                 <NotificationIcon n={n} size={40} />
                 <button className="flex-1 min-w-0 text-left" onClick={() => open(n)}>
                   <div className="flex items-center gap-2">
-                    <span className={clsx("text-[15px]", n.read ? "font-medium" : "font-semibold")}>{n.title}</span>
+                    <span className={clsx("text-body", n.read ? "font-medium" : "font-semibold")}>{n.title}</span>
                     {!n.read && <span className="h-2 w-2 rounded-full bg-primary" />}
                   </div>
-                  <div className="text-[12.5px] text-muted mt-0.5">
+                  <div className="text-footnote text-muted mt-0.5">
                     {dateBR(n.createdAt, { day: "2-digit", month: "short" })}, {timeBR(n.createdAt)} · {relativeTime(n.createdAt)}
                   </div>
-                  <p className="text-[14px] mt-1.5 text-fg/85">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</p>
+                  <p className="text-callout mt-1.5 text-fg/85">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</p>
                 </button>
-                <button onClick={() => void api.notifications.remove(n.id).then(setNotifications)} className="h-8 w-8 rounded-lg flex items-center justify-center text-muted opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:text-danger hover:bg-danger/10 transition" aria-label="Excluir">
+                <button onClick={() => void api.notifications.remove(n.id).then(setNotifications)} className="h-8 w-8 rounded-chip flex items-center justify-center text-muted opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:text-danger hover:bg-danger/10 transition" aria-label="Excluir">
                   <Trash size={15} />
                 </button>
               </div>
@@ -168,7 +168,7 @@ function AlertSheet({ open, initial, defaultSymbol, onClose }: { open: boolean; 
               <AssetPicker value={a.symbol} onSelect={(r) => setA({ ...a, symbol: r.symbol })} />
             </Field>
             {q && (
-              <div className="text-[13px] text-muted -mt-2">
+              <div className="text-footnote text-muted -mt-2">
                 Agora: <strong className="text-fg">{money(q.price, q.currency)}</strong> <span className={toneClass(q.changePercent)}>({pct(q.changePercent)} hoje)</span>
                 {q.fiftyDayAverage ? ` · média 50 dias ${money(q.fiftyDayAverage, q.currency)}` : ""}
               </div>
@@ -204,10 +204,10 @@ function AlertSheet({ open, initial, defaultSymbol, onClose }: { open: boolean; 
           <Textarea value={a.message ?? ""} onChange={(e) => setA({ ...a, message: e.target.value })} placeholder="Escreva o que quer lembrar quando o alerta disparar." />
         </Field>
         {!isReminder && (
-          <label className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+          <label className="flex items-center justify-between rounded-card bg-line/[0.04] px-4 py-3">
             <div>
-              <div className="font-medium text-[14.5px]">Repetir</div>
-              <div className="text-[12.5px] text-muted">Avisar de novo toda vez que a condição voltar a acontecer.</div>
+              <div className="font-medium text-callout">Repetir</div>
+              <div className="text-footnote text-muted">Avisar de novo toda vez que a condição voltar a acontecer.</div>
             </div>
             <Toggle checked={a.repeat} onChange={(v) => setA({ ...a, repeat: v })} />
           </label>
@@ -244,7 +244,7 @@ function MyAlerts({ openNew }: { openNew: (symbol?: string) => void }) {
   return (
     <>
       <Card padded={false} className="overflow-hidden">
-        <div className="divide-y divide-line/[0.07]">
+        <div className="divide-y divide-separator/[0.07]">
           {alerts.map((a) => {
             const q = a.symbol ? quotes[a.symbol] : undefined;
             const st = state.data?.[a.id];
@@ -255,19 +255,19 @@ function MyAlerts({ openNew }: { openNew: (symbol?: string) => void }) {
                 {a.symbol ? (
                   <AssetAvatar symbol={a.symbol} size={40} />
                 ) : (
-                  <div className="h-10 w-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-control bg-secondary/15 text-secondary flex items-center justify-center">
                     <Clock size={18} />
                   </div>
                 )}
                 <div className="flex-1 min-w-[180px]">
-                  <div className="font-semibold text-[14.5px]">{a.title?.trim() || (a.symbol ? displaySymbol(a.symbol) : "Lembrete")}</div>
-                  <div className="text-[13px] text-muted">
+                  <div className="font-semibold text-callout">{a.title?.trim() || (a.symbol ? displaySymbol(a.symbol) : "Lembrete")}</div>
+                  <div className="text-footnote text-muted">
                     {a.kind === "lembrete"
                       ? `${a.remindAt ? `${dateBR(a.remindAt)} às ${timeBR(a.remindAt)}` : ""}${a.message ? ` · ${a.message}` : ""}`
                       : `${KIND_LABEL[a.kind]} ${a.kind === "variacao-dia" || a.kind === "abaixo-media" ? `${num(a.value)}%` : money(a.value, q?.currency ?? "BRL")}`}
                   </div>
                   {q && a.kind !== "lembrete" && (
-                    <div className="text-[12.5px] text-muted">
+                    <div className="text-footnote text-muted">
                       Agora {money(q.price, q.currency)}
                       {distance !== undefined && ` · falta ${pct(distance, 1)}`}
                     </div>
@@ -325,8 +325,8 @@ function SmartAlerts() {
           <div className="flex items-center gap-3 px-4 py-3.5">
             <BrainCircuit size={20} className="text-primary" />
             <div className="flex-1">
-              <div className="font-medium text-[14.5px]">Alertas inteligentes da carteira</div>
-              <div className="text-[12.5px] text-muted">Avisa quando seus ativos estão mais baratos ou mais caros que o normal e quando estão dando lucro ou prejuízo.</div>
+              <div className="font-medium text-callout">Alertas inteligentes da carteira</div>
+              <div className="text-footnote text-muted">Avisa quando seus ativos estão mais baratos ou mais caros que o normal e quando estão dando lucro ou prejuízo.</div>
             </div>
             <Toggle checked={settings.smartAlerts} onChange={(v) => set({ smartAlerts: v })} />
           </div>
@@ -348,9 +348,9 @@ function SmartAlerts() {
           <SectionTitle title="Situação dos seus ativos agora" subtitle="É isso que o Investa observa a cada minuto para te avisar." />
         </div>
         {variable.length === 0 ? (
-          <div className="px-5 pb-5 text-[14px] text-muted">Cadastre ações, FIIs ou outros ativos na Carteira para receber alertas inteligentes.</div>
+          <div className="px-5 pb-5 text-callout text-muted">Cadastre ações, FIIs ou outros ativos na Carteira para receber alertas inteligentes.</div>
         ) : (
-          <div className="divide-y divide-line/[0.07]">
+          <div className="divide-y divide-separator/[0.07]">
             {variable.map((h) => {
               const q = quotes[h.symbol!];
               const ret = q && h.avgPrice ? ((q.price - h.avgPrice) / h.avgPrice) * 100 : undefined;
@@ -370,7 +370,7 @@ function SmartAlerts() {
                   <AssetAvatar symbol={h.symbol!} size={38} />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold">{displaySymbol(h.symbol!)}</div>
-                    <div className="text-[12.5px] text-muted">
+                    <div className="text-footnote text-muted">
                       vs. seu preço médio: <span className={toneClass(ret)}>{pct(ret, 1)}</span> · vs. média 50 dias: <span className={toneClass(dev)}>{pct(dev, 1)}</span>
                     </div>
                   </div>
@@ -390,7 +390,7 @@ function SmartAlerts() {
 function Slider({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-2">
+      <div className="flex justify-between text-footnote mb-2">
         <span className="text-muted">{label}</span>
         <span className="font-semibold tabular">{value}%</span>
       </div>
@@ -411,8 +411,8 @@ function ToggleRow({ title, subtitle, checked, onChange }: { title: string; subt
   return (
     <div className="flex items-center gap-3 px-4 py-3.5">
       <div className="flex-1">
-        <div className="font-medium text-[14.5px]">{title}</div>
-        <div className="text-[12.5px] text-muted">{subtitle}</div>
+        <div className="font-medium text-callout">{title}</div>
+        <div className="text-footnote text-muted">{subtitle}</div>
       </div>
       <Toggle checked={checked} onChange={onChange} />
     </div>
