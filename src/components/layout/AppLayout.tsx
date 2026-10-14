@@ -177,18 +177,28 @@ function MobileNav() {
   const rest = navFor(user).filter((i) => !main.includes(i));
   return (
     <>
-      <nav className="sm:hidden glass border-t border-line/10 grid h-[64px] shrink-0" style={{ gridTemplateColumns: `repeat(${main.length + 1}, minmax(0, 1fr))` }}>
+      <nav
+        className="sm:hidden material-regular border-t hairline grid shrink-0 px-1.5 pt-1.5"
+        style={{ gridTemplateColumns: `repeat(${main.length + 1}, minmax(0, 1fr))`, paddingBottom: "max(6px, env(safe-area-inset-bottom))" }}
+        aria-label="Navegação principal"
+      >
         {main.map((item) => {
           const active = isActive(pathname, item.to);
           const Icon = item.icon;
           return (
-            <Link key={item.to} to={item.to} className={clsx("min-w-0 flex flex-col items-center justify-center gap-1 text-[10.5px] font-medium", active ? "text-primary" : "text-muted")}>
-              <Icon size={21} strokeWidth={active ? 2.3 : 1.9} />
-              <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-current={active ? "page" : undefined}
+              className={clsx("pressable relative min-w-0 h-[54px] flex flex-col items-center justify-center gap-[3px] text-[10.5px] font-semibold tracking-[0.01em]", active ? "text-primary" : "text-muted")}
+            >
+              {active && <motion.span layoutId="tab-active" className="absolute inset-x-1.5 inset-y-1 rounded-[var(--radius-md)] bg-primary/[0.12]" transition={{ type: "spring", bounce: 0, duration: 0.3 }} />}
+              <Icon size={21} strokeWidth={active ? 2.3 : 1.9} className="relative" />
+              <span className="relative max-w-full truncate px-0.5">{item.short ?? item.label}</span>
             </Link>
           );
         })}
-        <button onClick={() => setMore(true)} className="flex flex-col items-center justify-center gap-1 text-[10.5px] font-medium text-muted">
+        <button onClick={() => setMore(true)} className="pressable h-[54px] flex flex-col items-center justify-center gap-[3px] text-[10.5px] font-semibold tracking-[0.01em] text-muted">
           <Menu size={21} />
           Mais
         </button>

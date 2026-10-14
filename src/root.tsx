@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import "@fontsource-variable/inter";
 import "./index.css";
 import { initialTheme } from "@/store/ui";
@@ -14,11 +15,13 @@ export function renderApp(): void {
   loadIconVariant();
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-      <HashRouter>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
-      </HashRouter>
+      <MotionConfig reducedMotion="user">
+        <HashRouter>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </HashRouter>
+      </MotionConfig>
     </React.StrictMode>
   );
   installAutoFit();

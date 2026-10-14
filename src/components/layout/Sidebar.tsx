@@ -20,7 +20,7 @@ function NavLink({ item, collapsed, badge }: { item: NavItem; collapsed: boolean
       to={item.to}
       title={collapsed ? item.label : undefined}
       className={clsx(
-        "no-drag relative flex items-center gap-3 h-10 rounded-xl text-[14px] font-medium transition-colors",
+        "no-drag pressable relative flex items-center gap-3 h-10 rounded-[var(--radius-md)] text-[14px] font-medium tracking-[-0.006em] transition-colors",
         collapsed ? "justify-center px-0" : "px-3",
         active ? "text-fg" : "text-muted hover:text-fg hover:bg-line/[0.06]"
       )}
@@ -28,8 +28,8 @@ function NavLink({ item, collapsed, badge }: { item: NavItem; collapsed: boolean
       {active && (
         <motion.span
           layoutId="nav-active"
-          className="absolute inset-0 rounded-xl bg-primary/[0.14] border border-primary/20"
-          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+          className="absolute inset-0 rounded-[var(--radius-md)] bg-primary/[0.13] shadow-[inset_0_0_0_1px_rgb(var(--primary)/0.18)]"
+          transition={{ type: "spring", bounce: 0, duration: 0.3 }}
         />
       )}
       <Icon size={19} strokeWidth={active ? 2.3 : 2} className={clsx("relative shrink-0", active && "text-primary")} />
@@ -60,7 +60,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     <motion.aside
       animate={{ width: collapsed ? 76 : 252 }}
       transition={{ type: "spring", stiffness: 400, damping: 40 }}
-      className="hidden sm:flex h-full shrink-0 flex-col glass border-r border-line/10 relative z-20"
+      className="hidden sm:flex h-full shrink-0 flex-col material-thick border-r hairline relative z-20"
     >
       <div className={clsx("drag flex items-center h-[64px] shrink-0", collapsed ? "justify-center" : "px-5", platform === "darwin" && "pt-6")}>
         <Link to="/" className="no-drag flex items-center gap-2.5">
@@ -82,7 +82,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           if (!items.length) return null;
           return (
             <div key={gi} className={clsx(gi > 0 && "mt-5")}>
-              {g.title && !collapsed && <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/70">{g.title}</div>}
+              {g.title && !collapsed && <div className="px-3 mb-1.5 t-caption text-muted/70">{g.title}</div>}
               {g.title && collapsed && <div className="mx-3 mb-2 h-px bg-line/10" />}
               <div className="flex flex-col gap-0.5">
                 {items.map((item) => (
@@ -94,7 +94,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         })}
       </nav>
 
-      <div className="px-3 pb-3 pt-2 border-t border-line/10 flex flex-col gap-1">
+      <div className="px-3 pb-3 pt-2 border-t hairline flex flex-col gap-1">
         <NavLink item={SETTINGS_ITEM} collapsed={collapsed} />
         {user && (
           <div className={clsx("flex items-center gap-2.5 rounded-xl mt-1", collapsed ? "flex-col py-2" : "px-2 py-2 hover:bg-line/[0.05]")}>
