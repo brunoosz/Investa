@@ -245,3 +245,23 @@ revoke all on function public.admin_set_password(uuid, text) from public, anon;
 revoke all on function public.admin_delete_user(uuid) from public, anon;
 grant execute on function public.admin_set_password(uuid, text) to authenticated;
 grant execute on function public.admin_delete_user(uuid) to authenticated;
+
+-- Limites no próprio banco (o app também valida, mas o banco não depende disso).
+-- "not valid" não mexe em linhas antigas; vale para tudo que for gravado daqui em diante.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_username_formato') then
+    alter table public.profiles add constraint profiles_username_formato
+      check (char_length(username) between 3 and 24 and username ~ '^[A-Za-z0-9._-]+$') not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_name_tamanho') then
+    alter table public.profiles add constraint profiles_name_tamanho check (char_length(name) between 1 and 80) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_avatar_hue') then
+    alter table public.profiles add constraint profiles_avatar_hue check (avatar_hue between 0 and 360) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_data_tamanho') then
+    -- Pacote de dados de uma conta: até 5 MB (o app usa bem menos).
+    alter table public.profiles add constraint profiles_data_tamanho check (pg_column_size(data) <= 5242880) not valid;
+  end if;
+end $$;
