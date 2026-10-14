@@ -50,31 +50,31 @@ function NotificationsPopover({ onClose }: { onClose: () => void }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 500, damping: 36 }}
-      className="no-drag absolute right-0 top-11 w-[380px] max-w-[calc(100vw-1.5rem)] glass border border-line/15 rounded-2xl shadow-2xl overflow-hidden z-50"
+      className="no-drag absolute right-0 top-11 w-[380px] max-w-[calc(100vw-1.5rem)] glass border border-separator/15 rounded-card shadow-2xl overflow-hidden z-50"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line/10">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-separator/10">
         <div className="font-semibold">Notificações</div>
-        <button className="text-[13px] text-primary font-semibold inline-flex items-center gap-1" onClick={() => void api.notifications.markRead().then(setNotifications)}>
+        <button className="text-footnote text-primary font-semibold inline-flex items-center gap-1" onClick={() => void api.notifications.markRead().then(setNotifications)}>
           <CheckCheck size={15} /> Marcar todas como lidas
         </button>
       </div>
       <div className="max-h-[420px] overflow-y-auto">
-        {notifications.length === 0 && <div className="px-4 py-10 text-center text-muted text-[14px]">Nenhuma notificação por enquanto.</div>}
+        {notifications.length === 0 && <div className="px-4 py-10 text-center text-muted text-callout">Nenhuma notificação por enquanto.</div>}
         {notifications.slice(0, 8).map((n) => (
-          <button key={n.id} onClick={() => open(n)} className="w-full text-left flex gap-3 px-4 py-3 hover:bg-line/[0.05] border-b border-line/[0.06] last:border-0">
+          <button key={n.id} onClick={() => open(n)} className="w-full text-left flex gap-3 px-4 py-3 hover:bg-line/[0.05] border-b border-separator/[0.06] last:border-0">
             <NotificationIcon n={n} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className={clsx("text-[13.5px] truncate", n.read ? "font-medium" : "font-semibold")}>{n.title}</div>
+                <div className={clsx("text-footnote truncate", n.read ? "font-medium" : "font-semibold")}>{n.title}</div>
                 {!n.read && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
               </div>
-              <div className="text-[12.5px] text-muted line-clamp-2 mt-0.5">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</div>
+              <div className="text-footnote text-muted line-clamp-2 mt-0.5">{n.type === "carteira" || n.type === "sistema" ? <PrivateAmounts text={n.message} /> : n.message}</div>
               <div className="text-[11.5px] text-muted/70 mt-1">{relativeTime(n.createdAt)}</div>
             </div>
           </button>
         ))}
       </div>
-      <Link to="/alertas" onClick={onClose} className="block text-center text-[13px] font-semibold text-primary py-2.5 border-t border-line/10 hover:bg-line/[0.04]">
+      <Link to="/alertas" onClick={onClose} className="block text-center text-footnote font-semibold text-primary py-2.5 border-t border-separator/10 hover:bg-line/[0.04]">
         Ver todas
       </Link>
     </motion.div>
@@ -99,14 +99,14 @@ function TitleBar({ onSearch }: { onSearch: () => void }) {
       <div className="flex-1" />
       <button
         onClick={onSearch}
-        className="no-drag hidden md:flex shrink-0 whitespace-nowrap items-center gap-2 h-9 w-[270px] px-3 rounded-xl bg-line/[0.07] border border-line/10 text-muted text-[13.5px] hover:bg-line/[0.1] transition"
+        className="no-drag hidden md:flex shrink-0 whitespace-nowrap items-center gap-2 h-9 w-[270px] px-3 rounded-control bg-line/[0.07] border border-separator/10 text-muted text-footnote hover:bg-line/[0.1] transition-colors"
       >
         <Search size={15} />
         <span className="flex-1 text-left">Buscar ativos, páginas…</span>
         <kbd className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-line/10">Ctrl K</kbd>
       </button>
       <PrivacyButton />
-      <button onClick={onSearch} className="no-drag md:hidden h-9 w-9 rounded-xl flex items-center justify-center text-muted hover:text-fg hover:bg-line/10" aria-label="Buscar">
+      <button onClick={onSearch} className="no-drag md:hidden h-9 w-9 rounded-control flex items-center justify-center text-muted hover:text-fg hover:bg-line/10" aria-label="Buscar">
         <Search size={18} />
       </button>
       <div className="relative no-drag">
@@ -114,7 +114,7 @@ function TitleBar({ onSearch }: { onSearch: () => void }) {
           data-notifications-toggle
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="relative h-9 w-9 rounded-xl flex items-center justify-center text-muted hover:text-fg hover:bg-line/10 transition"
+          className="relative h-9 w-9 rounded-control flex items-center justify-center text-muted hover:text-fg hover:bg-line/10 transition-colors"
           aria-label="Notificações"
         >
           <Bell size={18} />
@@ -156,7 +156,7 @@ function PrivacyButton() {
   return (
     <button
       onClick={() => setOn((v) => !v)}
-      className={clsx("no-drag h-9 w-9 rounded-xl flex items-center justify-center hover:bg-line/10 transition", on ? "text-primary" : "text-muted hover:text-fg")}
+      className={clsx("no-drag h-9 w-9 rounded-control flex items-center justify-center hover:bg-line/10 transition", on ? "text-primary" : "text-muted hover:text-fg")}
       aria-label={on ? "Mostrar valores" : "Esconder valores"}
       aria-pressed={on}
       title={on ? "Mostrar valores" : "Esconder valores (modo privacidade)"}
@@ -214,7 +214,7 @@ function MobileNav() {
                   setMore(false);
                   navigate(item.to);
                 }}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-line/[0.06] py-4 text-[12.5px] font-medium"
+                className="flex flex-col items-center gap-2 rounded-card bg-line/[0.06] py-4 text-footnote font-medium"
               >
                 <Icon size={22} className="text-primary" />
                 {item.label}
@@ -226,7 +226,7 @@ function MobileNav() {
               setMore(false);
               await signOut();
             }}
-            className="flex flex-col items-center gap-2 rounded-2xl bg-danger/10 text-danger py-4 text-[12.5px] font-medium"
+            className="flex flex-col items-center gap-2 rounded-card bg-danger/10 text-danger py-4 text-footnote font-medium"
           >
             <LogOut size={22} />
             Sair
