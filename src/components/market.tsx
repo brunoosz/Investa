@@ -17,7 +17,7 @@ function InitialsBadge({ symbol, category, size }: { symbol: string; category: A
   const label = displaySymbol(symbol).replace(/[^A-Z0-9]/gi, "").slice(0, 4);
   return (
     <div
-      className="rounded-[12px] flex items-center justify-center font-bold shrink-0 tracking-tight"
+      className="rounded-full flex items-center justify-center font-bold shrink-0 tracking-tight"
       style={{ width: size, height: size, background: `${color}1f`, color, fontSize: size * (label.length > 3 ? 0.26 : 0.3) }}
     >
       {label}
@@ -41,8 +41,8 @@ export function ChangePill({ value, className, size = "md" }: { value: number | 
   return (
     <span
       className={clsx(
-        "inline-flex items-center justify-center rounded-lg font-semibold tabular text-white",
-        size === "sm" ? "h-6 min-w-[64px] px-1.5 text-[12px]" : "h-7 min-w-[78px] px-2 text-[13px]",
+        "inline-flex items-center justify-center rounded-chip font-semibold tabular text-white",
+        size === "sm" ? "h-6 min-w-[64px] px-1.5 text-caption tracking-normal" : "h-7 min-w-[78px] px-2 text-footnote",
         up ? "bg-success" : down ? "bg-danger" : "bg-line/30",
         className
       )}
@@ -53,7 +53,7 @@ export function ChangePill({ value, className, size = "md" }: { value: number | 
 }
 
 export function QuoteLine({ q, symbol }: { q?: Quote; symbol: string }) {
-  if (!q) return <span className="skeleton inline-block h-4 w-20 rounded" />;
+  if (!q) return <span className="skeleton inline-block h-4 w-20 rounded-chip" />;
   return <span className="tabular font-semibold">{quotePrice({ ...q, symbol })}</span>;
 }
 
@@ -107,12 +107,12 @@ export function AssetPicker({
   return (
     <div ref={boxRef} className="relative">
       {value && !open ? (
-        <button type="button" onClick={() => setOpen(true)} className="field flex items-center gap-2.5 text-left">
+        <button type="button" onClick={() => setOpen(true)} className="field flex items-center gap-2.5 text-left transition-[border-color,background-color] duration-150">
           <AssetAvatar symbol={value} size={26} />
           <span className="font-semibold">{displaySymbol(value)}</span>
-          <span className="text-muted truncate text-[13.5px]">{catalogAsset(value)?.name}</span>
+          <span className="text-muted truncate text-footnote">{catalogAsset(value)?.name}</span>
           <span className="flex-1" />
-          <span className="text-[12.5px] text-primary font-semibold">Trocar</span>
+          <span className="text-footnote text-primary font-semibold">Trocar</span>
         </button>
       ) : (
         <div className="relative">
@@ -131,7 +131,7 @@ export function AssetPicker({
           {loading ? (
             <Spinner size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2" />
           ) : q ? (
-            <button type="button" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-fg">
+            <button type="button" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-fg transition-colors duration-150">
               <X size={16} />
             </button>
           ) : null}
@@ -143,7 +143,8 @@ export function AssetPicker({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="absolute left-0 right-0 top-[calc(100%+6px)] z-[90] max-h-[300px] overflow-y-auto rounded-2xl border border-line/15 bg-surface shadow-2xl py-1.5"
+            transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+            className="absolute left-0 right-0 top-[calc(100%+6px)] z-[90] max-h-[300px] overflow-y-auto overscroll-contain origin-top rounded-card border border-separator/15 material-regular shadow-2xl py-1.5"
           >
             {results.map((r) => (
               <button
@@ -154,14 +155,14 @@ export function AssetPicker({
                   setQ("");
                   setOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-primary/10 text-left"
+                className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-primary/10 transition-colors duration-150 text-left"
               >
                 <AssetAvatar symbol={r.symbol} category={r.category} size={32} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[14px]">{displaySymbol(r.symbol)}</div>
-                  <div className="text-[12.5px] text-muted truncate">{r.name}</div>
+                  <div className="text-callout font-semibold">{displaySymbol(r.symbol)}</div>
+                  <div className="text-footnote text-muted truncate">{r.name}</div>
                 </div>
-                <span className="text-[11.5px] text-muted whitespace-nowrap">{categoryLabel(r.category)}</span>
+                <span className="text-caption uppercase text-muted whitespace-nowrap">{categoryLabel(r.category)}</span>
               </button>
             ))}
           </motion.div>
