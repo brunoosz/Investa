@@ -26,10 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -44,7 +44,7 @@ jobs:
           SHOTS: e2e-shots
       - name: Guardar prints das telas
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prints-das-telas
           path: e2e-shots/
@@ -62,10 +62,10 @@ jobs:
       INVESTA_CLOUD_URL: ${{ secrets.INVESTA_CLOUD_URL }}
       INVESTA_CLOUD_KEY: ${{ secrets.INVESTA_CLOUD_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -80,12 +80,12 @@ jobs:
       - name: Gerar instalador e versão portátil
         run: npx electron-builder --win --x64 --publish never
       - name: Guardar .exe
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Investa-Windows-${{ env.VERSION }}
           path: release/*.exe
       - name: Publicar na página de Releases
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           name: Investa ${{ env.VERSION }}
@@ -129,18 +129,18 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - run: npm ci
       - name: Definir versão
         run: |
@@ -168,12 +168,12 @@ jobs:
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk "release/Investa-Android-${VERSION}.apk"
       - name: Guardar APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Investa-Android-${{ env.VERSION }}
           path: release/*.apk
       - name: Publicar na página de Releases
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           files: release/*.apk
