@@ -197,3 +197,40 @@ export function todayIsoSaoPaulo(): string {
   const d = nowInSaoPaulo();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+/** Endereço público (https/http na internet), nunca localhost, rede interna ou IP reservado. */
+export function isPublicUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  const host = u.hostname.toLowerCase();
+  if (!/^https?:$/.test(u.protocol) || u.username || u.password || host.startsWith("[") || !host.includes(".")) return false;
+  if (/(^|\.)(localhost|local|internal|lan|home|arpa)$/.test(host)) return false;
+  const ip = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(host)?.slice(1).map(Number);
+  if (!ip) return true;
+  const [a, b] = ip;
+  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127));
+}
+
+/**
+ * Busca uma URL que veio do usuário: só endereços públicos e confere cada
+ * redirecionamento (um link curto não pode levar para a rede interna).
+ */
+export async function fetchPublic(url: string, init: RequestInit = {}, timeoutMs = 12_000, maxHops = 5): Promise<Response> {
+  let current = url;
+  for (let hop = 0; hop <= maxHops; hop++) {
+    if (!isPublicUrl(current)) throw new Error("Endereço não permitido.");
+    const res = await fetchWithTimeout(current, { ...init, redirect: "manual" }, timeoutMs);
+    const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    if (!location) {
+      // Onde o redirecionamento manual não existe (rede nativa do celular), confere o destino final.
+      if (res.url && !isPublicUrl(res.url)) throw new Error("Endereço não permitido.");
+      return res;
+    }
+    current = new URL(location, current).toString();
+  }
+  throw new Error("Redirecionamentos demais.");
+}

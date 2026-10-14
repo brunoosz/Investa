@@ -5,7 +5,7 @@
 // brasileiras não têm API pública de histórico, então o app indica onde
 // conferir.
 import type { DealCheck, DealOffer } from "@shared/types";
-import { cached, fetchWithTimeout, getJson, readText } from "./http";
+import { cached, fetchPublic, getJson, readText } from "./http";
 import { getQuotes } from "./yahoo";
 
 const CHEAPSHARK = "https://www.cheapshark.com/api/1.0";
@@ -264,7 +264,7 @@ export async function checkDeal(input: DealInput, budget: DealCheck["budget"]): 
         let finalUrl = url;
         let p: PageProduct | null = /mercadoli(vre|bre)\.com/i.test(url) ? await mercadoLivreApi(url) : null;
         if (!p?.price) {
-          const res = await fetchWithTimeout(
+          const res = await fetchPublic(
             url,
             { headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "pt-BR,pt;q=0.9", "Cache-Control": "no-cache" } },
             20_000

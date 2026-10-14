@@ -4,7 +4,8 @@
 // Wikipédia): cada aparelho tem o seu IP, então não existe cota dividida entre
 // as contas. Com chave da Tavily ("tvly-…") ou da Brave, elas vêm primeiro e,
 // se a cota acabar ou der erro, o app volta para a busca sem chave.
-import { cached, fetchWithTimeout, readText } from "./http";
+import { cached, fetchWithTimeout, isPublicUrl, readText } from "./http";
+export { isPublicUrl };
 
 export interface SearchResult {
   title: string;
@@ -282,21 +283,6 @@ export function htmlToText(html: string): string {
 }
 
 /** O app abre a página direto do aparelho: nada de endereços da rede local. */
-export function isPublicUrl(raw: string): boolean {
-  let u: URL;
-  try {
-    u = new URL(raw);
-  } catch {
-    return false;
-  }
-  const host = u.hostname.toLowerCase();
-  if (!/^https?:$/.test(u.protocol) || host.startsWith("[") || !host.includes(".")) return false;
-  if (/(^|\.)(localhost|local|internal|lan|home|arpa)$/.test(host)) return false;
-  const ip = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(host)?.slice(1).map(Number);
-  if (!ip) return true;
-  const [a, b] = ip;
-  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127));
-}
 
 async function readPage(url: string): Promise<string> {
   // Jina Reader devolve o texto limpo (sem chave, cerca de 20 páginas por minuto por aparelho).
