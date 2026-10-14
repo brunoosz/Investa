@@ -302,9 +302,22 @@ export class CloudService {
     this.store.save();
   }
 
+  /** Sair: envia o que falta, encerra a sessão no Supabase e apaga o token deste aparelho. */
   logout(userId: string | null): void {
     if (!userId) return;
-    void this.push(userId).catch(() => undefined);
+    void (async () => {
+      await this.push(userId).catch(() => undefined);
+      try {
+        const token = await this.token(userId);
+        await this.request("/auth/v1/logout?scope=local", { method: "POST", token });
+      } catch {
+        // sem internet: o token some daqui mesmo assim e vence sozinho no servidor
+      }
+      if (this.state.sessions?.[userId]) {
+        delete this.state.sessions[userId];
+        this.store.save();
+      }
+    })();
   }
 
   // ---- dados ----
