@@ -28,7 +28,9 @@ import { randomHexWeb, toHex, type BackgroundConfig, type FileStore, type Platfo
 import { closeTopOverlay } from "../lib/overlays";
 import { createStreamFetch } from "./streamFetch";
 
-const CHANNEL = "investa";
+// Canal "privado": com o celular bloqueado, o Android esconde o texto (valores) do aviso.
+// (Android não deixa mudar um canal que já existe, por isso o nome novo.)
+const CHANNEL = "investa-privado";
 const SCHEDULED_IDS = "investa-agendados";
 
 const FILES = ["investa-data.json", "investa-data.bak.json", "cache-tesouro.json", "cache-credito.json"];
@@ -207,7 +209,8 @@ export async function installMobileBridge(): Promise<void> {
   backend.start();
   // Android 13+: pede a permissão de notificação; o canal precisa existir para os avisos aparecerem com som.
   void LocalNotifications.requestPermissions().catch(() => undefined);
-  void LocalNotifications.createChannel({ id: CHANNEL, name: "Avisos do Investa", description: "Contas, faturas, lembretes, alertas e dicas", importance: 4, visibility: 1 }).catch(() => undefined);
+  void LocalNotifications.deleteChannel({ id: "investa" }).catch(() => undefined);
+  void LocalNotifications.createChannel({ id: CHANNEL, name: "Avisos do Investa", description: "Contas, faturas, lembretes, alertas e dicas", importance: 4, visibility: 0 }).catch(() => undefined);
   LocalNotifications.addListener("localNotificationActionPerformed", (a) => {
     const link = (a.notification.extra as { link?: string } | undefined)?.link;
     if (link) emit("navigate", link);
