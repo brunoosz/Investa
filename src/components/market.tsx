@@ -107,7 +107,7 @@ export function AssetPicker({
   return (
     <div ref={boxRef} className="relative">
       {value && !open ? (
-        <button type="button" onClick={() => setOpen(true)} className="field flex items-center gap-2.5 text-left transition-[border-color,background-color] duration-150">
+        <button type="button" onClick={() => setOpen(true)} className="field flex items-center gap-2.5 text-left">
           <AssetAvatar symbol={value} size={26} />
           <span className="font-semibold">{displaySymbol(value)}</span>
           <span className="text-muted truncate text-footnote">{catalogAsset(value)?.name}</span>
