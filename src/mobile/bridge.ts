@@ -221,7 +221,10 @@ export async function installMobileBridge(): Promise<void> {
   App.addListener("pause", () => backend.store.flush());
   void StatusBar.setOverlaysWebView({ overlay: false }).catch(() => undefined);
   platform.setTheme?.(document.documentElement.dataset.theme === "light" ? "light" : "dark");
-  setTimeout(() => void SplashScreen.hide().catch(() => undefined), 300);
+  // A splash nativa (só a cor de fundo) sai em fade quando a abertura animada começa.
+  const hideSplash = () => void SplashScreen.hide({ fadeOutDuration: 220 }).catch(() => undefined);
+  window.addEventListener("investa:intro", hideSplash, { once: true });
+  setTimeout(hideSplash, 3000);
 }
 
 export function isNativeApp(): boolean {

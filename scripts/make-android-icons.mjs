@@ -81,7 +81,8 @@ for (const dir of fs.readdirSync(res).filter((d) => d.startsWith("drawable"))) {
   if (!fs.existsSync(file)) continue;
   const [w, h] = execFileSync("identify", ["-format", "%w %h", file]).toString().split(" ").map(Number);
   const logo = Math.round(Math.min(w, h) * 0.5);
-  im("-size", `${w}x${h}`, `xc:${BG}`, "(", splash, "-resize", `${logo}x${logo}`, ")", "-gravity", "center", "-composite", file);
+  // Só a cor de fundo: a logo entra animada pelo app (components/Intro.tsx).
+  im("-size", `${w}x${h}`, `xc:${BG}`, file);
 }
 
 fs.rmSync(tmp, { recursive: true, force: true });

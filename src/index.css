@@ -497,3 +497,50 @@ html.privacy [data-private] {
     transform: none;
   }
 }
+
+/* ---- Abertura do app (components/Intro.tsx) ----
+   A barra fica parada e uma janela sobe de baixo para cima por cima dela:
+   a janela vai de translateY(100%) a 0 e o desenho dentro faz o inverso, então
+   só transform muda (barato e fora da thread principal). */
+.intro {
+  transition: opacity 320ms var(--ease-out);
+}
+.intro[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-logo {
+  transition: transform 320ms var(--ease-out);
+}
+.intro[data-leaving] .intro-logo {
+  transform: scale(0.96);
+}
+.intro-track {
+  fill: rgb(var(--separator) / 0.14);
+}
+.intro-window {
+  position: absolute;
+  overflow: hidden;
+  transform: translateY(100%);
+  animation: intro-rise 560ms var(--ease-out) forwards;
+}
+.intro-fill {
+  display: block;
+  transform: translateY(-100%);
+  animation: intro-rise 560ms var(--ease-out) forwards;
+}
+@keyframes intro-rise {
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-window,
+  .intro-fill {
+    animation: none;
+    transform: none;
+  }
+  .intro[data-leaving] .intro-logo {
+    transform: none;
+  }
+}

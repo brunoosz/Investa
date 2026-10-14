@@ -14,7 +14,7 @@ const config: CapacitorConfig = {
   plugins: {
     CapacitorHttp: { enabled: true },
     CapacitorCookies: { enabled: true },
-    SplashScreen: { launchShowDuration: 600, backgroundColor: "#0B0F1A", showSpinner: false },
+    SplashScreen: { launchAutoHide: false, backgroundColor: "#0B0F1A", showSpinner: false },
     LocalNotifications: { smallIcon: "ic_stat_investa", iconColor: "#4F8CFF" },
   },
 };
