@@ -30,9 +30,9 @@ const RANGES: { value: ChartRange; label: string }[] = [
 
 function HelpLabel({ label, help, open, onToggle, className }: { label: string; help: string; open: boolean; onToggle: () => void; className?: string }) {
   return (
-    <button type="button" onClick={onToggle} title={help} aria-expanded={open} className={clsx("inline-flex items-center gap-1 text-left text-muted hover:text-fg transition", className)}>
+    <button type="button" onClick={onToggle} title={help} aria-expanded={open} className={clsx("inline-flex items-center gap-1 text-left text-muted hover:text-fg transition-colors duration-150", className)}>
       {label}
-      <CircleHelp size={13} className={clsx("shrink-0 transition", open ? "text-primary" : "opacity-50")} />
+      <CircleHelp size={13} className={clsx("shrink-0 transition-[color,opacity] duration-150", open ? "text-primary" : "opacity-50")} />
     </button>
   );
 }
@@ -42,7 +42,7 @@ function HelpText({ open, text }: { open: boolean; text: string }) {
     <AnimatePresence initial={false}>
       {open && (
         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
-          <div className="pt-1.5 text-[12.5px] leading-snug text-muted">{text}</div>
+          <div className="pt-1.5 text-footnote leading-snug text-muted">{text}</div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -52,10 +52,10 @@ function HelpText({ open, text }: { open: boolean; text: string }) {
 function StatItem({ label, value, help }: { label: string; value: React.ReactNode; help: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="py-2.5 border-b border-line/[0.07]">
+    <div className="py-2.5 border-b border-separator/10">
       <div className="flex items-center justify-between gap-3">
-        <HelpLabel label={label} help={help} open={open} onToggle={() => setOpen((o) => !o)} className="text-[13.5px]" />
-        <span className="font-semibold tabular text-[14px] text-right">{value}</span>
+        <HelpLabel label={label} help={help} open={open} onToggle={() => setOpen((o) => !o)} className="text-footnote" />
+        <span className="font-semibold tabular text-callout text-right">{value}</span>
       </div>
       <HelpText open={open} text={help} />
     </div>
@@ -67,7 +67,7 @@ function RangeBar({ low, high, value, label, help, format }: { low: number; high
   const pos = high > low ? Math.max(0, Math.min(1, (value - low) / (high - low))) : 0.5;
   return (
     <div className="py-3">
-      <div className="flex justify-between gap-3 text-[12.5px] text-muted">
+      <div className="flex justify-between gap-3 text-footnote text-muted">
         <HelpLabel label={label} help={help} open={open} onToggle={() => setOpen((o) => !o)} />
         <span className="tabular">
           {format(low)} – {format(high)}
@@ -113,11 +113,11 @@ function AboutAsset({ symbol, category, name, currency, price, usdBrl }: { symbo
       <SectionTitle title="O que é isso?" subtitle={`${displaySymbol(symbol)} · ${categoryLabel(category)}`} />
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
-          <p className="text-[14px] leading-relaxed">{info.what}</p>
+          <p className="text-callout leading-relaxed">{info.what}</p>
           {info.tips.length > 0 && (
             <ul className="mt-3 space-y-2">
               {info.tips.map((t) => (
-                <li key={t} className="flex gap-2 text-[13.5px] text-muted">
+                <li key={t} className="flex gap-2 text-footnote text-muted">
                   <Lightbulb size={15} className="text-warning shrink-0 mt-0.5" />
                   <span>{t}</span>
                 </li>
@@ -125,22 +125,22 @@ function AboutAsset({ symbol, category, name, currency, price, usdBrl }: { symbo
             </ul>
           )}
         </div>
-        <div className="rounded-2xl bg-line/[0.05] p-4">
-          <div className="text-[11.5px] font-semibold uppercase tracking-wider text-muted mb-1.5">Como ler o preço</div>
-          <p className="text-[14px] leading-relaxed">{info.price}</p>
+        <div className="rounded-control bg-line/[0.05] p-4">
+          <div className="text-caption uppercase text-muted mb-1.5">Como ler o preço</div>
+          <p className="text-callout leading-relaxed">{info.price}</p>
           {rate && price !== undefined && conversions.length > 0 && (
             <>
               <div className="flex flex-wrap gap-2 mt-3">
                 {conversions.map((c) => (
-                  <span key={c.label} className="rounded-xl bg-surface border border-line/10 px-3 py-1.5 text-[13px]">
+                  <span key={c.label} className="rounded-chip bg-surface border border-separator/10 px-3 py-1.5 text-footnote">
                     <span className="font-semibold tabular">≈ {brl(price * rate * c.factor)}</span> <span className="text-muted">{c.label}</span>
                   </span>
                 ))}
               </div>
-              <div className="text-[12px] text-muted mt-2">Convertido com o dólar a {brl(rate)}.</div>
+              <div className="text-footnote text-muted mt-2">Convertido com o dólar a {brl(rate)}.</div>
             </>
           )}
-          <p className="text-[13px] text-muted mt-3 leading-snug">
+          <p className="text-footnote text-muted mt-3 leading-snug">
             <span className="font-semibold text-fg">Variação:</span> quanto o preço subiu ou caiu desde o último fechamento (no 1D) ou desde o começo do período escolhido no gráfico.
           </p>
         </div>
@@ -178,7 +178,7 @@ export function Ativo() {
   const base = range === "1D" ? chart.data?.previousClose ?? q?.previousClose : pts[0]?.close;
   const lastPrice = q?.price ?? pts[pts.length - 1]?.close;
   const up = base !== undefined && lastPrice !== undefined ? lastPrice >= base : true;
-  const color = up ? "#34D399" : "#F87171";
+  const color = up ? "success" : "danger";
 
   const series = useMemo<SeriesSpec[]>(() => {
     if (!pts.length) return [];
@@ -203,7 +203,7 @@ export function Ativo() {
 
   return (
     <div>
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-[14px] text-muted hover:text-fg mb-4">
+      <button onClick={() => navigate(-1)} className="pressable inline-flex items-center gap-1.5 text-callout text-muted hover:text-fg transition-[color,transform] duration-150 mb-4">
         <ArrowLeft size={16} /> Voltar
       </button>
 
@@ -212,7 +212,7 @@ export function Ativo() {
           <AssetAvatar symbol={symbol} category={category} size={56} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-[28px] font-bold tracking-tight">{displaySymbol(symbol)}</h1>
+              <h1 className="text-large-title">{displaySymbol(symbol)}</h1>
               <Badge tone="primary">{categoryLabel(category)}</Badge>
               {q?.exchange && <Badge>{q.exchange}</Badge>}
             </div>
@@ -246,13 +246,13 @@ export function Ativo() {
             <div>
               {shownPrice !== undefined ? (
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="text-[36px] font-bold tracking-tight tabular leading-none">{quotePrice({ symbol, price: shownPrice, currency })}</span>
-                  {unit && <span className="text-[14px] font-medium text-muted">{unit}</span>}
+                  <span className="text-[36px] tracking-[-0.02em] font-bold tabular leading-none">{quotePrice({ symbol, price: shownPrice, currency })}</span>
+                  {unit && <span className="text-callout font-medium text-muted">{unit}</span>}
                 </div>
               ) : (
                 <Skeleton className="h-9 w-48" />
               )}
-              <div className="flex flex-wrap items-center gap-2 mt-2 text-[14px]">
+              <div className="flex flex-wrap items-center gap-2 mt-2 text-callout">
                 <span className={clsx("font-semibold tabular", toneClass(changePct))}>
                   {change >= 0 ? "+" : ""}
                   {fmt(change)} ({pct(changePct)})
@@ -271,7 +271,7 @@ export function Ativo() {
                 {fx && shownPrice !== undefined && !hover && <span className="text-muted">≈ {brl(shownPrice * fx)}</span>}
               </div>
               {q && !hover && (
-                <div className="flex items-center gap-1.5 text-[12px] text-muted mt-1.5">
+                <div className="flex items-center gap-1.5 text-footnote text-muted mt-1.5">
                   <LiveDot /> {q.marketState === "REGULAR" ? "Mercado aberto" : "Último preço"} · {relativeTime(q.time)}
                   {q.delayMinutes ? ` · atraso de ${q.delayMinutes} min` : ""}
                 </div>
@@ -342,23 +342,23 @@ export function Ativo() {
           {q ? (
             <ul className="space-y-2.5">
               {insights(q).map((t, i) => (
-                <li key={i} className="flex gap-2.5 text-[14px]">
+                <li key={i} className="flex gap-2.5 text-callout">
                   <Sparkles size={16} className="text-primary shrink-0 mt-0.5" />
                   <span>{t}</span>
                 </li>
               ))}
-              {insights(q).length === 0 && <li className="text-muted text-[14px]">Sem destaques especiais neste momento.</li>}
+              {insights(q).length === 0 && <li className="text-muted text-callout">Sem destaques especiais neste momento.</li>}
             </ul>
           ) : (
             <Skeleton className="h-20" />
           )}
           {relatedNews.length > 0 && (
             <div className="mt-5">
-              <div className="text-[13px] font-semibold text-muted mb-2">Notícias relacionadas</div>
+              <div className="text-footnote font-semibold text-muted mb-2">Notícias relacionadas</div>
               {relatedNews.slice(0, 4).map((n) => (
-                <button key={n.id} onClick={() => void api.openExternal(n.link)} className="block w-full text-left py-2 border-t border-line/[0.07] hover:text-primary">
-                  <div className="text-[14px] font-medium">{n.title}</div>
-                  <div className="text-[12px] text-muted">
+                <button key={n.id} onClick={() => void api.openExternal(n.link)} className="block w-full text-left py-2 border-t border-separator/10 hover:text-primary transition-colors duration-150">
+                  <div className="text-callout font-medium">{n.title}</div>
+                  <div className="text-footnote text-muted">
                     {n.source} · {relativeTime(n.publishedAt)}
                   </div>
                 </button>
@@ -376,19 +376,19 @@ export function Ativo() {
               const g = value - invested;
               return (
                 <div data-private="">
-                  <div className="text-[28px] font-bold tabular">{brl(value)}</div>
+                  <div className="text-[28px] tracking-[-0.02em] font-bold tabular">{brl(value)}</div>
                   <div className={clsx("tabular font-semibold", toneClass(g))}>
                     {g >= 0 ? "+" : ""}
                     {brl(g)} ({pct(invested ? (g / invested) * 100 : 0)})
                   </div>
-                  <div className="text-[13px] text-muted mt-2">
+                  <div className="text-footnote text-muted mt-2">
                     {num(holding.quantity, 0)} cotas · preço médio {money(holding.avgPrice, currency)}
                   </div>
                 </div>
               );
             })()
           ) : (
-            <div className="text-[14px] text-muted">
+            <div className="text-callout text-muted">
               Você não tem {displaySymbol(symbol)} na carteira.
               <Button className="mt-3" block variant="secondary" onClick={() => navigate("/carteira?novo=1")}>
                 Adicionar à carteira
