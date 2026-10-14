@@ -63,9 +63,9 @@ export function Plano() {
   const series = useMemo<SeriesSpec[]>(() => {
     const t = (m: number) => Math.round(t0 + m * MONTH_SECONDS);
     return [
-      { kind: "area", id: "value", color: "#34D399", data: proj.points.map((p) => ({ time: t(p.month), value: p.value })) },
-      { kind: "line", id: "real", color: "#4F8CFF", width: 2, data: proj.points.map((p) => ({ time: t(p.month), value: p.real })) },
-      { kind: "line", id: "invested", color: "#94A3B8", dashed: true, width: 1, data: proj.points.map((p) => ({ time: t(p.month), value: p.invested })) },
+      { kind: "area", id: "value", color: "success", data: proj.points.map((p) => ({ time: t(p.month), value: p.value })) },
+      { kind: "line", id: "real", color: "primary", width: 2, data: proj.points.map((p) => ({ time: t(p.month), value: p.real })) },
+      { kind: "line", id: "invested", color: "muted", dashed: true, width: 1, data: proj.points.map((p) => ({ time: t(p.month), value: p.invested })) },
     ];
   }, [proj, t0]);
   const hovered = hover ? proj.points[Math.min(proj.months, Math.max(0, Math.round((hover.time - t0) / MONTH_SECONDS)))] : undefined;
@@ -161,10 +161,10 @@ export function Plano() {
                 {plan ? "Refazer o plano" : "Montar meu plano"}
               </Button>
             ) : (
-              <div className="text-[13px] text-muted">O Assistente ainda não foi ativado. A projeção e a explicação ao lado funcionam mesmo assim.</div>
+              <div className="text-footnote text-muted">O Assistente ainda não foi ativado. A projeção e a explicação ao lado funcionam mesmo assim.</div>
             )}
             {ai.data?.hasKey && (
-              <div className="text-[12.5px] text-muted flex items-center gap-1.5">
+              <div className="text-footnote text-muted flex items-center gap-1.5">
                 <Globe size={14} />
                 {ai.data.hasSearch ? "Pesquisa na internet ligada: o plano usa fontes atuais e livros de finanças." : "Sem pesquisa na internet: o plano usa a base de livros de finanças do app."}
               </div>
@@ -174,25 +174,25 @@ export function Plano() {
 
         <Card className="lg:col-span-3" padded={false}>
           <div className="p-5 pb-1">
-            <div className="text-[13px] text-muted">
+            <div className="text-footnote text-muted">
               Em {years} {years === 1 ? "ano" : "anos"} ({endLabel}), <PrivateAmounts text={headline} />
             </div>
             <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
               <div className="min-w-0">
-                <div className="text-[12.5px] text-muted">No futuro, já sem IR</div>
-                <AnimatedNumber private value={proj.net} format={brl} className="block text-[26px] sm:text-[30px] font-bold tracking-tight text-success leading-tight" />
+                <div className="text-footnote text-muted">No futuro, já sem IR</div>
+                <AnimatedNumber private value={proj.net} format={brl} className="block text-[26px] sm:text-[30px] font-bold tabular tracking-[-0.02em] text-success leading-tight" />
               </div>
               <div className="min-w-0">
-                <div className="text-[12.5px] text-muted">Em dinheiro de hoje</div>
-                <AnimatedNumber private value={proj.real} format={brl} className="block text-[26px] sm:text-[30px] font-bold tracking-tight text-primary leading-tight" />
+                <div className="text-footnote text-muted">Em dinheiro de hoje</div>
+                <AnimatedNumber private value={proj.real} format={brl} className="block text-[26px] sm:text-[30px] font-bold tabular tracking-[-0.02em] text-primary leading-tight" />
               </div>
             </div>
-            <div className="text-[13px] text-muted mt-2">
+            <div className="text-footnote text-muted mt-2">
               {summary}
               {proj.invested > 0 && " Estimativa com os dados de hoje, não é garantia."}
             </div>
           </div>
-          <div className="px-5 pt-2 min-h-[20px] text-[12.5px] text-muted tabular">
+          <div className="px-5 pt-2 min-h-[20px] text-footnote text-muted tabular">
             {hovered ? (
               <>
                 <span className="font-semibold text-fg">{planEndLabel(market.start, hovered.month)}</span> · <Private>{brl(hovered.value)}</Private> · <Private>{brl(hovered.real)}</Private> de hoje · você colocou <Private>{brl(hovered.invested)}</Private>
@@ -204,7 +204,7 @@ export function Plano() {
           <div className="px-2">
             <Chart series={series} height={220} formatter={(v) => brl(v)} onHover={setHover} />
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-1 pb-3 text-[12px] text-muted">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-1 pb-3 text-footnote text-muted">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-success" /> No futuro
             </span>
@@ -218,7 +218,7 @@ export function Plano() {
           {proj.milestones.length > 0 && (
             <div className="flex flex-wrap gap-2 px-5 pb-5">
               {proj.milestones.map((m) => (
-                <span key={m.value} className="rounded-full bg-success/10 text-success px-3 py-1 text-[12.5px] font-medium">
+                <span key={m.value} className="rounded-full bg-success/10 text-success px-3 py-1 text-footnote font-medium">
                   <Private>{brl(m.value).replace(",00", "")}</Private> em {m.month < 12 ? `${m.month} ${m.month === 1 ? "mês" : "meses"}` : `${num(m.month / 12, 1).replace(",0", "")} anos`}
                 </span>
               ))}
@@ -248,11 +248,11 @@ export function Plano() {
         <ol className="space-y-3.5">
           {why.map((w, i) => (
             <li key={w.title} className="flex gap-3">
-              <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full bg-primary/10 text-primary text-[12.5px] font-semibold flex items-center justify-center tabular">{i + 1}</span>
+              <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full bg-primary/10 text-primary text-footnote font-semibold flex items-center justify-center tabular">{i + 1}</span>
               <div className="min-w-0">
-                <div className="text-[14px] font-semibold">{w.title}</div>
+                <div className="text-callout font-semibold">{w.title}</div>
                 {w.text.split("\n").map((t) => (
-                  <p key={t} className="text-[13.5px] leading-relaxed mt-0.5">
+                  <p key={t} className="text-footnote leading-relaxed mt-0.5">
                     {t}
                   </p>
                 ))}
@@ -265,22 +265,22 @@ export function Plano() {
       <div className="grid gap-4 lg:grid-cols-2 mt-4">
         <Card>
           <SectionTitle title="E se fosse em outro lugar?" subtitle={`O mesmo dinheiro, no mesmo prazo, até ${endLabel}. Valores já sem IR.`} />
-          <div className="divide-y divide-line/[0.06]">
+          <div className="divide-y divide-separator/[0.06]">
             {compare.map((c) => (
               <div key={c.product} className="py-2.5 flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-medium flex flex-wrap items-center gap-1.5">
+                  <div className="text-callout font-medium flex flex-wrap items-center gap-1.5">
                     {PLAN_PRODUCTS[c.product].label}
                     {inParts.includes(c.product) && <Badge tone="primary">no seu plano</Badge>}
                   </div>
-                  <div className="text-[12.5px] text-muted">
+                  <div className="text-footnote text-muted">
                     {c.product !== "parado" && `~${num(c.rate, 1)}% ao ano · `}
                     {c.note}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-[14px] font-semibold tabular">{brl(c.net)}</div>
-                  <div className="text-[12.5px] text-muted tabular">{brl(c.real)} de hoje</div>
+                  <div className="text-callout font-semibold tabular">{brl(c.net)}</div>
+                  <div className="text-footnote text-muted tabular">{brl(c.real)} de hoje</div>
                 </div>
               </div>
             ))}
@@ -290,12 +290,12 @@ export function Plano() {
           <SectionTitle title="De onde vêm os números" subtitle="Dados oficiais de hoje e as premissas da conta." />
           <div className="space-y-2.5">
             {market.assumptions.map((a) => (
-              <div key={a.label} className="text-[13px]">
+              <div key={a.label} className="text-footnote">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <span className="font-medium">{a.label}</span>
                   <span className="tabular">{a.value}</span>
                 </div>
-                <div className="text-[12px] text-muted">
+                <div className="text-footnote text-muted">
                   {a.source}
                   {a.date && ` · ${a.date}`}
                 </div>
@@ -317,7 +317,7 @@ export function Plano() {
             }
           />
           {changed && (
-            <div className="mb-3 rounded-xl bg-warning/10 text-warning px-3 py-2 text-[13px]">
+            <div className="mb-3 rounded-control bg-warning/10 text-warning px-3 py-2 text-footnote">
               Você mudou as respostas depois deste plano. Os números acima já estão atualizados{ai.data?.hasKey ? "; refaça o plano para o texto acompanhar." : ", mas o texto abaixo ainda é do plano anterior."}
             </div>
           )}
@@ -326,15 +326,15 @@ export function Plano() {
             {plan.steps.map((s) => (
               <label key={s.id} className="flex items-start gap-2.5 py-1 cursor-pointer">
                 <input type="checkbox" checked={s.done} onChange={() => toggle(s.id)} className="mt-1 h-4 w-4 accent-[rgb(var(--primary))]" />
-                <span className={clsx("text-[14px]", s.done && "line-through text-muted")}>
+                <span className={clsx("text-callout", s.done && "line-through text-muted")}>
                   {s.date && <span className="font-semibold tabular mr-1.5">{dateBR(s.date)}</span>}
                   {s.text}
                 </span>
               </label>
             ))}
           </div>
-          <button type="button" className="mt-3 text-[13px] text-primary font-medium inline-flex items-center gap-1" onClick={() => setShowText((v) => !v)}>
-            <ChevronDown size={15} className={clsx("transition", showText && "rotate-180")} /> {showText ? "Esconder" : "Ler"} o plano completo
+          <button type="button" className="pressable mt-3 text-footnote text-primary font-medium inline-flex items-center gap-1" onClick={() => setShowText((v) => !v)}>
+            <ChevronDown size={15} className={clsx("transition-transform duration-200 ease-out-strong", showText && "rotate-180")} /> {showText ? "Esconder" : "Ler"} o plano completo
           </button>
           {showText && (
             <div className="prose-investa mt-3">
@@ -359,13 +359,13 @@ export function Plano() {
             </div>
           )}
           {plan.sources.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-line/10">
-              <div className="text-[13px] font-semibold mb-1.5 flex items-center gap-1.5">
+            <div className="mt-4 pt-3 border-t border-separator/10">
+              <div className="text-footnote font-semibold mb-1.5 flex items-center gap-1.5">
                 <Globe size={14} /> Fontes da internet
               </div>
               <div className="space-y-1">
                 {plan.sources.map((s, i) => (
-                  <button key={s.url} type="button" onClick={() => void api.openExternal(s.url)} className="flex items-center gap-1.5 text-[13px] text-primary text-left hover:underline">
+                  <button key={s.url} type="button" onClick={() => void api.openExternal(s.url)} className="pressable flex items-center gap-1.5 text-footnote text-primary text-left hover:underline">
                     <Badge>{i + 1}</Badge> <span className="truncate">{s.title}</span> <ExternalLink size={12} className="shrink-0" />
                   </button>
                 ))}
