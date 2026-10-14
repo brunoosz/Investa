@@ -263,6 +263,37 @@ await go("objetivos", "objetivos-caixinha", 1200);
 }
 await go("plano", "plano", 2000);
 await go("logs", "logs", 1200);
+// Lista de compras: adicionar com sugestão do catálogo, item sem preço, risco automático ao lançar o gasto.
+{
+  await go("compras", "compras-vazia", 1200);
+  const box = win.getByLabel("Nome do item");
+  for (const name of ["Leite integral", "Detergente", "Coisa sem catálogo xyz", "Fone de ouvido"]) {
+    await box.fill(name);
+    await box.press("Enter");
+    await wait(250);
+  }
+  const text = await win.locator("main").innerText();
+  const estOk = /~R\$\s?5,50/.test(text) && text.includes("sem preço");
+  console.log(`[compras] estimativa e sem preço: ${estOk ? "sim" : "NÃO"}`);
+  if (!estOk) pageErrors.push("Lista de compras não mostrou estimativa/sem preço");
+  await shot("compras");
+  await go("gastos", "gastos-antes-compra", 1200);
+  await win.getByRole("button", { name: "Novo lançamento" }).first().click();
+  await wait(400);
+  const dialog = win.getByRole("dialog");
+  await dialog.getByPlaceholder("Ex.: Tênis novo").fill("leite");
+  await dialog.locator('input[inputmode="decimal"]').first().fill("6,20");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await wait(700);
+  const toastOk = (await win.locator("body").innerText()).includes("riscado da lista");
+  await go("compras", "compras-riscado", 1200);
+  const done = await win.getByRole("checkbox", { name: "Desmarcar Leite integral" }).count();
+  console.log(`[compras] risco automático: ${done && toastOk ? "sim" : "NÃO"}`);
+  if (!done || !toastOk) pageErrors.push("Gasto lançado não riscou o item da lista");
+  await win.getByRole("checkbox", { name: "Marcar Detergente como comprado" }).click();
+  await wait(400);
+  await shot("compras-marcado");
+}
 await go("configuracoes", "configuracoes", 1500);
 // Memória do Assistente: adicionar um item à mão.
 await win.getByPlaceholder("Ex.: gosto de jogar videogame e comer fora").fill("Gosta de jogar videogame");
@@ -492,7 +523,7 @@ await assertResponsive("celular");
   await win.evaluate(() => (location.hash = "#/configuracoes"));
   await wait(1500);
   const tabs = () => win.locator("nav.sm\\:hidden").innerText();
-  await win.getByRole("button", { name: "Tirar Compras da barra" }).click();
+  await win.getByRole("button", { name: "Tirar Lista de compras da barra" }).click();
   await win.getByRole("button", { name: "Pôr Gastos na barra" }).click();
   await wait(400);
   const changed = await tabs();
