@@ -8,19 +8,19 @@ type Size = "sm" | "md" | "lg" | "icon" | "icon-sm";
 
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-brand text-white shadow-glow hover:brightness-110 disabled:shadow-none",
-  secondary: "bg-line/[0.08] text-fg hover:bg-line/[0.14] border border-line/10",
+  secondary: "bg-line/[0.08] text-fg hover:bg-line/[0.14] border border-separator/10",
   ghost: "text-muted hover:text-fg hover:bg-line/[0.08]",
   danger: "bg-danger/10 text-danger hover:bg-danger/20",
-  outline: "border border-line/15 text-fg hover:bg-line/[0.06]",
+  outline: "border border-separator/15 text-fg hover:bg-line/[0.06]",
   success: "bg-success text-white hover:brightness-110",
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "h-8 px-3 text-[13px] rounded-lg gap-1.5",
-  md: "h-10 px-4 text-[14px] rounded-xl gap-2",
-  lg: "h-12 px-6 text-[15px] rounded-2xl gap-2",
-  icon: "h-10 w-10 rounded-xl",
-  "icon-sm": "h-8 w-8 rounded-lg",
+  sm: "h-8 px-3 text-footnote font-semibold rounded-chip gap-1.5",
+  md: "h-10 px-4 text-callout font-semibold rounded-control gap-2",
+  lg: "h-12 px-6 text-body font-semibold rounded-control gap-2",
+  icon: "h-10 w-10 rounded-control",
+  "icon-sm": "h-8 w-8 rounded-chip",
 };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd"> {

@@ -139,4 +139,4 @@ export function BarList({
   );
 }
 
-export const PALETTE = ["#4F8CFF", "#A78BFA", "#34D399", "#FBBF24", "#F87171", "#22D3EE", "#F472B6", "#FB923C", "#94A3B8", "#10B981", "#6366F1"];
+export const PALETTE = Array.from({ length: 11 }, (_, i) => `rgb(var(--chart-${i + 1}))`);

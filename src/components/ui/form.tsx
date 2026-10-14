@@ -178,7 +178,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const id = useId();
   return (
-    <div className={clsx("no-drag relative inline-flex max-w-full overflow-x-auto no-scrollbar p-1 rounded-xl bg-line/[0.08] border border-line/10 [&>button]:shrink-0", block && "w-full", className)}>
+    <div className={clsx("no-drag relative inline-flex max-w-full overflow-x-auto no-scrollbar p-1 rounded-control bg-line/[0.08] border border-separator/10 [&>button]:shrink-0", block && "w-full", className)}>
       {options.map((o) => {
         const active = o.value === value;
         const Icon = o.icon;
@@ -217,8 +217,8 @@ export function Chip({ active, children, onClick, icon: Icon }: { active?: boole
       type="button"
       onClick={onClick}
       className={clsx(
-        "no-drag inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[13px] font-medium border transition whitespace-nowrap",
-        active ? "bg-primary/15 border-primary/40 text-primary" : "border-line/15 text-muted hover:text-fg hover:bg-line/[0.06]"
+        "no-drag pressable inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-footnote font-semibold border transition-colors whitespace-nowrap",
+        active ? "bg-primary/15 border-primary/40 text-primary" : "border-separator/15 text-muted hover:text-fg hover:bg-line/[0.06]"
       )}
     >
       {Icon && <Icon size={14} />}

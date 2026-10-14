@@ -27,7 +27,7 @@ export function Card({
       className={clsx(
         "surface relative",
         padded && "p-5",
-        clickable && "cursor-pointer transition duration-200 hover:border-line/20 hover:-translate-y-0.5 active:translate-y-0",
+        clickable && "cursor-pointer pressable hover:border-separator/20",
         className
       )}
     >
@@ -40,9 +40,9 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: React
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
       <div className="min-w-0">
-        {eyebrow && <div className="text-[13px] font-medium text-muted mb-1">{eyebrow}</div>}
-        <h1 className="text-[28px] md:text-[34px] leading-tight font-bold tracking-tight">{title}</h1>
-        {subtitle && <p className="text-muted mt-1.5 text-[15px] max-w-2xl">{subtitle}</p>}
+        {eyebrow && <div className="text-footnote font-medium text-muted mb-1">{eyebrow}</div>}
+        <h1 className="text-large-title md:text-[34px]">{title}</h1>
+        {subtitle && <p className="text-muted mt-1.5 text-body max-w-2xl">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
     </div>
@@ -53,8 +53,8 @@ export function SectionTitle({ title, action, subtitle }: { title: ReactNode; ac
   return (
     <div className="flex items-end justify-between gap-3 mb-3">
       <div>
-        <h2 className="text-[17px] font-semibold tracking-tight">{title}</h2>
-        {subtitle && <p className="text-[13px] text-muted mt-0.5">{subtitle}</p>}
+        <h2 className="text-title">{title}</h2>
+        {subtitle && <p className="text-footnote text-muted mt-0.5">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -73,7 +73,7 @@ const BADGE: Record<Tone, string> = {
 
 export function Badge({ children, tone = "neutral", className, icon: Icon }: { children: ReactNode; tone?: Tone; className?: string; icon?: LucideIcon }) {
   return (
-    <span className={clsx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap", BADGE[tone], className)}>
+    <span className={clsx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] leading-[1.35] font-semibold tracking-[0.01em] whitespace-nowrap", BADGE[tone], className)}>
       {Icon && <Icon size={12} strokeWidth={2.5} />}
       {children}
     </span>
@@ -81,7 +81,7 @@ export function Badge({ children, tone = "neutral", className, icon: Icon }: { c
 }
 
 export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
-  return <div className={clsx("skeleton rounded-xl", className)} style={style} />;
+  return <div className={clsx("skeleton rounded-control", className)} style={style} />;
 }
 
 export function Spinner({ size = 18, className }: { size?: number; className?: string }) {
@@ -91,11 +91,11 @@ export function Spinner({ size = 18, className }: { size?: number; className?: s
 export function EmptyState({ icon: Icon, title, description, action, className }: { icon: LucideIcon; title: string; description?: ReactNode; action?: ReactNode; className?: string }) {
   return (
     <div className={clsx("flex flex-col items-center justify-center text-center py-12 px-6", className)}>
-      <div className="h-14 w-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+      <div className="h-14 w-14 rounded-card bg-primary/10 text-primary flex items-center justify-center mb-4">
         <Icon size={26} strokeWidth={1.8} />
       </div>
-      <h3 className="font-semibold text-[16px]">{title}</h3>
-      {description && <p className="text-muted text-[14px] mt-1.5 max-w-sm">{description}</p>}
+      <h3 className="text-headline">{title}</h3>
+      {description && <p className="text-muted text-callout mt-1.5 max-w-sm">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -103,7 +103,7 @@ export function EmptyState({ icon: Icon, title, description, action, className }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-2xl border border-danger/20 bg-danger/5 px-4 py-3 text-[14px] text-danger flex items-center justify-between gap-3">
+    <div className="rounded-card border border-danger/20 bg-danger/5 px-4 py-3 text-callout text-danger flex items-center justify-between gap-3">
       <span>{message}</span>
       {onRetry && (
         <button onClick={onRetry} className="font-semibold underline underline-offset-2 shrink-0">
@@ -179,16 +179,22 @@ export function ProgressRing({ value, size = 64, stroke = 7, children, color }: 
   );
 }
 
-export function IconTile({ icon: Icon, color = "#4F8CFF", size = 36, className }: { icon: LucideIcon; color?: string; size?: number; className?: string }) {
+/** Cor de token ("primary", "success", "cat-casa"…) ou, para dados como a cor de um banco, um hex. */
+export function toneColor(color: string, alpha = 1): string {
+  if (color.startsWith("#") || color.startsWith("rgb") || color.startsWith("hsl")) return alpha === 1 ? color : `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, transparent)`;
+  return alpha === 1 ? `rgb(var(--${color}))` : `rgb(var(--${color}) / ${alpha})`;
+}
+
+export function IconTile({ icon: Icon, color = "primary", size = 36, className }: { icon: LucideIcon; color?: string; size?: number; className?: string }) {
   return (
-    <div className={clsx("rounded-xl flex items-center justify-center shrink-0", className)} style={{ width: size, height: size, background: `${color}22`, color }}>
+    <div className={clsx("rounded-[10px] flex items-center justify-center shrink-0", className)} style={{ width: size, height: size, background: toneColor(color, 0.14), color: toneColor(color) }}>
       <Icon size={size * 0.5} strokeWidth={2} />
     </div>
   );
 }
 
 export function ListGroup({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={clsx("surface overflow-hidden divide-y divide-line/10", className)}>{children}</div>;
+  return <div className={clsx("surface overflow-hidden divide-y divide-separator/10", className)}>{children}</div>;
 }
 
 export function ListRow({
@@ -213,12 +219,12 @@ export function ListRow({
   return (
     <div
       onClick={onClick}
-      className={clsx("flex items-center gap-3.5 px-4 py-3.5 min-h-[56px]", onClick && "cursor-pointer hover:bg-line/[0.04] active:bg-line/[0.07] transition", className)}
+      className={clsx("flex items-center gap-3.5 px-4 py-3.5 min-h-[56px]", onClick && "cursor-pointer hover:bg-line/[0.04] active:bg-line/[0.07] transition-colors", className)}
     >
       {icon && <IconTile icon={icon} color={iconColor} size={34} />}
       <div className="flex-1 min-w-0">
-        <div className="text-[15px] font-medium truncate">{title}</div>
-        {subtitle && <div className="text-[13px] text-muted mt-0.5">{subtitle}</div>}
+        <div className="text-body font-medium truncate">{title}</div>
+        {subtitle && <div className="text-footnote text-muted mt-0.5">{subtitle}</div>}
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
       {chevron && <ChevronRight size={18} className="text-muted/60 shrink-0" />}
@@ -246,9 +252,9 @@ export function PrivateAmounts({ text }: { text: string }) {
 export function Stat({ label, value, sub, className }: { label: ReactNode; value: ReactNode; sub?: ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <div className="text-[13px] text-muted">{label}</div>
-      <div className="text-[22px] font-semibold tracking-tight tabular mt-0.5">{value}</div>
-      {sub && <div className="text-[13px] mt-0.5">{sub}</div>}
+      <div className="text-footnote text-muted">{label}</div>
+      <div className="text-[22px] font-semibold tracking-[-0.02em] tabular mt-0.5">{value}</div>
+      {sub && <div className="text-footnote mt-0.5">{sub}</div>}
     </div>
   );
 }
