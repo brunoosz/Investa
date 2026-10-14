@@ -26,7 +26,7 @@ await wait(500);
 await win.screenshot({ path: path.join(out, "cadastro-escuro-pc.png") });
 await win.fill('input[placeholder="Como você se chama?"]', "Teste Investa");
 await win.fill('input[placeholder="ex.: bruno.silva"]', "teste");
-await win.fill('input[placeholder="Mínimo de 6 caracteres"]', "Senha123!");
+await win.fill('input[placeholder="8+ caracteres, letras e números"]', "Senha123!");
 await win.fill('input[placeholder="Repita a senha"]', "Senha123!");
 await win.click("button[type=submit]");
 await wait(1800);

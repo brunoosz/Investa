@@ -135,8 +135,8 @@ function PasswordSheet({ user, onClose }: { user: PublicUser | null; onClose: ()
   }
   const save = async () => {
     if (!user) return;
-    if (pw.length < 6) {
-      setError("A senha precisa ter pelo menos 6 caracteres.");
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) {
+      setError("A senha precisa ter pelo menos 8 caracteres, com letras e números.");
       setShake((s) => s + 1);
       return;
     }
@@ -253,7 +253,7 @@ function CreateUserSheet({ open, me, onClose, onSaved }: { open: boolean; me: Pu
           <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={() => void save()} loading={saving} disabled={!form.name || !form.username || form.password.length < 6}>
+          <Button onClick={() => void save()} loading={saving} disabled={!form.name || !form.username || form.password.length < 8}>
             Criar usuário
           </Button>
         </>

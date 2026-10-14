@@ -61,7 +61,7 @@ export function Register() {
     e.preventDefault();
     if (name.trim().length < 2) return fail("Informe seu nome.", "name");
     if (!/^[a-zA-Z0-9._-]{3,24}$/.test(username.trim())) return fail("O usuário deve ter de 3 a 24 caracteres: letras, números, ponto, hífen ou sublinhado.", "username");
-    if (password.length < 6) return fail("A senha precisa ter pelo menos 6 caracteres.", "password");
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return fail("A senha precisa ter pelo menos 8 caracteres, com letras e números.", "password");
     if (password !== confirm) return fail("As senhas não conferem.", "confirm");
     setLoading(true);
     setError(null);
@@ -106,7 +106,7 @@ export function Register() {
             <Input icon={Mail} type="email" placeholder="voce@email.com" value={email} invalid={field === "email"} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <Field label="Senha">
-            <PasswordInput icon={Lock} autoComplete="new-password" placeholder="Mínimo de 6 caracteres" value={password} invalid={field === "password"} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput icon={Lock} autoComplete="new-password" placeholder="8+ caracteres, letras e números" value={password} invalid={field === "password"} onChange={(e) => setPassword(e.target.value)} />
             {password && (
               <div className="mt-2 flex items-center gap-2">
                 <div className="flex-1 grid grid-cols-5 gap-1">

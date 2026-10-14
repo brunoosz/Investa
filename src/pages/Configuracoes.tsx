@@ -328,7 +328,7 @@ function PasswordSheet({ open, onClose }: { open: boolean; onClose: () => void }
     setShake((s) => s + 1);
   };
   const save = async () => {
-    if (next.length < 6) return fail("A nova senha precisa ter pelo menos 6 caracteres.");
+    if (next.length < 8 || !/[A-Za-z]/.test(next) || !/\d/.test(next)) return fail("A nova senha precisa ter pelo menos 8 caracteres, com letras e números.");
     if (next !== confirm) return fail("As senhas não conferem.");
     setSaving(true);
     try {

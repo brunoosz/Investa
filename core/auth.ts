@@ -12,7 +12,7 @@ const USERNAME_RE = /^[a-zA-Z0-9._-]{3,24}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validatePassword(password: string): void {
-  if (password.length < 6) throw new AppError("WEAK_PASSWORD", "A senha precisa ter pelo menos 6 caracteres.");
+  if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) throw new AppError("WEAK_PASSWORD", "A senha precisa ter pelo menos 8 caracteres, com letras e números.");
   if (password.length > 128) throw new AppError("WEAK_PASSWORD", "A senha é longa demais.");
 }
 

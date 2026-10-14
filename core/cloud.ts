@@ -561,7 +561,7 @@ function translate(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("invalid login credentials")) return "Usuário ou senha incorretos.";
   if (m.includes("already registered") || m.includes("already exists")) return "Esse nome de usuário já está em uso. Escolha outro.";
-  if (m.includes("password should be at least")) return "A senha precisa ter pelo menos 6 caracteres.";
+  if (m.includes("password should be at least")) return "A senha precisa ter pelo menos 8 caracteres, com letras e números.";
   if (m.includes("signups not allowed")) return "A criação de contas está desativada no servidor.";
   if (m.includes("rate limit")) return "Muitas tentativas. Aguarde um pouco e tente de novo.";
   if (m.includes("jwt expired")) return "Sua sessão expirou. Entre novamente.";
