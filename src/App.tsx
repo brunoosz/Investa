@@ -19,6 +19,7 @@ import { Objetivos } from "@/pages/Objetivos";
 import { Plano } from "@/pages/Plano";
 import { Logs } from "@/pages/Logs";
 import { Gastos } from "@/pages/Gastos";
+import { Compras } from "@/pages/Compras";
 import { ValeAPena } from "@/pages/ValeAPena";
 import { Bancos } from "@/pages/Bancos";
 import { Alertas } from "@/pages/Alertas";
@@ -84,6 +85,7 @@ export default function App() {
             <Route path="logs" element={<Logs />} />
             <Route path="objetivos" element={<Objetivos />} />
             <Route path="gastos" element={<Gastos />} />
+            <Route path="compras" element={<Compras />} />
             <Route path="vale-a-pena" element={<ValeAPena />} />
             <Route path="bancos" element={<Bancos />} />
             <Route path="alertas" element={<Alertas />} />

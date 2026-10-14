@@ -7,7 +7,7 @@ import { ALL_NAV, type NavItem } from "./nav";
 // fica salva neste aparelho.
 const KEY = "investa.abas";
 export const TAB_SLOTS = 4;
-export const DEFAULT_TABS = ["/", "/mercado", "/aulas", "/assistente"];
+export const DEFAULT_TABS = ["/", "/mercado", "/compras", "/assistente"];
 
 let current = read();
 const listeners = new Set<() => void>();

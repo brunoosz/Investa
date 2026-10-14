@@ -486,17 +486,17 @@ await tryStep("menu-mais", async () => {
 });
 await assertResponsive("celular");
 
-// Barra de baixo do celular: trocar Aulas por Gastos em Configurações e voltar ao padrão.
+// Barra de baixo do celular: trocar Compras por Gastos em Configurações e voltar ao padrão.
 {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(380, 800));
   await win.evaluate(() => (location.hash = "#/configuracoes"));
   await wait(1500);
   const tabs = () => win.locator("nav.sm\\:hidden").innerText();
-  await win.getByRole("button", { name: "Tirar Aulas da barra" }).click();
+  await win.getByRole("button", { name: "Tirar Compras da barra" }).click();
   await win.getByRole("button", { name: "Pôr Gastos na barra" }).click();
   await wait(400);
   const changed = await tabs();
-  const ok = changed.includes("Gastos") && !changed.includes("Aulas") && changed.trim().endsWith("Mais");
+  const ok = changed.includes("Gastos") && !changed.includes("Compras") && changed.trim().endsWith("Mais");
   console.log(`[barra-celular] ${changed.replace(/\s+/g, " ")}: ${ok ? "ok" : "NÃO"}`);
   if (!ok) pageErrors.push("Configurações não mudou a barra de baixo do celular");
   await win.getByRole("button", { name: "Padrão", exact: true }).click();
