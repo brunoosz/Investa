@@ -139,8 +139,9 @@ interface Live {
   model?: string;
 }
 
-const ACTION = "h-7 px-2 rounded-lg text-[12px] text-muted hover:text-fg hover:bg-line/10 inline-flex items-center gap-1";
-const SHOW_ON_HOVER = "opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-sm:opacity-60 [@media(hover:none)]:opacity-70 transition";
+const PRESS = "pressable transition-[transform,color,background-color,border-color,box-shadow,opacity] duration-150 ease-out-strong";
+const ACTION = `${PRESS} h-7 px-2 rounded-chip text-footnote text-muted hover:text-fg hover:bg-line/10 inline-flex items-center gap-1`;
+const SHOW_ON_HOVER = "opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-sm:opacity-60 [@media(hover:none)]:opacity-70 transition-opacity duration-150 ease-out-strong";
 
 const MARKDOWN: Components = {
   a: ({ href, children }) => (
@@ -160,7 +161,7 @@ const MARKDOWN: Components = {
       <table>{children}</table>
     </div>
   ),
-  pre: ({ children }) => <pre className="overflow-x-auto max-w-full rounded-xl bg-elevated p-3 text-[13px] my-2">{children}</pre>,
+  pre: ({ children }) => <pre className="overflow-x-auto max-w-full rounded-chip bg-elevated p-3 text-footnote my-2">{children}</pre>,
 };
 
 interface MessageProps {
@@ -179,7 +180,7 @@ const Message = memo(function Message({ m, live, owner, onRetry, onDelete }: Mes
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end gap-3 group">
         <div className="flex flex-col items-end min-w-0 max-w-[88%] sm:max-w-[78%]">
-          <div className="rounded-[22px] rounded-br-md bg-brand text-white px-4 py-2.5 text-[15px] whitespace-pre-wrap break-words shadow-glow">{m.content}</div>
+          <div className="rounded-card rounded-br-md bg-brand text-white px-4 py-2.5 text-body whitespace-pre-wrap break-words shadow-glow">{m.content}</div>
           {onDelete && (
             <button className={clsx(ACTION, "mt-1", SHOW_ON_HOVER)} onClick={() => onDelete(m.id)} aria-label="Apagar pergunta e resposta" title="Apaga esta pergunta e a resposta dela">
               <Trash2 size={13} /> Apagar
@@ -205,11 +206,11 @@ const Message = memo(function Message({ m, live, owner, onRetry, onDelete }: Mes
   const model = live?.model ?? m.model;
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 group">
-      <div className="h-8 w-8 rounded-full bg-surface border border-line/15 flex items-center justify-center shrink-0 mt-0.5">
+      <div className="h-8 w-8 rounded-full bg-surface border border-separator/15 flex items-center justify-center shrink-0 mt-0.5">
         <LogoMark size={18} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className={clsx("rounded-[22px] rounded-tl-md px-4 py-3 min-w-0", m.error ? "bg-danger/10 border border-danger/25 text-danger" : "surface")}>
+        <div className={clsx("rounded-card rounded-tl-md px-4 py-3 min-w-0", m.error ? "bg-danger/10 border border-danger/25 text-danger" : "surface")}>
           {text ? (
             <div className={clsx("prose-investa break-words", streaming && "caret")}>
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
@@ -217,18 +218,18 @@ const Message = memo(function Message({ m, live, owner, onRetry, onDelete }: Mes
               </ReactMarkdown>
             </div>
           ) : interrupted ? (
-            <div className="text-[14px] text-muted">Resposta interrompida.{onRetry ? " Toque em “Tentar de novo”." : ""}</div>
+            <div className="text-callout text-muted">Resposta interrompida.{onRetry ? " Toque em “Tentar de novo”." : ""}</div>
           ) : (
             <div className="flex items-center gap-1.5 py-1.5">
               {[0, 1, 2].map((i) => (
                 <motion.span key={i} className="h-2 w-2 rounded-full bg-primary" animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }} />
               ))}
-              <span className="text-[13px] text-muted ml-2">{live?.status ?? "Pensando…"}</span>
+              <span className="text-footnote text-muted ml-2">{live?.status ?? "Pensando…"}</span>
             </div>
           )}
         </div>
         {!streaming && items.length > 0 && !m.memoryHandled && (
-          <div className="mt-2 rounded-2xl border border-secondary/25 bg-secondary/[0.07] px-3.5 py-2.5 text-[13.5px]">
+          <div className="mt-2 rounded-card border border-secondary/25 bg-secondary/[0.07] px-3.5 py-2.5 text-footnote">
             <div className="flex items-center gap-1.5 font-medium">
               <Brain size={15} className="text-secondary" /> Guardar na memória?
             </div>
@@ -249,7 +250,7 @@ const Message = memo(function Message({ m, live, owner, onRetry, onDelete }: Mes
         )}
         {!streaming && (
           <div className={clsx("flex flex-wrap items-center gap-1 mt-1", SHOW_ON_HOVER)}>
-            <span className="text-[11.5px] text-muted mr-1">
+            <span className="text-caption font-normal tracking-normal text-muted tabular mr-1">
               {timeBR(m.createdAt)}
               {owner && model ? ` · ${model}` : ""}
             </span>
@@ -299,7 +300,7 @@ function HistorySheet({
   return (
     <Sheet open={open} onClose={onClose} title="Conversas" subtitle="As conversas ficam salvas na sua conta. Toque em uma para continuar.">
       {conversations.length === 0 ? (
-        <div className="text-center text-muted text-[14px] py-10">Nenhuma conversa ainda.</div>
+        <div className="text-center text-muted text-callout py-10">Nenhuma conversa ainda.</div>
       ) : (
         <div className="space-y-1.5">
           {conversations.map((c) => {
@@ -309,17 +310,17 @@ function HistorySheet({
               <div
                 key={c.id}
                 className={clsx(
-                  "group flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition",
-                  c.id === current ? "border-primary/50 bg-primary/[0.07]" : "border-line/10 hover:border-primary/30 hover:bg-line/[0.04]"
+                  "group flex items-center gap-3 rounded-card border px-3 py-2.5 transition-[color,background-color,border-color] duration-150 ease-out-strong",
+                  c.id === current ? "border-primary/50 bg-primary/[0.07]" : "border-separator/10 hover:border-primary/30 hover:bg-line/[0.04]"
                 )}
               >
-                <button type="button" className="flex-1 min-w-0 flex items-center gap-3 text-left" onClick={() => onOpen(c)}>
-                  <span className="h-9 w-9 rounded-xl bg-line/[0.07] flex items-center justify-center shrink-0 text-primary">
+                <button type="button" className="pressable flex-1 min-w-0 flex items-center gap-3 text-left" onClick={() => onOpen(c)}>
+                  <span className="h-9 w-9 rounded-chip bg-line/[0.07] flex items-center justify-center shrink-0 text-primary">
                     <Icon size={17} />
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-medium text-[14px] truncate">{c.title || "Conversa sem título"}</span>
-                    <span className="block text-[12px] text-muted truncate">
+                    <span className="block font-medium text-callout truncate">{c.title || "Conversa sem título"}</span>
+                    <span className="block text-footnote text-muted truncate">
                       {info.label} · {relativeTime(c.updatedAt)} · {c.count} {c.count === 1 ? "mensagem" : "mensagens"}
                     </span>
                   </span>
@@ -639,12 +640,12 @@ export function Assistente() {
     <div className="flex flex-col h-[calc(100dvh-52px)] max-sm:h-[calc(100dvh-140px)] -mb-16 -mt-1">
       <div className="flex items-center justify-between gap-3 pb-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-11 w-11 rounded-2xl bg-brand flex items-center justify-center shadow-glow shrink-0">
+          <div className="h-11 w-11 rounded-control bg-brand flex items-center justify-center shadow-glow shrink-0">
             <Sparkles size={22} className="text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-[24px] font-bold tracking-tight leading-tight">{ASSISTANT_NAME}</h1>
-            <div className="text-[12.5px] text-muted flex items-center gap-2 min-w-0">
+            <h1 className="text-[24px] font-bold tracking-[-0.02em] leading-tight">{ASSISTANT_NAME}</h1>
+            <div className="text-footnote text-muted flex items-center gap-2 min-w-0">
               {owner && hasKey ? (
                 <>
                   <span className="h-2 w-2 rounded-full bg-success shrink-0" />
@@ -692,8 +693,8 @@ export function Assistente() {
               title={m.description}
               aria-pressed={active}
               className={clsx(
-                "shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13.5px] font-medium border transition",
-                active ? "bg-primary text-white border-transparent shadow-glow" : "border-line/12 bg-surface/60 text-muted hover:text-fg hover:border-primary/30"
+                `${PRESS} shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-footnote font-medium border`,
+                active ? "bg-primary text-white border-transparent shadow-glow" : "border-separator/12 bg-surface/60 text-muted hover:text-fg hover:border-primary/30"
               )}
             >
               <Icon size={15} /> {m.label}
@@ -713,12 +714,12 @@ export function Assistente() {
         {!hasKey && !info.loading && (
           <Card className="mb-4 border-warning/30">
             <div className="flex gap-4 items-start">
-              <div className="h-11 w-11 rounded-xl bg-warning/15 text-warning flex items-center justify-center shrink-0">
+              <div className="h-11 w-11 rounded-control bg-warning/15 text-warning flex items-center justify-center shrink-0">
                 <KeyRound size={22} />
               </div>
               <div className="flex-1">
-                <div className="font-semibold">{owner ? "Conecte a inteligência artificial" : "O Assistente ainda não foi ativado"}</div>
-                <p className="text-[14px] text-muted mt-1">
+                <div className="text-headline">{owner ? "Conecte a inteligência artificial" : "O Assistente ainda não foi ativado"}</div>
+                <p className="text-callout text-muted mt-1">
                   {owner
                     ? "O Assistente usa a Groq (grátis e bem rápida) ou a NVIDIA. Cole uma chave nas configurações."
                     : "Peça ao Dono do aplicativo para ativar o Assistente."}
@@ -739,12 +740,12 @@ export function Assistente() {
               key={mode}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 200, damping: 18 }}
-              className="h-20 w-20 rounded-[26px] bg-surface border border-line/15 flex items-center justify-center shadow-2xl"
+              transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+              className="h-20 w-20 rounded-sheet bg-surface border border-separator/15 flex items-center justify-center shadow-2xl"
             >
               <LogoMark size={44} animated />
             </motion.div>
-            <h2 className="text-[24px] font-bold tracking-tight mt-5">{current.label}</h2>
+            <h2 className="text-[24px] font-bold tracking-[-0.02em] mt-5">{current.label}</h2>
             <p className="text-muted mt-2 max-w-lg">{current.description}</p>
             <div className="grid sm:grid-cols-2 gap-2 mt-6 w-full max-w-2xl">
               {current.suggestions.map((s) => (
@@ -752,7 +753,7 @@ export function Assistente() {
                   key={s}
                   disabled={!hasKey}
                   onClick={() => void send(s)}
-                  className="text-left rounded-2xl border border-line/10 bg-surface/60 hover:bg-line/[0.06] hover:border-primary/30 px-4 py-3 text-[14px] font-medium transition disabled:opacity-50"
+                  className={`${PRESS} text-left rounded-card border border-separator/10 bg-surface/60 hover:bg-line/[0.06] hover:border-primary/30 px-4 py-3 text-callout font-medium disabled:opacity-50`}
                 >
                   {s}
                 </button>
@@ -780,7 +781,7 @@ export function Assistente() {
 
       <div className="pt-3 pb-5">
         <div className="max-w-4xl mx-auto">
-          <div className="surface flex items-end gap-2 p-2 pl-4 focus-within:border-primary/40 focus-within:shadow-ring transition">
+          <div className="surface flex items-end gap-2 p-2 pl-4 focus-within:border-primary/40 focus-within:shadow-ring transition-[border-color,box-shadow] duration-150 ease-out-strong">
             <textarea
               ref={inputRef}
               rows={1}
@@ -794,7 +795,7 @@ export function Assistente() {
                 }
               }}
               placeholder={hasKey ? `Mensagem para o ${ASSISTANT_NAME} (${current.short})` : "O Assistente ainda não foi ativado"}
-              className="flex-1 min-w-0 resize-none bg-transparent outline-none text-[15px] py-2 overflow-y-auto placeholder:text-muted/70"
+              className="flex-1 min-w-0 resize-none bg-transparent outline-none text-body py-2 overflow-y-auto placeholder:text-muted/70"
             />
             {hasKey && (
               <button
@@ -803,7 +804,7 @@ export function Assistente() {
                 disabled={listening}
                 title="Falar em vez de digitar"
                 aria-label="Gravar voz"
-                className={clsx("h-10 w-10 rounded-xl inline-flex items-center justify-center transition shrink-0", listening ? "bg-danger/15 text-danger animate-pulse" : "text-muted hover:text-fg hover:bg-line/10")}
+                className={clsx(`${PRESS} h-10 w-10 rounded-control inline-flex items-center justify-center shrink-0`, listening ? "bg-danger/15 text-danger animate-pulse" : "text-muted hover:text-fg hover:bg-line/10")}
               >
                 <Mic size={18} />
               </button>
@@ -814,7 +815,7 @@ export function Assistente() {
                 onClick={() => setWeb(!web)}
                 title={web ? "Pesquisa na internet ligada" : "Pesquisar na internet antes de responder"}
                 aria-pressed={web}
-                className={clsx("h-10 px-2.5 rounded-xl inline-flex items-center gap-1.5 text-[12.5px] font-medium transition shrink-0", web ? "bg-primary/15 text-primary" : "text-muted hover:text-fg hover:bg-line/10")}
+                className={clsx(`${PRESS} h-10 px-2.5 rounded-control inline-flex items-center gap-1.5 text-footnote font-medium shrink-0`, web ? "bg-primary/15 text-primary" : "text-muted hover:text-fg hover:bg-line/10")}
               >
                 <Globe size={17} />
                 <span className="hidden sm:inline">Internet</span>
@@ -822,13 +823,13 @@ export function Assistente() {
             )}
             <AnimatePresence mode="wait" initial={false}>
               {live ? (
-                <motion.div key="stop" initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }}>
+                <motion.div key="stop" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}>
                   <Button size="icon" variant="secondary" onClick={stop} aria-label="Parar resposta" title="Parar">
                     <Square size={14} fill="currentColor" />
                   </Button>
                 </motion.div>
               ) : (
-                <motion.div key="send" initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }}>
+                <motion.div key="send" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}>
                   <Button size="icon" disabled={!input.trim() || !hasKey} onClick={() => void send(input)} aria-label="Enviar">
                     <ArrowUp size={18} strokeWidth={2.6} />
                   </Button>
@@ -837,7 +838,7 @@ export function Assistente() {
             </AnimatePresence>
           </div>
           {mode !== "geral" && mode !== "app" && (
-            <div className="text-[11.5px] text-muted text-center mt-2">
+            <div className="text-caption font-normal tracking-normal text-muted text-center mt-2">
               <Badge className="mr-1">Educacional</Badge> As respostas usam dados reais do momento, mas não são recomendação individual. Confira antes de decidir.
             </div>
           )}
