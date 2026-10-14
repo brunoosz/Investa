@@ -169,8 +169,8 @@ function PatrimonyCard() {
 
   return (
     <Card className="lg:col-span-2" padded={false}>
-      <div className="p-5 pb-0 flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="p-3 pb-0 flex flex-wrap items-start justify-between gap-3">
+        <div className="sticker sticker-sky px-4 py-3 min-w-0">
           <div className="text-footnote text-muted font-medium">{hover ? dateBR(hover.time * 1000, { day: "2-digit", month: "short", year: "numeric" }) : "Seu patrimônio"}</div>
           <div className="text-[34px] font-bold tracking-[-0.02em] mt-0.5 tabular">
             <AnimatedNumber value={shown} format={brl} private />

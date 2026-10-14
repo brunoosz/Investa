@@ -94,7 +94,6 @@ export function Onboarding() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className={clsx("drag h-12 shrink-0", (platform === "win32" || platform === "linux") && "mr-[150px]")} />
-      <div className="pointer-events-none absolute -top-40 right-0 h-[460px] w-[680px] rounded-full bg-primary/[0.08] blur-3xl" />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[640px] mx-auto px-6 pb-16">
           <div className="flex items-center gap-3 mb-6">

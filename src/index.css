@@ -570,3 +570,22 @@ html.privacy [data-private] {
   [data-enter] :is(.surface, .group-card) { animation: none; }
   .three-bars-loading path { animation-duration: 1800ms; }
 }
+
+/* Bloco-adesivo: o número principal da tela em cor chapada com contorno de tinta.
+   O texto é sempre tinta escura, nos dois temas. */
+.sticker {
+  --sticker-ink: 17 17 19;
+  color: rgb(var(--sticker-ink));
+  border: 1px solid rgb(var(--sticker-ink) / 0.9) !important;
+  border-radius: var(--radius-lg);
+}
+.sticker-sun { background-color: rgb(var(--sticker-sun)) !important; }
+.sticker-sky { background-color: rgb(var(--sticker-sky)) !important; }
+.sticker-lilac { background-color: rgb(var(--sticker-lilac)) !important; }
+.sticker-coral { background-color: rgb(var(--sticker-coral)) !important; }
+.sticker-sand { background-color: rgb(var(--sticker-sand)) !important; }
+.sticker .text-muted { color: rgb(var(--sticker-ink) / 0.64); }
+.sticker .text-fg { color: rgb(var(--sticker-ink)); }
+.sticker .text-success { color: rgb(6 112 58); }
+.sticker .text-danger { color: rgb(180 35 35); }
+.sticker .text-primary { color: rgb(29 78 216); }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, FileDown, FileSpreadsheet, Minus, Plus, ShoppingCart, Sparkles, Trash } from "lucide-react";
+import { Apple, Bath, Check, CupSoda, Gamepad2, Headphones, House, Package, Shirt, SprayCan, FileDown, FileSpreadsheet, Minus, Plus, ShoppingCart, Sparkles, Trash } from "lucide-react";
 import clsx from "clsx";
 import type { ShoppingCategory, ShoppingItem } from "@shared/types";
 import { currentYm, monthBudget, pendingFor, summarizeMonth } from "@shared/finance";
@@ -17,6 +17,12 @@ import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
 
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 const MAX_QTY = 999;
+
+const CAT_ICON: Record<ShoppingCategory, typeof Apple> = { alimentos: Apple, bebidas: CupSoda, limpeza: SprayCan, higiene: Bath, casa: House, eletronicos: Headphones, jogos: Gamepad2, roupas: Shirt, outros: Package };
+function CatIcon({ category }: { category: ShoppingCategory }) {
+  const Icon = CAT_ICON[category] ?? Package;
+  return <Icon size={16} strokeWidth={2.2} />;
+}
 
 const catColor = (c: ShoppingCategory) => `rgb(var(--cat-${c}))`;
 const catTint = (c: ShoppingCategory, a: number) => `rgb(var(--cat-${c}) / ${a})`;
@@ -505,7 +511,7 @@ export function Compras() {
       </div>
 
       {items.length > 0 && (
-        <section className="group-card p-5 mb-4" aria-label="Total da lista">
+        <section className="group-card sticker sticker-lilac p-5 mb-4" aria-label="Total da lista">
           <div className="t-caption text-muted">Falta comprar</div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <Private className="block max-w-full">
@@ -550,7 +556,7 @@ export function Compras() {
         </section>
       )}
 
-      <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-3 sm:-mx-2 sm:px-2 bg-gradient-to-b from-bg via-bg/90 to-transparent">
+      <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-3 sm:-mx-2 sm:px-2 bg-bg">
         <QuickAdd onAdd={add} />
       </div>
 
@@ -611,8 +617,8 @@ export function Compras() {
           {groups.map(({ cat, list, totals }) => (
             <section key={cat.id} className="group-card" aria-label={cat.label}>
               <header className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 border-b hairline">
-                <span className="h-8 w-8 rounded-[10px] grid place-items-center text-headline shrink-0" style={{ background: catTint(cat.id, 0.16) }} aria-hidden>
-                  {cat.emoji}
+                <span className="h-8 w-8 rounded-full grid place-items-center shrink-0 border border-line/15" style={{ background: catTint(cat.id, 0.16), color: catColor(cat.id) }} aria-hidden>
+                  <CatIcon category={cat.id} />
                 </span>
                 <div className="flex-1 min-w-0">
                   <h2 className="t-headline">{cat.label}</h2>

@@ -31,7 +31,7 @@ export function Sheet({
       {open && (
         <OverlayFrame className="fixed inset-0 z-[60] flex items-end md:items-center justify-center md:p-6 no-drag">
           <motion.div
-            className="absolute inset-0 bg-black/45 backdrop-blur-[6px]"
+            className="absolute inset-0 bg-black/45"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

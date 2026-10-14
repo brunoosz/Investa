@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Pencil, Plus, Trash, Wallet } from "lucide-react";
 import clsx from "clsx";
@@ -271,6 +271,23 @@ function FixedRow({ v, onEdit, onDelete }: { v: HoldingView; onEdit: () => void;
 }
 
 export function Carteira() {
+  const band = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (band.current) band.current.style.opacity = String(Math.min(1, main.scrollTop / 320));
+      });
+    };
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      main.removeEventListener("scroll", onScroll);
+    };
+  }, []);
   const portfolio = useUserData("portfolio");
   const expenses = useUserData("expenses");
   const profile = useUserData("profile");
@@ -324,9 +341,11 @@ export function Carteira() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <Card>
-              <div className="text-footnote text-muted">Patrimônio</div>
-              <div className="text-[24px] tracking-[-0.02em] font-bold mt-1 tabular">
+            <Card className="sticker sticker-sky overflow-hidden">
+              {/* A faixa muda de cor (céu → areia) conforme a tela rola. */}
+              <div ref={band} aria-hidden className="pointer-events-none absolute inset-0 bg-sticker-sand" style={{ opacity: 0 }} />
+              <div className="relative text-footnote text-muted">Patrimônio</div>
+              <div className="relative text-[24px] tracking-[-0.02em] font-extrabold mt-1 tabular">
                 <AnimatedNumber value={summary.value} format={brl} private />
               </div>
             </Card>

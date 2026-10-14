@@ -163,7 +163,7 @@ export function Avatar({ name, hue = 220, size = 36, className }: { name: string
         width: size,
         height: size,
         fontSize: size * 0.38,
-        background: `linear-gradient(135deg, hsl(${hue} 85% 62%), hsl(${(hue + 45) % 360} 75% 55%))`,
+        background: `hsl(${hue} 70% 58%)`,
       }}
     >
       {initials(name) || "?"}
@@ -177,7 +177,7 @@ export function ProgressBar({ value, className, color, height = 8 }: { value: nu
     <div className={clsx("w-full rounded-full bg-line/10 overflow-hidden", className)} style={{ height }}>
       <motion.div
         className="h-full rounded-full"
-        style={{ background: color ?? "linear-gradient(90deg, rgb(var(--primary)), rgb(var(--secondary)))" }}
+        style={{ background: color ?? "rgb(var(--primary))" }}
         initial={{ width: 0 }}
         animate={{ width: `${v * 100}%` }}
         transition={{ type: "spring", stiffness: 90, damping: 20 }}

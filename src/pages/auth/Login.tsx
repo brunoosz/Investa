@@ -76,7 +76,7 @@ export function Login() {
           <AppIcon size={68} />
         </div>
         <h1 className="text-large-title">Entrar</h1>
-        <p className="text-body text-muted mt-1.5">Bem-vindo de volta ao Investa.</p>
+        <p className="text-body text-muted mt-1.5">Use seu usuário e senha.</p>
 
         {firstRun && (
           <div className="mt-5 rounded-card bg-primary/10 border border-primary/20 px-4 py-3 text-footnote flex gap-2.5">

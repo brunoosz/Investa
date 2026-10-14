@@ -374,7 +374,7 @@ export function Gastos() {
             )}
           </div>
         </Card>
-        <Card>
+        <Card className="sticker sticker-sun">
           <div className="text-footnote text-muted">Disponível para gastar</div>
           <div className={clsx("text-[22px] tracking-[-0.02em] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="" data-testid="available-month">
             {brl(budget.available)}

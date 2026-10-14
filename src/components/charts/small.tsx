@@ -127,7 +127,7 @@ export function BarList({
           <div className="h-2 rounded-full bg-line/10 overflow-hidden">
             <motion.div
               className={clsx("h-full rounded-full")}
-              style={{ background: d.color ?? "linear-gradient(90deg, rgb(var(--primary)), rgb(var(--secondary)))" }}
+              style={{ background: d.color ?? "rgb(var(--primary))" }}
               initial={{ width: 0 }}
               animate={{ width: `${(d.value / max) * 100}%` }}
               transition={{ type: "spring", stiffness: 80, damping: 18, delay: i * 0.04 }}

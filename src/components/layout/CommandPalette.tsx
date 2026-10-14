@@ -90,7 +90,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     <AnimatePresence key={presence.key} onExitComplete={presence.onExitComplete}>
       {open && (
         <OverlayFrame className="fixed inset-0 z-[70] flex items-start justify-center pt-[12vh] px-4 no-drag">
-          <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-[4px]" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} />
+          <motion.div className="absolute inset-0 bg-black/40" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} />
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

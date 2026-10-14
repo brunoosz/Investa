@@ -30,7 +30,7 @@ function Trail() {
         const unlocked = isUnlocked(learning, m.lessons[0].id);
         return (
           <Card key={m.id} padded={false} className={clsx("overflow-hidden", !unlocked && "opacity-70")}>
-            <div className="flex items-center gap-4 p-5" style={{ background: `linear-gradient(135deg, ${m.color}26, transparent 70%)` }}>
+            <div className="flex items-center gap-4 p-5" style={{ background: `${m.color}1f` }}>
               <div className="h-12 w-12 rounded-control flex items-center justify-center shrink-0" style={{ background: m.color, boxShadow: `0 10px 24px -10px ${m.color}` }}>
                 <Icon size={24} className="text-white" />
               </div>
@@ -63,7 +63,7 @@ function Trail() {
                       onClick={() => navigate(`/aula/${l.id}`)}
                       className={clsx("relative h-[68px] w-[68px] rounded-full flex items-center justify-center", !open && "cursor-not-allowed")}
                       style={{
-                        background: done ? `linear-gradient(135deg, ${m.color}, rgb(var(--secondary)))` : open ? m.color : "rgb(var(--separator) / 0.14)",
+                        background: done ? m.color : open ? m.color : "rgb(var(--separator) / 0.14)",
                         boxShadow: open ? `0 6px 0 0 ${done ? "rgb(var(--secondary) / 0.7)" : `${m.color}99`}, 0 16px 30px -12px ${m.color}` : "0 6px 0 0 rgb(var(--separator) / 0.12)",
                       }}
                       aria-label={l.title}
@@ -110,7 +110,7 @@ function Achievements() {
             <div className="flex items-center gap-4">
               <div
                 className="h-14 w-14 rounded-control flex items-center justify-center shrink-0"
-                style={earned ? { background: "linear-gradient(135deg, rgb(var(--warning)), rgb(var(--chart-8)))", boxShadow: "0 10px 24px -10px rgb(var(--chart-8))" } : { background: "rgb(var(--separator) / 0.12)" }}
+                style={earned ? { background: "rgb(var(--warning))" } : { background: "rgb(var(--separator) / 0.12)" }}
               >
                 {earned ? <Icon size={26} className="text-white" /> : <Lock size={22} className="text-muted" />}
               </div>

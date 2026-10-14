@@ -236,7 +236,7 @@ export function Aula() {
                         const BIcon = iconFor(b.icon);
                         return (
                           <motion.div key={id} initial={{ scale: 0.6, rotate: -20, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.3 }} className="flex items-center gap-2.5 rounded-card surface px-4 py-3">
-                            <div className="h-10 w-10 rounded-chip flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgb(var(--warning)), rgb(var(--chart-8)))" }}>
+                            <div className="h-10 w-10 rounded-chip flex items-center justify-center" style={{ background: "rgb(var(--warning))" }}>
                               <BIcon size={20} className="text-white" />
                             </div>
                             <div className="text-left">
