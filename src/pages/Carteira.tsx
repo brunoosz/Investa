@@ -343,7 +343,7 @@ export function Carteira() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <Card className="sticker sticker-sky overflow-hidden">
               {/* A faixa muda de cor (céu → areia) conforme a tela rola. */}
-              <div ref={band} aria-hidden className="pointer-events-none absolute inset-0 bg-sticker-sand" style={{ opacity: 0 }} />
+              <div ref={band} aria-hidden className="pointer-events-none absolute inset-0 bg-sticker-sand/[0.14]" style={{ opacity: 0 }} />
               <div className="relative text-footnote text-muted">Patrimônio</div>
               <div className="relative text-[24px] tracking-[-0.02em] font-extrabold mt-1 tabular">
                 <AnimatedNumber value={summary.value} format={brl} private />

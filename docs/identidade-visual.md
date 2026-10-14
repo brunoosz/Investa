@@ -18,13 +18,13 @@ Inspiração: `referencia-slush.md` (princípios, não cópia). Ideia: **caderno
 | **Perda** (`danger`) | #D22B2B | #FF6B6B |
 | Atenção (`warning`) | #B07000 | #FFCE4D |
 
-**Adesivos** (só decoração e blocos, nunca para ganho/perda): `sticker-sun` (amarelo), `sticker-sky` (azul claro), `sticker-lilac` (lilás), `sticker-coral` (salmão), `sticker-sand` (areia). Texto sobre adesivo é sempre tinta escura.
+**Adesivos** (só decoração e blocos, nunca para ganho/perda): `sticker-sun` (amarelo), `sticker-sky` (azul claro), `sticker-lilac` (lilás), `sticker-coral` (salmão), `sticker-sand` (areia). Usadas só como tom leve (10–14%), o texto fica na cor do tema.
 
 Regra: ganho e perda são as únicas cores que comunicam resultado. Verde/vermelho nunca viram decoração.
 
 ## Assinatura
 1. **As três barras.** O desenho da logo reaparece pequeno: marca ao lado do título das seções, indicador de carregamento (as barras enchem em sequência) e abertura do app.
-2. **Blocos-adesivo.** O número mais importante de cada tela fica num bloco de cor chapada com contorno fino (ex.: patrimônio no Início, disponível em Gastos, total na Lista de compras).
+2. **Bloco de destaque minimalista.** O número mais importante de cada tela fica num card com um tom leve (10–14%) de uma cor de adesivo e o contorno normal. Nada de bloco de cor forte.
 
 ## Forma
 - Base de 4px. Padding de card 20px (16px no celular). Entre seções 32px.

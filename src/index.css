@@ -571,21 +571,13 @@ html.privacy [data-private] {
   .three-bars-loading path { animation-duration: 1800ms; }
 }
 
-/* Bloco-adesivo: o número principal da tela em cor chapada com contorno de tinta.
-   O texto é sempre tinta escura, nos dois temas. */
+/* Bloco de destaque (minimalista): o número principal ganha só um tom leve da
+   cor de destaque e o contorno normal do card. Texto continua na cor do tema. */
 .sticker {
-  --sticker-ink: 17 17 19;
-  color: rgb(var(--sticker-ink));
-  border: 1px solid rgb(var(--sticker-ink) / 0.9) !important;
   border-radius: var(--radius-lg);
 }
-.sticker-sun { background-color: rgb(var(--sticker-sun)) !important; }
-.sticker-sky { background-color: rgb(var(--sticker-sky)) !important; }
-.sticker-lilac { background-color: rgb(var(--sticker-lilac)) !important; }
-.sticker-coral { background-color: rgb(var(--sticker-coral)) !important; }
-.sticker-sand { background-color: rgb(var(--sticker-sand)) !important; }
-.sticker .text-muted { color: rgb(var(--sticker-ink) / 0.64); }
-.sticker .text-fg { color: rgb(var(--sticker-ink)); }
-.sticker .text-success { color: rgb(6 112 58); }
-.sticker .text-danger { color: rgb(180 35 35); }
-.sticker .text-primary { color: rgb(29 78 216); }
+.sticker-sun { background-color: rgb(var(--sticker-sun) / 0.1) !important; }
+.sticker-sky { background-color: rgb(var(--sticker-sky) / 0.12) !important; }
+.sticker-lilac { background-color: rgb(var(--sticker-lilac) / 0.12) !important; }
+.sticker-coral { background-color: rgb(var(--sticker-coral) / 0.1) !important; }
+.sticker-sand { background-color: rgb(var(--sticker-sand) / 0.14) !important; }
