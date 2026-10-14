@@ -1,0 +1,57 @@
+name: Investa - imagens do README
+
+# Abre o app com uma conta de demonstração, tira os prints e grava os GIFs
+# usados no README com dados reais do mercado e salva tudo em docs/media.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: media-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capturar:
+    name: Prints e GIFs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Grava as imagens novas no próprio branch.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Ferramentas de imagem
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg gifsicle pngquant
+      - run: npm ci
+      - run: npm run build
+      - name: Capturar telas
+        run: xvfb-run -a -s "-screen 0 3200x2000x24" node scripts/capture.mjs
+        env:
+          MEDIA_DIR: docs/media
+      - name: Guardar cópia da mídia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: midia-readme
+          path: docs/media/
+          if-no-files-found: ignore
+      - name: Salvar no repositório
+        run: |
+          git config user.name "Bruno Camperlingo"
+          git config user.email "204110058+brunoosz@users.noreply.github.com"
+          git add docs/media
+          if git diff --cached --quiet; then
+            echo "As imagens não mudaram."
+            exit 0
+          fi
+          git commit -m "Atualiza imagens do README"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"

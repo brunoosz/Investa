@@ -1,0 +1,198 @@
+name: Investa - build e release
+
+on:
+  push:
+    branches: ["main"]
+    # Mudanças só no README ou nas imagens não geram uma release nova.
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - "scripts/capture.mjs"
+      - ".github/workflows/media.yml"
+  workflow_dispatch:
+
+# Só leitura por padrão; só o job que publica a release pede escrita.
+permissions:
+  contents: read
+
+# Um build por vez: o seguinte espera o anterior terminar.
+concurrency:
+  group: investa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    name: Testes (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Fontes de dados reais (Yahoo Finance, Banco Central, Tesouro, notícias)
+        run: node dist-electron/smoke.js
+        continue-on-error: true
+      - name: Teste de ponta a ponta do aplicativo (Electron)
+        run: xvfb-run -a -s "-screen 0 1440x900x24" node scripts/e2e.mjs
+        env:
+          SHOTS: e2e-shots
+      - name: Guardar prints das telas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prints-das-telas
+          path: e2e-shots/
+          if-no-files-found: ignore
+
+  windows:
+    name: Instalador Windows (.exe)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      INVESTA_CLOUD_URL: ${{ secrets.INVESTA_CLOUD_URL }}
+      INVESTA_CLOUD_KEY: ${{ secrets.INVESTA_CLOUD_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Gerar instalador e versão portátil
+        run: npx electron-builder --win --x64 --publish never
+      - name: Guardar .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: release/*.exe
+          if-no-files-found: error
+
+  android:
+    name: App Android (.apk)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      INVESTA_CLOUD_URL: ${{ secrets.INVESTA_CLOUD_URL }}
+      INVESTA_CLOUD_KEY: ${{ secrets.INVESTA_CLOUD_KEY }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Definir versão
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_ENV"
+      - name: Chave de assinatura do APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          KS="$RUNNER_TEMP/investa-release.keystore"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KS"
+          else
+            # Sem os segredos, gera uma chave descartável só para este build.
+            echo "::warning::Sem o segredo ANDROID_KEYSTORE_BASE64: o APK sai com uma chave temporária."
+            PASS="$(openssl rand -hex 16)"
+            echo "::add-mask::$PASS"
+            keytool -genkeypair -keystore "$KS" -storetype PKCS12 -alias investa -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PASS" -keypass "$PASS" -dname "CN=Investa" -noprompt
+            echo "ANDROID_KEYSTORE_PASSWORD=$PASS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=investa" >> "$GITHUB_ENV"
+          fi
+          echo "ANDROID_KEYSTORE_FILE=$KS" >> "$GITHUB_ENV"
+      - run: npm run typecheck
+      - run: npx vite build
+      - run: npx cap sync android
+      - name: Gerar APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+      - name: Renomear APK
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk "release/Investa-Android-${VERSION}.apk"
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: release/*.apk
+          if-no-files-found: error
+
+  # Publica só quando os testes e os dois builds deram certo. A página de
+  # Releases guarda apenas a versão atual: as anteriores são apagadas.
+  release:
+    name: Publicar release
+    runs-on: ubuntu-latest
+    needs: [verificar, windows, android]
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Definir versão
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - run: ls -la release
+      - name: Remover releases anteriores
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 500 --json tagName --jq '.[].tagName' |
+            while read -r tag; do
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+            done
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/v$VERSION" 2>/dev/null || true
+      - name: Publicar na página de Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Investa ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          make_latest: "true"
+          files: |
+            release/*.exe
+            release/*.apk
+          body: |
+            ## Como instalar
+
+            **Windows**
+            - **Investa-Setup-${{ env.VERSION }}.exe**: instalador (recomendado). Cria atalho na área de trabalho e no menu Iniciar.
+            - **Investa-Portatil-${{ env.VERSION }}.exe**: versão portátil, roda sem instalar.
+
+            Na primeira vez, o Windows pode mostrar "O Windows protegeu o computador", porque o app não tem certificado de assinatura. Clique em **Mais informações → Executar assim mesmo**.
+
+            **Android**
+            - **Investa-Android-${{ env.VERSION }}.apk**: baixe pelo celular e abra o arquivo. Se o Android pedir, permita instalar apps desta fonte para o navegador ou o gerenciador de arquivos.
+
+            Se você tinha uma versão de teste do Investa no celular, desinstale antes de instalar esta.
+
+            Projeto pessoal e educativo. O conteúdo não é recomendação de investimento.

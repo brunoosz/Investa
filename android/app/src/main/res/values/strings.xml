@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Investa</string>
+    <string name="title_activity_main">Investa</string>
+    <string name="package_name">com.investa.app</string>
+    <string name="custom_url_scheme">com.investa.app</string>
+</resources>

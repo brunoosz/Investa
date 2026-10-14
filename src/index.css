@@ -1,0 +1,583 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme="dark"] {
+  --bg: 17 17 19;
+  --surface: 26 26 29;
+  --elevated: 38 38 42;
+  --line: 236 232 222;
+  --fg: 244 241 234;
+  --muted: 163 159 151;
+  --primary: 92 150 255;
+  --secondary: 196 170 255;
+  --success: 61 220 132;
+  --danger: 255 107 107;
+  --warning: 255 206 77;
+  --ink: 244 241 234;
+  --ink-contrast: 17 17 19;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: 243 239 230;
+  --surface: 255 255 255;
+  --elevated: 236 231 220;
+  --line: 17 17 19;
+  --fg: 17 17 19;
+  --muted: 96 93 88;
+  --primary: 37 99 235;
+  --secondary: 124 77 255;
+  --success: 10 132 64;
+  --danger: 210 43 43;
+  --warning: 176 112 0;
+  --ink: 17 17 19;
+  --ink-contrast: 255 255 255;
+  color-scheme: light;
+}
+
+/* Visual novo: materiais translúcidos, tipografia com tracking por tamanho,
+   cantos e cores por categoria. Usado primeiro na Lista de compras e na
+   navegação; as outras telas migram aos poucos. */
+:root,
+[data-theme="dark"] {
+  --material-thick: 22 22 25;
+  --material-regular: 26 26 29;
+  --sticker-sun: 255 216 77;
+  --sticker-sky: 191 224 255;
+  --sticker-lilac: 217 194 255;
+  --sticker-coral: 255 168 133;
+  --sticker-sand: 236 225 200;
+  --material-edge: 255 255 255;
+  --separator: 236 232 222;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --cat-alimentos: 251 146 60;
+  --cat-bebidas: 56 189 248;
+  --cat-limpeza: 45 212 191;
+  --cat-higiene: 244 114 182;
+  --cat-casa: 250 204 21;
+  --cat-eletronicos: 129 140 248;
+  --cat-jogos: 192 132 252;
+  --cat-roupas: 248 113 113;
+  --cat-outros: 148 163 184;
+  --brand-mid: 124 140 251;
+  --chart-1: 79 140 255;
+  --chart-2: 167 139 250;
+  --chart-3: 52 211 153;
+  --chart-4: 251 191 36;
+  --chart-5: 248 113 113;
+  --chart-6: 34 211 238;
+  --chart-7: 244 114 182;
+  --chart-8: 251 146 60;
+  --chart-9: 148 163 184;
+  --chart-10: 16 185 129;
+  --chart-11: 99 102 241;
+}
+[data-theme="light"] {
+  --material-thick: 236 231 220;
+  --material-regular: 255 255 255;
+  --material-edge: 255 255 255;
+  --separator: 17 17 19;
+  --cat-alimentos: 234 88 12;
+  --cat-bebidas: 2 132 199;
+  --cat-limpeza: 13 148 136;
+  --cat-higiene: 219 39 119;
+  --cat-casa: 202 138 4;
+  --cat-eletronicos: 79 70 229;
+  --cat-jogos: 147 51 234;
+  --cat-roupas: 220 38 38;
+  --cat-outros: 100 116 139;
+  --brand-mid: 99 102 241;
+  --chart-1: 59 125 245;
+  --chart-2: 139 92 246;
+  --chart-3: 5 150 105;
+  --chart-4: 217 119 6;
+  --chart-5: 220 38 38;
+  --chart-6: 8 145 178;
+  --chart-7: 219 39 119;
+  --chart-8: 234 88 12;
+  --chart-9: 100 116 139;
+  --chart-10: 4 120 87;
+  --chart-11: 79 70 229;
+}
+
+/* No Windows a área de arrastar a janela ganha de qualquer elemento por cima
+   dela; com uma janela do app aberta, a barra de título não pega cliques. */
+html[data-overlay] .drag {
+  -webkit-app-region: no-drag;
+}
+/* Rede de segurança: sem nenhuma janela aberta de verdade, o que sobrou de
+   uma animação de fechar nunca bloqueia a tela. */
+html:not([data-overlay]) [data-overlay-frame] {
+  pointer-events: none !important;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03", "tnum";
+    font-weight: 450;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background: rgb(var(--primary) / 0.3);
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Celular: a tela do app não "puxa" a página inteira nem dá zoom ao tocar duas vezes. */
+  html,
+  body {
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  main {
+    overscroll-behavior: contain;
+  }
+  button,
+  a,
+  [role="button"],
+  [role="checkbox"] {
+    touch-action: manipulation;
+  }
+  button,
+  [role="button"],
+  [role="checkbox"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Abaixo de 16px o WebView pode dar zoom ao focar o campo. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--line) / 0.18);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--line) / 0.32);
+    background-clip: content-box;
+    border: 3px solid transparent;
+  }
+}
+
+@layer components {
+  .drag {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Cartão padrão (todas as telas): mesmo material do visual novo. */
+  .surface {
+    @apply bg-surface;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgb(var(--line) / 0.12);
+  }
+
+  /* Camada translúcida (barras, avisos, menus). */
+  .glass {
+    background: rgb(var(--surface));
+  }
+
+  /* ---- visual novo ---- */
+  .material-thick {
+    background: rgb(var(--material-thick));
+  }
+  .material-regular {
+    background: rgb(var(--material-regular));
+  }
+  .hairline {
+    border-color: rgb(var(--separator) / 0.12);
+  }
+  .group-card {
+    @apply bg-surface overflow-hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgb(var(--line) / 0.12);
+  }
+  .t-large-title {
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.022em;
+  }
+  .t-title {
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.016em;
+  }
+  .t-headline {
+    font-size: 15.5px;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: -0.006em;
+  }
+  .t-body {
+    font-size: 15px;
+    line-height: 1.45;
+    letter-spacing: -0.003em;
+  }
+  .t-footnote {
+    font-size: 13px;
+    line-height: 1.4;
+    letter-spacing: 0.002em;
+  }
+  .t-caption {
+    font-size: 11.5px;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pressable {
+    transition: transform 120ms var(--ease-out), background-color 150ms ease;
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  /* Risco do item comprado: a linha é um fundo que cresce da esquerda e acompanha o nome em duas linhas. */
+  .strike {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-repeat: no-repeat;
+    background-position: 0 56%;
+    background-size: 0% 1.5px;
+    transition: background-size 260ms var(--ease-out);
+  }
+  .strike[data-done] {
+    background-size: 100% 1.5px;
+  }
+  .scroll-edge {
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+  }
+
+  /* Destaque em cor sólida. */
+  .text-gradient {
+    color: rgb(var(--primary));
+  }
+
+  .field {
+    @apply w-full h-11 bg-elevated/60 px-3.5 text-body text-fg placeholder:text-muted/70 outline-none;
+    border-radius: var(--radius-md);
+    border: 1px solid rgb(var(--separator) / 0.12);
+    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  }
+  .field:focus {
+    @apply border-primary/60 bg-elevated/80;
+    box-shadow: 0 0 0 4px rgb(var(--primary) / 0.15);
+  }
+  .field-error {
+    @apply border-danger/60;
+  }
+
+  .label {
+    @apply block text-footnote font-medium text-muted mb-1.5;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prose-investa {
+    @apply text-[15px] leading-relaxed text-fg/90;
+  }
+  .prose-investa p {
+    @apply my-2;
+  }
+  .prose-investa strong {
+    @apply text-fg font-semibold;
+  }
+  .prose-investa ul {
+    @apply my-2 pl-5 list-disc space-y-1;
+  }
+  .prose-investa ol {
+    @apply my-2 pl-5 list-decimal space-y-1;
+  }
+  .prose-investa li::marker {
+    color: rgb(var(--primary));
+  }
+  .prose-investa h1,
+  .prose-investa h2,
+  .prose-investa h3 {
+    @apply font-semibold text-fg mt-4 mb-2;
+  }
+  .prose-investa h1 {
+    @apply text-xl;
+  }
+  .prose-investa h2 {
+    @apply text-lg;
+  }
+  .prose-investa h3 {
+    @apply text-base;
+  }
+  .prose-investa a {
+    @apply text-primary underline underline-offset-2;
+  }
+  .prose-investa code {
+    @apply rounded-md bg-elevated px-1.5 py-0.5 text-[13px];
+  }
+  .prose-investa table {
+    @apply my-3 w-full text-sm border-collapse overflow-hidden rounded-xl;
+  }
+  .prose-investa th {
+    @apply text-left font-semibold px-3 py-2 bg-elevated/70 text-fg;
+  }
+  .prose-investa td {
+    @apply px-3 py-2 border-t border-line/10;
+  }
+  .prose-investa blockquote {
+    @apply border-l-2 border-primary/60 pl-3 text-muted my-2;
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--line) / 0.08);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(var(--line) / 0.08), transparent);
+  animation: shimmer 1.6s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.caret::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 2px;
+  background: rgb(var(--primary));
+  animation: pulseDot 1s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--line) / 0.15);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3), 0 0 0 1px rgb(0 0 0 / 0.05);
+  cursor: pointer;
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* App Android: respeita a barra de status e a área de gestos do sistema. */
+html.native-app body {
+  padding-top: env(safe-area-inset-top);
+}
+html.native-app nav.sm\:hidden {
+  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(64px + env(safe-area-inset-bottom));
+}
+
+/* Opções das listas suspensas legíveis no tema escuro (no Windows a lista
+   abria com fundo claro e texto claro). */
+select option,
+select optgroup {
+  background-color: rgb(var(--surface));
+  color: rgb(var(--fg));
+}
+
+/* Modo privacidade: só os valores pessoais (marcados com data-private) ficam
+   borrados. Indicadores, preços do mercado e aulas continuam visíveis. */
+[data-private] {
+  transition: filter 0.2s ease;
+}
+html.privacy [data-private] {
+  filter: blur(7px);
+  user-select: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material-thick,
+  .material-regular,
+  .glass {
+    background: rgb(var(--surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .material-thick,
+  .material-regular,
+  .group-card {
+    border-color: rgb(var(--separator) / 0.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .strike {
+    transition: none;
+  }
+  .pressable,
+  .pressable:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ---- Abertura do app (components/Intro.tsx) ----
+   A barra fica parada e uma janela sobe de baixo para cima por cima dela:
+   a janela vai de translateY(100%) a 0 e o desenho dentro faz o inverso, então
+   só transform muda (barato e fora da thread principal). */
+.intro {
+  transition: opacity 320ms var(--ease-out);
+}
+.intro[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-logo {
+  transition: transform 320ms var(--ease-out);
+}
+.intro[data-leaving] .intro-logo {
+  transform: scale(0.96);
+}
+.intro-track {
+  fill: rgb(var(--separator) / 0.14);
+}
+.intro-window {
+  position: absolute;
+  overflow: hidden;
+  transform: translateY(100%);
+  animation: intro-rise 560ms var(--ease-out) forwards;
+}
+.intro-fill {
+  display: block;
+  transform: translateY(-100%);
+  animation: intro-rise 560ms var(--ease-out) forwards;
+}
+@keyframes intro-rise {
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-window,
+  .intro-fill {
+    animation: none;
+    transform: none;
+  }
+  .intro[data-leaving] .intro-logo {
+    transform: none;
+  }
+}
+
+/* ---- Identidade: detalhes de movimento ---- */
+/* Entrada em sequência na primeira abertura da tela (cards até o 8º; listas não animam). */
+@keyframes enter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+[data-enter] :is(.surface, .group-card) {
+  animation: enter-rise 320ms var(--ease-out) both;
+}
+[data-enter] :is(.surface, .group-card):nth-child(2) { animation-delay: 40ms; }
+[data-enter] :is(.surface, .group-card):nth-child(3) { animation-delay: 80ms; }
+[data-enter] :is(.surface, .group-card):nth-child(4) { animation-delay: 120ms; }
+[data-enter] :is(.surface, .group-card):nth-child(5) { animation-delay: 160ms; }
+[data-enter] :is(.surface, .group-card):nth-child(6) { animation-delay: 200ms; }
+[data-enter] :is(.surface, .group-card):nth-child(n + 7) { animation-delay: 240ms; }
+[data-enter] :is(.surface, .group-card) :is(.surface, .group-card) { animation: none; }
+
+/* Carregando: as três barras enchem em sequência. */
+@keyframes three-bars {
+  0%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+.three-bars-loading path {
+  animation: three-bars 900ms var(--ease-in-out) infinite;
+}
+.three-bars-loading path:nth-child(2) { animation-delay: 150ms; }
+.three-bars-loading path:nth-child(3) { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-enter] :is(.surface, .group-card) { animation: none; }
+  .three-bars-loading path { animation-duration: 1800ms; }
+}
+
+/* Bloco de destaque (minimalista): o número principal ganha só um tom leve da
+   cor de destaque e o contorno normal do card. Texto continua na cor do tema. */
+.sticker {
+  border-radius: var(--radius-lg);
+}
+.sticker-sun { background-color: rgb(var(--sticker-sun) / 0.1) !important; }
+.sticker-sky { background-color: rgb(var(--sticker-sky) / 0.12) !important; }
+.sticker-lilac { background-color: rgb(var(--sticker-lilac) / 0.12) !important; }
+.sticker-coral { background-color: rgb(var(--sticker-coral) / 0.1) !important; }
+.sticker-sand { background-color: rgb(var(--sticker-sand) / 0.14) !important; }
