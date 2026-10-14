@@ -887,8 +887,10 @@ ${resultsToContext(results)}`;
     this.on("backup:import", async (a: { json: string }) => {
       const userId = this.uid();
       let parsed: { app?: string; data?: Record<string, unknown> };
+      const raw = String(a?.json ?? "");
+      if (raw.length > 20 * 1024 * 1024) throw new AppError("INVALID", "Arquivo grande demais para um backup do Investa (máximo 20 MB).");
       try {
-        parsed = JSON.parse(String(a.json ?? ""));
+        parsed = JSON.parse(raw);
       } catch {
         throw new AppError("INVALID", "Arquivo inválido: não é um backup do Investa.");
       }

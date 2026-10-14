@@ -96,7 +96,13 @@ function BackupSection() {
           onChange={async (e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
-            if (f) setPending(await f.text());
+            if (!f) return;
+            // Antes de ler: só .json e até 20 MB (o conteúdo é conferido de novo no motor do app).
+            if (!/\.json$/i.test(f.name) || f.size > 20 * 1024 * 1024) {
+              toastError(new Error("Escolha um arquivo de backup do Investa (.json, até 20 MB)."));
+              return;
+            }
+            setPending(await f.text());
           }}
         />
       </div>
