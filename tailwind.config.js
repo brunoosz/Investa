@@ -21,6 +21,13 @@ export default {
         danger: token("danger"),
         warning: token("warning"),
         separator: token("separator"),
+        ink: token("ink"),
+        "ink-contrast": token("ink-contrast"),
+        "sticker-sun": token("sticker-sun"),
+        "sticker-sky": token("sticker-sky"),
+        "sticker-lilac": token("sticker-lilac"),
+        "sticker-coral": token("sticker-coral"),
+        "sticker-sand": token("sticker-sand"),
         "cat-alimentos": token("cat-alimentos"),
         "cat-bebidas": token("cat-bebidas"),
         "cat-limpeza": token("cat-limpeza"),
@@ -33,8 +40,8 @@ export default {
       },
       // Escala de texto do visual novo (tamanho, entrelinha, tracking e peso juntos).
       fontSize: {
-        "large-title": ["30px", { lineHeight: "1.1", letterSpacing: "-0.022em", fontWeight: "700" }],
-        title: ["20px", { lineHeight: "1.2", letterSpacing: "-0.016em", fontWeight: "650" }],
+        "large-title": ["30px", { lineHeight: "1.0", letterSpacing: "-0.035em", fontWeight: "800" }],
+        title: ["20px", { lineHeight: "1.15", letterSpacing: "-0.022em", fontWeight: "750" }],
         headline: ["15.5px", { lineHeight: "1.35", letterSpacing: "-0.006em", fontWeight: "600" }],
         body: ["15px", { lineHeight: "1.45", letterSpacing: "-0.003em" }],
         callout: ["14px", { lineHeight: "1.4", letterSpacing: "-0.002em" }],
@@ -56,12 +63,19 @@ export default {
         sheet: "var(--radius-xl)",
       },
       boxShadow: {
-        soft: "0 1px 2px rgb(0 0 0 / 0.04), 0 10px 30px -12px rgb(0 0 0 / 0.25)",
-        glow: "0 10px 30px -8px rgb(var(--primary) / 0.55)",
+        // Identidade sem sombra: o que era sombra vira contorno fino de tinta.
+        soft: "0 0 0 1px rgb(var(--line) / 0.12)",
+        glow: "none",
+        sm: "none",
+        md: "0 0 0 1px rgb(var(--line) / 0.12)",
+        lg: "0 0 0 1px rgb(var(--line) / 0.14)",
+        xl: "0 0 0 1px rgb(var(--line) / 0.14)",
+        "2xl": "0 0 0 1px rgb(var(--line) / 0.16)",
         ring: "0 0 0 4px rgb(var(--primary) / 0.18)",
       },
       backgroundImage: {
-        brand: "linear-gradient(135deg, rgb(var(--primary)) 0%, rgb(var(--brand-mid)) 55%, rgb(var(--secondary)) 100%)",
+        // Cor chapada (o nome ficou por compatibilidade): botão principal é pílula de tinta.
+        brand: "linear-gradient(rgb(var(--ink)), rgb(var(--ink)))",
       },
       keyframes: {
         shimmer: {

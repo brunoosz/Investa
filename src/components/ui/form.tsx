@@ -178,7 +178,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const id = useId();
   return (
-    <div className={clsx("no-drag relative inline-flex max-w-full overflow-x-auto no-scrollbar p-1 rounded-control bg-line/[0.08] border border-separator/10 [&>button]:shrink-0", block && "w-full", className)}>
+    <div className={clsx("no-drag relative inline-flex max-w-full overflow-x-auto no-scrollbar p-1 rounded-full bg-line/[0.06] border border-ink/25 [&>button]:shrink-0", block && "w-full", className)}>
       {options.map((o) => {
         const active = o.value === value;
         const Icon = o.icon;
@@ -189,15 +189,15 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(o.value)}
             className={clsx(
               "relative flex-1 inline-flex items-center justify-center gap-1.5 font-semibold whitespace-nowrap transition-colors",
-              size === "sm" ? "h-7 px-2.5 text-footnote rounded-chip" : "h-8 px-3.5 text-footnote rounded-[10px]",
-              active ? "text-fg" : "text-muted hover:text-fg"
+              size === "sm" ? "h-7 px-2.5 text-footnote rounded-full" : "h-8 px-3.5 text-footnote rounded-full",
+              active ? "text-ink-contrast" : "text-muted hover:text-fg"
             )}
           >
             {active && (
               <motion.span
                 layoutId={`seg-${id}`}
-                className="absolute inset-0 rounded-[inherit] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-white/[0.14] dark:shadow-none"
-                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                className="absolute inset-0 rounded-full bg-ink"
+                transition={{ type: "spring", bounce: 0, duration: 0.3 }}
               />
             )}
             <span className="relative inline-flex items-center gap-1.5">
@@ -218,7 +218,7 @@ export function Chip({ active, children, onClick, icon: Icon }: { active?: boole
       onClick={onClick}
       className={clsx(
         "no-drag pressable inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-footnote font-semibold border transition-colors whitespace-nowrap",
-        active ? "bg-primary/15 border-primary/40 text-primary" : "border-separator/15 text-muted hover:text-fg hover:bg-line/[0.06]"
+        active ? "bg-ink border-ink text-ink-contrast" : "border-ink/25 text-muted hover:text-fg hover:bg-line/[0.06]"
       )}
     >
       {Icon && <Icon size={14} />}

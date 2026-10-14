@@ -6,6 +6,7 @@ import type { ShoppingCategory, ShoppingItem } from "@shared/types";
 import { currentYm, monthBudget, pendingFor, summarizeMonth } from "@shared/finance";
 import { categoryLabel, findCatalog, itemPrice, SHOPPING_CATEGORIES, suggestCatalog, summarizeShopping, type CatalogItem, type ItemPrice, type ShoppingTotals } from "@shared/shopping";
 import { api, uid } from "@/lib/api";
+import { tap } from "@/lib/haptics";
 import { brl, dateBR } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
@@ -420,6 +421,7 @@ export function Compras() {
     update("shopping", (list) => [...list, item]);
   };
   const toggle = (item: ShoppingItem) => {
+    tap();
     const done = item.status === "comprado";
     update("shopping", (list) =>
       list.map((i) =>

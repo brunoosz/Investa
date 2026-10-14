@@ -180,7 +180,7 @@ const Message = memo(function Message({ m, live, owner, onRetry, onDelete }: Mes
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end gap-3 group">
         <div className="flex flex-col items-end min-w-0 max-w-[88%] sm:max-w-[78%]">
-          <div className="rounded-card rounded-br-md bg-brand text-white px-4 py-2.5 text-body whitespace-pre-wrap break-words shadow-glow">{m.content}</div>
+          <div className="rounded-card rounded-br-md bg-ink text-ink-contrast px-4 py-2.5 text-body whitespace-pre-wrap break-words">{m.content}</div>
           {onDelete && (
             <button className={clsx(ACTION, "mt-1", SHOW_ON_HOVER)} onClick={() => onDelete(m.id)} aria-label="Apagar pergunta e resposta" title="Apaga esta pergunta e a resposta dela">
               <Trash2 size={13} /> Apagar
@@ -640,8 +640,8 @@ export function Assistente() {
     <div className="flex flex-col h-[calc(100dvh-52px)] max-sm:h-[calc(100dvh-140px)] -mb-16 -mt-1">
       <div className="flex items-center justify-between gap-3 pb-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-11 w-11 rounded-control bg-brand flex items-center justify-center shadow-glow shrink-0">
-            <Sparkles size={22} className="text-white" />
+          <div className="h-11 w-11 rounded-control bg-ink text-ink-contrast flex items-center justify-center shrink-0">
+            <Sparkles size={22} className="text-ink-contrast" />
           </div>
           <div className="min-w-0">
             <h1 className="text-[24px] font-bold tracking-[-0.02em] leading-tight">{ASSISTANT_NAME}</h1>
@@ -694,7 +694,7 @@ export function Assistente() {
               aria-pressed={active}
               className={clsx(
                 `${PRESS} shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-footnote font-medium border`,
-                active ? "bg-primary text-white border-transparent shadow-glow" : "border-separator/12 bg-surface/60 text-muted hover:text-fg hover:border-primary/30"
+                active ? "bg-primary text-white border-transparent" : "border-separator/12 bg-surface/60 text-muted hover:text-fg hover:border-primary/30"
               )}
             >
               <Icon size={15} /> {m.label}

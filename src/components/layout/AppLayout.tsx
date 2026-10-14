@@ -237,6 +237,14 @@ function MobileNav() {
   );
 }
 
+// Entrada em sequência só na primeira vez que cada tela abre nesta sessão.
+const visited = new Set<string>();
+function firstVisit(path: string): boolean {
+  if (visited.has(path)) return false;
+  visited.add(path);
+  return true;
+}
+
 export function AppLayout() {
   const location = useLocation();
   const outlet = useOutlet();
@@ -323,15 +331,14 @@ export function AppLayout() {
         }}
       />
       <div className="flex-1 min-w-0 flex flex-col relative">
-        <div className="pointer-events-none absolute -top-48 right-[-10%] h-[460px] w-[680px] rounded-full bg-primary/[0.08] blur-3xl" />
-        <div className="pointer-events-none absolute -top-40 left-[10%] h-[380px] w-[520px] rounded-full bg-secondary/[0.06] blur-3xl" />
         <TitleBar onSearch={() => setPalette(true)} />
         <main ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, transform: "translateY(8px)" }}
+            animate={{ opacity: 1, transform: "translateY(0px)" }}
+            transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
+            data-enter={firstVisit(location.pathname) || undefined}
             className="mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8 pt-1 pb-16"
           >
             {outlet}

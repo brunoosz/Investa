@@ -176,8 +176,8 @@ export function Aulas() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-5">
         <Card className="sm:col-span-2">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-control bg-brand flex items-center justify-center shadow-glow">
-              <Trophy size={26} className="text-white" />
+            <div className="h-14 w-14 rounded-control bg-ink text-ink-contrast flex items-center justify-center">
+              <Trophy size={26} className="text-ink-contrast" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-footnote text-muted">Nível {lvl.index + 1} de {LEVELS.length}</div>

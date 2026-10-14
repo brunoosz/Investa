@@ -730,8 +730,8 @@ function AiSettings() {
   return (
     <Card>
       <div className="flex items-start gap-4">
-        <div className="h-11 w-11 rounded-control bg-brand flex items-center justify-center shadow-glow shrink-0">
-          <BrainCircuit size={22} className="text-white" />
+        <div className="h-11 w-11 rounded-control bg-ink text-ink-contrast flex items-center justify-center shrink-0">
+          <BrainCircuit size={22} className="text-ink-contrast" />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">

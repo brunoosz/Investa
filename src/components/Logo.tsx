@@ -55,16 +55,8 @@ export function AppIcon({ size = 64, variant, animated = false }: { size?: numbe
   const light = v === "light";
   return (
     <div
-      className="flex items-center justify-center shadow-2xl"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.23,
-        background: `radial-gradient(circle at 50% 50%, rgba(79,140,255,${light ? 0.1 : 0.26}), transparent 62%), linear-gradient(135deg, ${bg[0]}, ${bg[1]} 55%, ${bg[2]})`,
-        boxShadow: light
-          ? "inset 0 0 0 1px rgba(11,15,26,0.06), 0 20px 50px -12px rgba(79,140,255,0.35)"
-          : "inset 0 1px 0 rgba(255,255,255,0.12), 0 20px 50px -12px rgba(79,140,255,0.45)",
-      }}
+      className="flex items-center justify-center border border-line/15"
+      style={{ width: size, height: size, borderRadius: size * 0.23, background: bg[light ? 0 : 1] }}
     >
       <LogoMark size={size * 0.72} animated={animated} />
     </div>

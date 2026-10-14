@@ -1,3 +1,5 @@
+> Identidade atual: veja `identidade-visual.md` (cores, fontes, forma e tom). Este arquivo lista os tokens técnicos.
+
 # Visual do Investa
 
 Referência das peças do visual novo. Toda tela usa só estes tokens; nada de cor ou tamanho escrito direto no código.

@@ -20,8 +20,6 @@ export function AuthLayout({ children }: { children: ReactNode }) {
     <div className="h-full flex overflow-hidden">
       <div className="hidden lg:flex relative w-[46%] max-w-[640px] flex-col justify-between overflow-hidden bg-bg text-fg p-12" data-theme="dark">
         <div className="drag absolute inset-x-0 top-0 h-12" />
-        <div className="absolute -top-40 -left-20 h-[520px] w-[520px] rounded-full bg-primary/25 blur-[120px]" />
-        <div className="absolute bottom-[-180px] right-[-120px] h-[520px] w-[520px] rounded-full bg-secondary/20 blur-[120px]" />
         <svg className="absolute bottom-0 inset-x-0 w-full opacity-60" viewBox="0 0 600 220" preserveAspectRatio="none" aria-hidden>
           <defs>
             <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1">
@@ -46,7 +44,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <h2 className="text-[34px] leading-[1.15] font-semibold tracking-[-0.022em]">
             Tornar o mundo dos investimentos
             <br />
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">mais acessível para todos.</span>
+            <span className="text-primary">mais acessível para todos.</span>
           </h2>
           <p className="text-muted mt-4 max-w-md text-body leading-relaxed">
             Conhecimento é o primeiro passo para a liberdade financeira. O Investa existe para ensinar, orientar e acompanhar você em cada decisão.
@@ -60,7 +58,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.16 + i * 0.05, ease: EASE_OUT }}
-              className="rounded-card bg-fg/[0.04] border border-separator/10 p-4 backdrop-blur"
+              className="rounded-card bg-fg/[0.04] border border-separator/10 p-4"
             >
               <div className="h-9 w-9 rounded-chip bg-primary/15 text-primary flex items-center justify-center mb-3">
                 <f.icon size={18} />
@@ -74,7 +72,6 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
       <div className="flex-1 relative flex flex-col overflow-y-auto">
         <div className={clsx("drag h-12 shrink-0", (platform === "win32" || platform === "linux") && "mr-[150px]")} />
-        <div className="pointer-events-none absolute -top-32 right-0 h-[380px] w-[520px] rounded-full bg-primary/[0.08] blur-3xl" />
         <div className="flex-1 flex items-center justify-center px-6 pb-12">
           <div className="w-full max-w-[420px] relative">{children}</div>
         </div>

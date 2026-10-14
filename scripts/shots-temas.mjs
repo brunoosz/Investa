@@ -43,7 +43,8 @@ await win.evaluate(async () => {
 await win.reload();
 await wait(3000);
 
-const ROUTES = ["", "carteira", "mercado", "mercado/PETR4.SA", "aulas", "aula/o-que-e-investir", "assistente", "plano", "objetivos", "gastos", "compras", "vale-a-pena", "bancos", "simulador", "alertas", "usuarios", "logs", "configuracoes"];
+const ALL_ROUTES = ["", "carteira", "mercado", "mercado/PETR4.SA", "aulas", "aula/o-que-e-investir", "assistente", "plano", "objetivos", "gastos", "compras", "vale-a-pena", "bancos", "simulador", "alertas", "usuarios", "logs", "configuracoes"];
+const ROUTES = process.env.ROTAS ? process.env.ROTAS.split(",").map((r) => (r === "inicio" ? "" : r)) : ALL_ROUTES;
 const SIZES = [["pc", 1440, 900], ["celular", 390, 844]];
 for (const theme of ["escuro", "claro"]) {
   for (const [size, w, h] of SIZES) {

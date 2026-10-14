@@ -4,32 +4,36 @@
 
 :root,
 [data-theme="dark"] {
-  --bg: 11 15 26;
-  --surface: 26 31 46;
-  --elevated: 36 42 60;
-  --line: 148 163 184;
-  --fg: 248 250 252;
-  --muted: 148 163 184;
-  --primary: 79 140 255;
-  --secondary: 167 139 250;
-  --success: 52 211 153;
-  --danger: 248 113 113;
-  --warning: 251 191 36;
+  --bg: 17 17 19;
+  --surface: 26 26 29;
+  --elevated: 38 38 42;
+  --line: 236 232 222;
+  --fg: 244 241 234;
+  --muted: 163 159 151;
+  --primary: 92 150 255;
+  --secondary: 196 170 255;
+  --success: 61 220 132;
+  --danger: 255 107 107;
+  --warning: 255 206 77;
+  --ink: 244 241 234;
+  --ink-contrast: 17 17 19;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: 242 244 248;
+  --bg: 243 239 230;
   --surface: 255 255 255;
-  --elevated: 236 240 246;
-  --line: 15 23 42;
-  --fg: 11 15 26;
-  --muted: 100 116 139;
-  --primary: 59 125 245;
-  --secondary: 139 92 246;
-  --success: 5 150 105;
-  --danger: 220 38 38;
-  --warning: 217 119 6;
+  --elevated: 236 231 220;
+  --line: 17 17 19;
+  --fg: 17 17 19;
+  --muted: 96 93 88;
+  --primary: 37 99 235;
+  --secondary: 124 77 255;
+  --success: 10 132 64;
+  --danger: 210 43 43;
+  --warning: 176 112 0;
+  --ink: 17 17 19;
+  --ink-contrast: 255 255 255;
   color-scheme: light;
 }
 
@@ -38,10 +42,15 @@
    navegação; as outras telas migram aos poucos. */
 :root,
 [data-theme="dark"] {
-  --material-thick: 15 19 31;
-  --material-regular: 22 27 41;
+  --material-thick: 22 22 25;
+  --material-regular: 26 26 29;
+  --sticker-sun: 255 216 77;
+  --sticker-sky: 191 224 255;
+  --sticker-lilac: 217 194 255;
+  --sticker-coral: 255 168 133;
+  --sticker-sand: 236 225 200;
   --material-edge: 255 255 255;
-  --separator: 148 163 184;
+  --separator: 236 232 222;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --radius-sm: 10px;
@@ -71,10 +80,10 @@
   --chart-11: 99 102 241;
 }
 [data-theme="light"] {
-  --material-thick: 246 247 251;
-  --material-regular: 252 252 254;
+  --material-thick: 236 231 220;
+  --material-regular: 255 255 255;
   --material-edge: 255 255 255;
-  --separator: 15 23 42;
+  --separator: 17 17 19;
   --cat-alimentos: 234 88 12;
   --cat-bebidas: 2 132 199;
   --cat-limpeza: 13 148 136;
@@ -118,7 +127,8 @@ html:not([data-overlay]) [data-overlay-frame] {
 
   body {
     @apply bg-bg text-fg font-sans antialiased;
-    font-feature-settings: "cv11", "ss01", "ss03";
+    font-feature-settings: "cv11", "ss01", "ss03", "tnum";
+    font-weight: 450;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
   }
@@ -199,34 +209,20 @@ html:not([data-overlay]) [data-overlay-frame] {
   .surface {
     @apply bg-surface;
     border-radius: var(--radius-lg);
-    border: 1px solid rgb(var(--separator) / 0.1);
-  }
-  [data-theme="light"] .surface {
-    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.18);
+    border: 1px solid rgb(var(--line) / 0.12);
   }
 
   /* Camada translúcida (barras, avisos, menus). */
   .glass {
-    background: rgb(var(--material-regular) / 0.72);
-    backdrop-filter: saturate(180%) blur(22px);
-    -webkit-backdrop-filter: saturate(180%) blur(22px);
-    box-shadow: inset 0 1px 0 rgb(var(--material-edge) / 0.07);
+    background: rgb(var(--surface));
   }
 
   /* ---- visual novo ---- */
   .material-thick {
-    background: rgb(var(--material-thick) / 0.78);
-    backdrop-filter: saturate(180%) blur(30px);
-    -webkit-backdrop-filter: saturate(180%) blur(30px);
+    background: rgb(var(--material-thick));
   }
   .material-regular {
-    background: rgb(var(--material-regular) / 0.72);
-    backdrop-filter: saturate(180%) blur(22px);
-    -webkit-backdrop-filter: saturate(180%) blur(22px);
-    box-shadow: inset 0 1px 0 rgb(var(--material-edge) / 0.07);
-  }
-  [data-theme="light"] .material-regular {
-    box-shadow: inset 0 1px 0 rgb(var(--material-edge) / 0.9), 0 -1px 0 rgb(var(--separator) / 0.06);
+    background: rgb(var(--material-regular));
   }
   .hairline {
     border-color: rgb(var(--separator) / 0.12);
@@ -234,10 +230,7 @@ html:not([data-overlay]) [data-overlay-frame] {
   .group-card {
     @apply bg-surface overflow-hidden;
     border-radius: var(--radius-lg);
-    border: 1px solid rgb(var(--separator) / 0.1);
-  }
-  [data-theme="light"] .group-card {
-    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.18);
+    border: 1px solid rgb(var(--line) / 0.12);
   }
   .t-large-title {
     font-size: 30px;
@@ -296,11 +289,9 @@ html:not([data-overlay]) [data-overlay-frame] {
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
   }
 
+  /* Antes era texto em degradê; na identidade nova o destaque é cor chapada. */
   .text-gradient {
-    background: linear-gradient(135deg, rgb(var(--primary)), rgb(var(--secondary)));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: rgb(var(--primary));
   }
 
   .field {
@@ -543,4 +534,39 @@ html.privacy [data-private] {
   .intro[data-leaving] .intro-logo {
     transform: none;
   }
+}
+
+/* ---- Identidade: detalhes de movimento ---- */
+/* Entrada em sequência na primeira abertura da tela (cards até o 8º; listas não animam). */
+@keyframes enter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+[data-enter] :is(.surface, .group-card) {
+  animation: enter-rise 320ms var(--ease-out) both;
+}
+[data-enter] :is(.surface, .group-card):nth-child(2) { animation-delay: 40ms; }
+[data-enter] :is(.surface, .group-card):nth-child(3) { animation-delay: 80ms; }
+[data-enter] :is(.surface, .group-card):nth-child(4) { animation-delay: 120ms; }
+[data-enter] :is(.surface, .group-card):nth-child(5) { animation-delay: 160ms; }
+[data-enter] :is(.surface, .group-card):nth-child(6) { animation-delay: 200ms; }
+[data-enter] :is(.surface, .group-card):nth-child(n + 7) { animation-delay: 240ms; }
+[data-enter] :is(.surface, .group-card) :is(.surface, .group-card) { animation: none; }
+
+/* Carregando: as três barras enchem em sequência. */
+@keyframes three-bars {
+  0%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+.three-bars-loading path {
+  animation: three-bars 900ms var(--ease-in-out) infinite;
+}
+.three-bars-loading path:nth-child(2) { animation-delay: 150ms; }
+.three-bars-loading path:nth-child(3) { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-enter] :is(.surface, .group-card) { animation: none; }
+  .three-bars-loading path { animation-duration: 1800ms; }
 }

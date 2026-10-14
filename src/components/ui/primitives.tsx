@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { ChevronRight, Loader2, type LucideIcon } from "lucide-react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
 import { initials } from "@/lib/format";
 
@@ -37,15 +37,49 @@ export function Card({
 }
 
 export function PageHeader({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
+  // Cabeçalho que encolhe: quando o título grande sai da tela, um título pequeno fica fixo no topo.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = titleRef.current;
+    const root = el?.closest("main");
+    if (!el || !root || typeof IntersectionObserver !== "function") return;
+    const io = new IntersectionObserver(([e]) => setCompact(!e.isIntersecting), { root, threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
-      <div className="min-w-0">
-        {eyebrow && <div className="text-footnote font-medium text-muted mb-1">{eyebrow}</div>}
-        <h1 className="text-large-title md:text-[34px]">{title}</h1>
-        {subtitle && <p className="text-muted mt-1.5 text-body max-w-2xl">{subtitle}</p>}
+    <>
+      <div className="sticky top-0 z-30 h-0" aria-hidden={!compact}>
+        <div
+          className={clsx(
+            "absolute inset-x-0 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 h-11 flex items-center bg-bg border-b border-line/12 transition-[opacity,transform] duration-200 ease-out-strong",
+            compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none"
+          )}
+        >
+          <span className="text-headline font-extrabold tracking-[-0.02em] truncate">{title}</span>
+        </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
-    </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
+        <div className="min-w-0">
+          {eyebrow && <div className="text-footnote font-medium text-muted mb-1">{eyebrow}</div>}
+          <h1 ref={titleRef} className="text-large-title md:text-[38px]">{title}</h1>
+          {subtitle && <p className="text-muted mt-2 text-body max-w-2xl">{subtitle}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+      </div>
+    </>
+  );
+}
+
+/** As três barras da logo em tamanho pequeno: marca das seções e indicador de carregamento. */
+export function ThreeBars({ size = 14, loading, className }: { size?: number; loading?: boolean; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" aria-hidden className={clsx("shrink-0", loading && "three-bars-loading", className)} fill="currentColor">
+      <path d="M1 13.2V7.6l3.4-2v6.6z" />
+      <path d="M5.3 12V4.4l3.4-2V10z" />
+      <path d="M9.6 10.8V1.6L13 0v8.8z" />
+    </svg>
   );
 }
 
@@ -53,7 +87,10 @@ export function SectionTitle({ title, action, subtitle }: { title: ReactNode; ac
   return (
     <div className="flex items-end justify-between gap-3 mb-3">
       <div>
-        <h2 className="text-title">{title}</h2>
+        <h2 className="text-title flex items-center gap-2">
+          <ThreeBars size={13} className="text-primary" />
+          {title}
+        </h2>
         {subtitle && <p className="text-footnote text-muted mt-0.5">{subtitle}</p>}
       </div>
       {action}
@@ -85,7 +122,11 @@ export function Skeleton({ className, style }: { className?: string; style?: CSS
 }
 
 export function Spinner({ size = 18, className }: { size?: number; className?: string }) {
-  return <Loader2 size={size} className={clsx("animate-spin text-muted", className)} />;
+  return (
+    <span role="status" aria-label="Carregando" className={clsx("inline-flex text-muted", className)}>
+      <ThreeBars size={size} loading />
+    </span>
+  );
 }
 
 export function EmptyState({ icon: Icon, title, description, action, className }: { icon: LucideIcon; title: string; description?: ReactNode; action?: ReactNode; className?: string }) {
@@ -263,37 +304,42 @@ export function Stat({ label, value, sub, className }: { label: ReactNode; value
 // animação (por exemplo, quando chegam as últimas cotações), recomeça de onde
 // parou e termina sempre exatamente no valor atual.
 export function AnimatedNumber({ value, format, className, private: priv }: { value: number; format: (n: number) => string; className?: string; private?: boolean }) {
-  const [display, setDisplay] = useState(value);
-  const current = useRef(value);
+  // Conta até o valor (escrevendo direto no texto, sem re-renderizar a cada quadro).
+  // Na primeira vez sai do zero; depois, do valor anterior. Some com "reduzir movimento".
+  const ref = useRef<HTMLSpanElement>(null);
+  const current = useRef<number | null>(null);
   useEffect(() => {
-    const from = current.current;
-    if (from === value) return;
+    const el = ref.current;
+    const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const from = current.current ?? 0;
+    current.current = value;
+    if (!el || reduce || from === value || !Number.isFinite(value)) {
+      if (el) el.textContent = format(value);
+      return;
+    }
     const started = performance.now();
-    const duration = 700;
+    const duration = 650;
     let frame = 0;
     const step = (now: number) => {
       const t = Math.min(1, (now - started) / duration);
-      const next = t >= 1 ? value : from + (value - from) * (1 - Math.pow(1 - t, 3));
-      current.current = next;
-      setDisplay(next);
+      el.textContent = format(t >= 1 ? value : from + (value - from) * (1 - Math.pow(1 - t, 3)));
       if (t < 1) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
-    // Garante o valor final mesmo se o navegador pausar os quadros (janela em
-    // segundo plano, por exemplo).
+    // Valor final garantido mesmo se o navegador pausar os quadros.
     const done = setTimeout(() => {
       cancelAnimationFrame(frame);
-      current.current = value;
-      setDisplay(value);
+      el.textContent = format(value);
     }, duration + 150);
     return () => {
       cancelAnimationFrame(frame);
       clearTimeout(done);
+      el.textContent = format(value);
     };
-  }, [value]);
+  }, [value, format]);
   return (
-    <span className={clsx("tabular", className)} data-private={priv ? "" : undefined}>
-      {format(display)}
+    <span ref={ref} className={clsx("tabular", className)} data-private={priv ? "" : undefined}>
+      {format(value)}
     </span>
   );
 }
