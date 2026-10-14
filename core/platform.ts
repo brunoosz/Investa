@@ -45,8 +45,8 @@ export interface ReportFile {
   ym: string;
   format: "pdf" | "xlsx" | "json";
   fileName: string;
-  /** Relatório em HTML (usado para gerar o PDF no desktop). */
-  html: () => string;
+  /** Relatório em HTML (usado para gerar o PDF no desktop). Sem ele, o desktop usa o pdf(). */
+  html?: () => string;
   /** Planilha pronta. */
   xlsx: () => Promise<Uint8Array>;
   /** PDF montado sem navegador (usado no celular). */

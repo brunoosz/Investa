@@ -146,6 +146,7 @@ export const api = {
     cancel: (requestId: string) => call<boolean>("ai:cancel", { requestId }),
   },
 
+  exportShopping: (format: "pdf" | "xlsx") => call<{ path: string } | null>("shopping:export", { format }),
   exportReport: (ym: string, format: "pdf" | "xlsx", withAi = false) => call<{ path: string } | null>("reports:export", { ym, format, withAi }),
   backup: {
     export: () => call<{ path: string } | null>("backup:export"),

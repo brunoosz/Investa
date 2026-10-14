@@ -136,6 +136,8 @@ function createPlatform(): Platform {
         fs.writeFileSync(result.filePath, report.json?.() ?? "{}", "utf8");
       } else if (report.format === "xlsx") {
         fs.writeFileSync(result.filePath, await report.xlsx());
+      } else if (!report.html) {
+        fs.writeFileSync(result.filePath, await report.pdf());
       } else {
         const tmp = path.join(os.tmpdir(), `investa-relatorio-${Date.now()}.html`);
         fs.writeFileSync(tmp, report.html(), "utf8");

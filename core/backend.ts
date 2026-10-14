@@ -2,7 +2,7 @@
 // o app do celular criam este backend com o adaptador da sua plataforma.
 import type { AiChatRequest, AiEvent, AiMode, WealthAnswers, AppNotification, DailyInsight, ApiResult, ChartRange, DealCheck, Holding, Role, UserDataKey, UserDataMap, UserStatus } from "@shared/types";
 import { USER_DATA_KEYS } from "@shared/types";
-import { pendingFor, currentYm, monthBudget, monthsUntil, parsePlanSteps, summarizeMonth } from "@shared/finance";
+import { pendingFor, currentYm, monthBudget, monthsUntil, parsePlanSteps, summarizeMonth, localIsoDate } from "@shared/finance";
 import { compareProducts, explainPlan, planAllocation, planBrief, planMarket, planMonthlyFor, planPct, projectPlan } from "@shared/plan";
 import { modeInfo } from "@shared/ai";
 import { INSIGHT_SYSTEM_PROMPT, insightHour, insightNotification, isQuietHour, profileLine, upcomingNotices } from "@shared/insight";
@@ -21,7 +21,8 @@ import { getNews } from "./news";
 import { getBanks } from "./banks";
 import { portfolioHistory } from "./portfolio";
 import { buildAiContext, LANGUAGE_REMINDER, systemPrompt } from "./context";
-import { buildDocHtml, buildDocPdf, buildExcel, buildPdf, buildReportHtml, type ReportInput } from "./reports";
+import { buildDocHtml, buildDocPdf, buildExcel, buildPdf, buildReportHtml, buildShoppingExcel, buildShoppingPdf, type ReportInput } from "./reports";
+import { sanitizeShoppingItem } from "@shared/shopping";
 import { checkDeal, dealToText } from "./deals";
 import { CloudService } from "./cloud";
 import { clearItems, INBOX_KEY, markRead, removeItem, type Inbox } from "./inbox";
@@ -734,6 +735,21 @@ export class Backend {
         html: () => buildReportHtml(input),
         xlsx: () => buildExcel(input),
         pdf: () => buildPdf(input),
+      });
+    });
+
+    this.on("shopping:export", async (a: { format: "pdf" | "xlsx" }) => {
+      const userId = this.uid();
+      const user = this.store.findUser(userId)!;
+      const input = { userName: user.name, items: this.store.getData(userId, "shopping").map(sanitizeShoppingItem) };
+      const format = a?.format === "xlsx" ? "xlsx" : "pdf";
+      const day = localIsoDate();
+      return p.saveReport({
+        ym: day.slice(0, 7),
+        format,
+        fileName: `Investa-Lista-de-compras-${day}.${format}`,
+        xlsx: () => buildShoppingExcel(input),
+        pdf: () => buildShoppingPdf(input),
       });
     });
 

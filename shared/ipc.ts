@@ -50,6 +50,7 @@ export const INVOKE_CHANNELS = [
   "ai:chat",
   "ai:cancel",
   "reports:export",
+  "shopping:export",
   "deals:check",
   "deals:context",
   "window:setTheme",
