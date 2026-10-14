@@ -200,6 +200,7 @@ function QuickAdd({ onAdd }: { onAdd: (name: string, qty: number, catalog?: Cata
           aria-autocomplete="list"
           aria-expanded={open}
           enterKeyHint="done"
+          autoCapitalize="sentences"
           autoComplete="off"
           className="flex-1 min-w-0 bg-transparent outline-none t-body h-10 placeholder:text-muted/70 text-[16px] sm:text-[15px]"
         />

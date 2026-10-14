@@ -107,6 +107,36 @@ html:not([data-overlay]) [data-overlay-frame] {
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Celular: a tela do app não "puxa" a página inteira nem dá zoom ao tocar duas vezes. */
+  html,
+  body {
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  main {
+    overscroll-behavior: contain;
+  }
+  button,
+  a,
+  [role="button"],
+  [role="checkbox"] {
+    touch-action: manipulation;
+  }
+  button,
+  [role="button"],
+  [role="checkbox"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Abaixo de 16px o WebView pode dar zoom ao focar o campo. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;

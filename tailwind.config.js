@@ -2,6 +2,8 @@
 const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {
+  // Sem hover "grudado" depois de tocar na tela do celular.
+  future: { hoverOnlyWhenSupported: true },
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   darkMode: ["selector", '[data-theme="dark"]'],
   theme: {
