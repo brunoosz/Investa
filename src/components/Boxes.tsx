@@ -76,10 +76,10 @@ function BoxSheet({ open, initial, onClose }: { open: boolean; initial: SavingBo
             <MoneyInput value={box.balance} onChange={(v) => setBox({ ...box, balance: v })} />
           </Field>
         )}
-        <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+        <div className="flex items-center justify-between rounded-control bg-line/[0.04] px-4 py-3">
           <div>
-            <div className="font-medium text-[14.5px]">Ativa</div>
-            <div className="text-[12.5px] text-muted">Pausada, ela não guarda o valor do mês.</div>
+            <div className="font-medium text-callout">Ativa</div>
+            <div className="text-footnote text-muted">Pausada, ela não guarda o valor do mês.</div>
           </div>
           <Toggle checked={box.active} onChange={(v) => setBox({ ...box, active: v })} label="Ativa" />
         </div>
@@ -128,24 +128,24 @@ export function BoxesCard() {
             const pct = b.target ? Math.min(1, b.balance / b.target) : 0;
             const last = b.history[b.history.length - 1];
             return (
-              <div key={b.id} className="rounded-2xl bg-line/[0.04] p-4">
-                <button type="button" className="w-full text-left" onClick={() => setSheet({ open: true, item: b })}>
+              <div key={b.id} className="rounded-control bg-line/[0.04] p-4">
+                <button type="button" className="pressable w-full text-left" onClick={() => setSheet({ open: true, item: b })}>
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold truncate">{b.name}</div>
+                    <div className="text-headline truncate">{b.name}</div>
                     {!b.active ? <Badge>Pausada</Badge> : b.target && b.balance >= b.target ? <Badge tone="success">Meta batida</Badge> : <Badge tone="primary"><Private>+{brl(b.monthly)}</Private> dia {b.day}</Badge>}
                   </div>
-                  <div className="text-[22px] font-bold tabular mt-1" data-private="">
+                  <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
                     {brl(b.balance)}
                   </div>
                   {b.target > 0 && (
                     <>
                       <ProgressBar value={pct} height={6} className="mt-1" />
-                      <div className="text-[12px] text-muted mt-1">
+                      <div className="text-footnote text-muted mt-1">
                         {Math.round(pct * 100)}% de <Private>{brl(b.target)}</Private>
                       </div>
                     </>
                   )}
-                  {last && <div className="text-[12px] text-muted mt-1">Último movimento: <Private>{last.amount > 0 ? "+" : "−"}{brl(Math.abs(last.amount))}</Private> em {dateBR(last.date, { day: "2-digit", month: "short" })}</div>}
+                  {last && <div className="text-footnote text-muted mt-1">Último movimento: <Private>{last.amount > 0 ? "+" : "−"}{brl(Math.abs(last.amount))}</Private> em {dateBR(last.date, { day: "2-digit", month: "short" })}</div>}
                 </button>
                 <div className="flex gap-2 mt-3">
                   <Button size="sm" variant="secondary" icon={Plus} onClick={() => move(b, b.monthly)}>
@@ -160,7 +160,7 @@ export function BoxesCard() {
           })}
         </div>
       ) : (
-        <div className="flex items-center gap-3 text-[13.5px] text-muted">
+        <div className="flex items-center gap-3 text-footnote text-muted">
           <PiggyBank size={18} className="text-success shrink-0" />
           Ex.: "Viagem", R$ 100 todo dia 5. No dia, o app guarda o valor, avisa você e mostra quanto falta para a meta.
         </div>
