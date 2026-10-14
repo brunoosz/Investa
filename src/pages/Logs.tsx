@@ -90,20 +90,20 @@ export function Logs() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Card>
-          <div className="text-[13px] text-muted">Respostas</div>
-          <div className="text-[22px] font-bold">{stats.ok}</div>
+          <div className="text-footnote text-muted">Respostas</div>
+          <div className="text-[22px] font-bold tabular tracking-[-0.02em]">{stats.ok}</div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Erros</div>
-          <div className={clsx("text-[22px] font-bold", stats.err && "text-danger")}>{stats.err}</div>
+          <div className="text-footnote text-muted">Erros</div>
+          <div className={clsx("text-[22px] font-bold tabular tracking-[-0.02em]", stats.err && "text-danger")}>{stats.err}</div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Tempo médio</div>
-          <div className="text-[22px] font-bold">{stats.avg ? `${String(stats.avg).replace(".", ",")} s` : "—"}</div>
+          <div className="text-footnote text-muted">Tempo médio</div>
+          <div className="text-[22px] font-bold tabular tracking-[-0.02em]">{stats.avg ? `${String(stats.avg).replace(".", ",")} s` : "—"}</div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Último que respondeu</div>
-          <div className="text-[15px] font-semibold mt-1.5 break-all">{stats.model ?? "—"}</div>
+          <div className="text-footnote text-muted">Último que respondeu</div>
+          <div className="text-body font-semibold mt-1.5 break-all">{stats.model ?? "—"}</div>
         </Card>
       </div>
 
@@ -124,7 +124,7 @@ export function Logs() {
         </Card>
       ) : (
         <Card padded={false}>
-          <div className="divide-y divide-line/[0.06]">
+          <div className="divide-y divide-separator/[0.06]">
             {list.map((l, i) => {
               const k = KIND[l.kind] ?? KIND.aviso;
               const Icon = k.icon;
@@ -136,15 +136,15 @@ export function Logs() {
                       <Badge tone={k.tone}>{k.label}</Badge>
                       {l.status !== undefined && <Badge tone="danger">HTTP {l.status}</Badge>}
                       {l.code && <Badge>{l.code}</Badge>}
-                      <span className="text-[12.5px] text-muted">{when(l.at)}</span>
-                      {l.ms !== undefined && <span className="text-[12.5px] text-muted">· {(l.ms / 1000).toFixed(1).replace(".", ",")} s</span>}
+                      <span className="text-footnote text-muted">{when(l.at)}</span>
+                      {l.ms !== undefined && <span className="text-footnote text-muted">· {(l.ms / 1000).toFixed(1).replace(".", ",")} s</span>}
                     </div>
-                    <div className="text-[13px] mt-1 break-all">
+                    <div className="text-footnote mt-1 break-all">
                       <span className="text-muted">Modelo:</span> {modelName(l.model)}
                     </div>
-                    {l.message && <div className="text-[13.5px] mt-1">{l.message}</div>}
-                    {l.code && EXPLAIN[l.code] && <div className="text-[12.5px] text-muted mt-1">O que fazer: {EXPLAIN[l.code]}</div>}
-                    {l.detail && <pre className="mt-2 text-[11.5px] whitespace-pre-wrap break-all rounded-xl bg-line/[0.05] p-2.5 text-muted">{l.detail}</pre>}
+                    {l.message && <div className="text-footnote mt-1">{l.message}</div>}
+                    {l.code && EXPLAIN[l.code] && <div className="text-footnote text-muted mt-1">O que fazer: {EXPLAIN[l.code]}</div>}
+                    {l.detail && <pre className="mt-2 text-caption font-normal tracking-normal whitespace-pre-wrap break-all rounded-chip bg-line/[0.05] p-2.5 text-muted">{l.detail}</pre>}
                   </div>
                   <Button size="icon-sm" variant="ghost" icon={Copy} aria-label="Copiar log" onClick={() => copy(l)} />
                 </div>
