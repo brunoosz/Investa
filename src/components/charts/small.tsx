@@ -89,7 +89,7 @@ export function Legend({ data, format, private: priv }: { data: DonutSlice[]; fo
   return (
     <div className="flex flex-col gap-2 min-w-0">
       {data.map((d) => (
-        <div key={d.label} className="flex items-center gap-2.5 text-[13.5px]">
+        <div key={d.label} className="flex items-center gap-2.5 text-footnote">
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: d.color }} />
           <span className="truncate flex-1">{d.label}</span>
           <span className="text-muted tabular">{total ? ((d.value / total) * 100).toFixed(1).replace(".", ",") : 0}%</span>
@@ -118,7 +118,7 @@ export function BarList({
     <div className="space-y-3">
       {data.map((d, i) => (
         <div key={d.key}>
-          <div className="flex items-center justify-between text-[13.5px] mb-1.5">
+          <div className="flex items-center justify-between text-footnote mb-1.5">
             <span className="truncate">{d.label}</span>
             <span className="font-semibold tabular" data-private={priv ? "" : undefined}>
               {format(d.value)}

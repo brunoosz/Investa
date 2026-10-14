@@ -90,15 +90,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     <AnimatePresence key={presence.key} onExitComplete={presence.onExitComplete}>
       {open && (
         <OverlayFrame className="fixed inset-0 z-[70] flex items-start justify-center pt-[12vh] px-4 no-drag">
-          <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-[4px]" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+          <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-[4px]" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} />
           <motion.div
-            initial={{ opacity: 0, y: -12, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 500, damping: 36 }}
-            className="relative w-full max-w-[620px] glass border border-line/15 rounded-3xl shadow-2xl overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="relative w-full max-w-[620px] material-regular border border-separator/15 rounded-sheet shadow-2xl overflow-hidden"
           >
-            <div className="flex items-center gap-3 px-5 h-[60px] border-b border-line/10">
+            <div className="flex items-center gap-3 px-5 h-[60px] border-b border-separator/10">
               <Search size={20} className="text-muted" />
               <input
                 ref={inputRef}
@@ -118,24 +118,24 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 placeholder="Busque ações, FIIs, cripto, páginas ou aulas…"
                 className="flex-1 bg-transparent outline-none text-[16px] placeholder:text-muted/70"
               />
-              <kbd className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-line/10 text-muted">Esc</kbd>
+              <kbd className="text-caption px-1.5 py-0.5 rounded-[6px] bg-fg/[0.06] text-muted">Esc</kbd>
             </div>
             <div className="max-h-[420px] overflow-y-auto py-2">
-              {items.length === 0 && <div className="px-5 py-8 text-center text-muted text-[14px]">Nada encontrado para “{q}”.</div>}
+              {items.length === 0 && <div className="px-5 py-8 text-center text-muted text-callout">Nada encontrado para “{q}”.</div>}
               {items.map((item, i) => {
                 const prev = items[i - 1];
                 const Icon = item.icon;
                 return (
                   <div key={item.id}>
-                    {(!prev || prev.group !== item.group) && <div className="px-5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted/70">{item.group}</div>}
+                    {(!prev || prev.group !== item.group) && <div className="px-5 pt-2 pb-1 text-caption uppercase text-muted">{item.group}</div>}
                     <button
                       onMouseEnter={() => setIndex(i)}
                       onClick={() => go(item)}
-                      className={clsx("w-full flex items-center gap-3 px-5 py-2.5 text-left", i === index && "bg-primary/10")}
+                      className={clsx("w-full flex items-center gap-3 px-5 py-2.5 text-left rounded-none transition-colors duration-100", i === index && "bg-primary/10")}
                     >
                       {item.asset ? <AssetAvatar symbol={item.asset.symbol} category={item.asset.category} size={22} /> : <Icon size={18} className={i === index ? "text-primary" : "text-muted"} />}
-                      <span className="font-medium text-[14.5px]">{item.label}</span>
-                      {item.hint && <span className="text-[13px] text-muted truncate">{item.hint}</span>}
+                      <span className="font-medium text-callout">{item.label}</span>
+                      {item.hint && <span className="text-footnote text-muted truncate">{item.hint}</span>}
                       <span className="flex-1" />
                       {i === index && <ArrowRight size={16} className="text-primary" />}
                     </button>
