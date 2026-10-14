@@ -116,7 +116,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                   }
                 }}
                 placeholder="Busque ações, FIIs, cripto, páginas ou aulas…"
-                className="flex-1 bg-transparent outline-none text-[16px] placeholder:text-muted/70"
+                className="flex-1 bg-transparent outline-none text-headline placeholder:text-muted/70"
               />
               <kbd className="text-caption px-1.5 py-0.5 rounded-[6px] bg-fg/[0.06] text-muted">Esc</kbd>
             </div>

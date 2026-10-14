@@ -103,7 +103,7 @@ function ItemRow({ item, onToggle, onOpen, animate }: { item: ShoppingItem; onTo
       className="flex items-center gap-3 px-4 min-h-[56px] py-2"
     >
       <CheckCircle done={done} category={item.category} onToggle={onToggle} label={done ? `Desmarcar ${item.name}` : `Marcar ${item.name} como comprado`} />
-      <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-left flex items-center gap-3 py-1 outline-none rounded-lg focus-visible:ring-2 focus-visible:ring-primary/60">
+      <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-left flex items-center gap-3 py-1 outline-none rounded-chip focus-visible:ring-2 focus-visible:ring-primary/60">
         <span className="flex-1 min-w-0">
           <span className={clsx("t-body line-clamp-2 break-words transition-colors duration-200", done ? "text-muted" : "text-fg")} title={item.name}>
             <span className="strike" data-done={done || undefined}>
@@ -203,7 +203,7 @@ function QuickAdd({ onAdd }: { onAdd: (name: string, qty: number, catalog?: Cata
           enterKeyHint="done"
           autoCapitalize="sentences"
           autoComplete="off"
-          className="flex-1 min-w-0 bg-transparent outline-none t-body h-10 placeholder:text-muted/70 text-[16px] sm:text-[15px]"
+          className="flex-1 min-w-0 bg-transparent outline-none t-body h-10 placeholder:text-muted/70 text-headline sm:text-body"
         />
         <div className="flex items-center rounded-full bg-line/[0.07] shrink-0" aria-label="Quantidade">
           <button
@@ -299,7 +299,7 @@ function ItemSheet({ item, onClose, onSave, onRemove }: { item: ShoppingItem | n
       {d && (
         <div className="space-y-4">
           <Field label="Nome">
-            <Input value={d.name} maxLength={120} onChange={(e) => setDraft({ ...d, name: e.target.value })} className="text-[16px] sm:text-[15px]" />
+            <Input value={d.name} maxLength={120} onChange={(e) => setDraft({ ...d, name: e.target.value })} className="text-headline sm:text-body" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quantidade">
@@ -312,7 +312,7 @@ function ItemSheet({ item, onClose, onSave, onRemove }: { item: ShoppingItem | n
                     quantity: Math.min(MAX_QTY, Number(e.target.value.replace(/\D/g, "")) || 0),
                   })
                 }
-                className="text-[16px] sm:text-[15px]"
+                className="text-headline sm:text-body"
               />
             </Field>
             <Field label="Categoria">
@@ -324,7 +324,7 @@ function ItemSheet({ item, onClose, onSave, onRemove }: { item: ShoppingItem | n
                     category: e.target.value as ShoppingCategory,
                   })
                 }
-                className="text-[16px] sm:text-[15px]"
+                className="text-headline sm:text-body"
               >
                 {SHOPPING_CATEGORIES.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -349,10 +349,10 @@ function ItemSheet({ item, onClose, onSave, onRemove }: { item: ShoppingItem | n
               }
             />
           </Field>
-          <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+          <div className="flex items-center justify-between rounded-card bg-line/[0.04] px-4 py-3">
             <div>
-              <div className="font-medium text-[14.5px]">Comprado</div>
-              <div className="text-[12.5px] text-muted">{d.status === "comprado" && d.paid ? `Pagou ${brl(d.paid)}` : "Marque quando já tiver comprado."}</div>
+              <div className="font-medium text-callout">Comprado</div>
+              <div className="text-footnote text-muted">{d.status === "comprado" && d.paid ? `Pagou ${brl(d.paid)}` : "Marque quando já tiver comprado."}</div>
             </div>
             <Toggle
               checked={d.status === "comprado"}
@@ -590,7 +590,7 @@ export function Compras() {
 
       {items.length === 0 ? (
         <div className="group-card px-6 py-12 text-center">
-          <div className="mx-auto h-14 w-14 rounded-2xl grid place-items-center bg-primary/[0.12] text-primary">
+          <div className="mx-auto h-14 w-14 rounded-card grid place-items-center bg-primary/[0.12] text-primary">
             <ShoppingCart size={26} />
           </div>
           <div className="t-title mt-4">Sua lista está vazia</div>
@@ -609,7 +609,7 @@ export function Compras() {
           {groups.map(({ cat, list, totals }) => (
             <section key={cat.id} className="group-card" aria-label={cat.label}>
               <header className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 border-b hairline">
-                <span className="h-8 w-8 rounded-[10px] grid place-items-center text-[16px] shrink-0" style={{ background: catTint(cat.id, 0.16) }} aria-hidden>
+                <span className="h-8 w-8 rounded-[10px] grid place-items-center text-headline shrink-0" style={{ background: catTint(cat.id, 0.16) }} aria-hidden>
                   {cat.emoji}
                 </span>
                 <div className="flex-1 min-w-0">

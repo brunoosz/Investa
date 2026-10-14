@@ -20,7 +20,7 @@ function NavLink({ item, collapsed, badge }: { item: NavItem; collapsed: boolean
       to={item.to}
       title={collapsed ? item.label : undefined}
       className={clsx(
-        "no-drag pressable relative flex items-center gap-3 h-10 rounded-[var(--radius-md)] text-[14px] font-medium tracking-[-0.006em] transition-colors",
+        "no-drag pressable relative flex items-center gap-3 h-10 rounded-[var(--radius-md)] text-callout font-medium tracking-[-0.006em] transition-colors",
         collapsed ? "justify-center px-0" : "px-3",
         active ? "text-fg" : "text-muted hover:text-fg hover:bg-line/[0.06]"
       )}
@@ -68,7 +68,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           <AnimatePresence>
             {!collapsed && (
               <motion.div initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }} className="leading-none">
-                <div className="text-[19px] font-bold tracking-tight">Investa</div>
+                <div className="text-title font-bold tracking-tight">Investa</div>
                 <div className="text-[8px] tracking-[0.14em] text-muted mt-1 font-semibold whitespace-nowrap">APRENDA · INVISTA · EVOLUA</div>
               </motion.div>
             )}
@@ -97,19 +97,19 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <div className="px-3 pb-3 pt-2 border-t hairline flex flex-col gap-1">
         <NavLink item={SETTINGS_ITEM} collapsed={collapsed} />
         {user && (
-          <div className={clsx("flex items-center gap-2.5 rounded-xl mt-1", collapsed ? "flex-col py-2" : "px-2 py-2 hover:bg-line/[0.05]")}>
+          <div className={clsx("flex items-center gap-2.5 rounded-control mt-1", collapsed ? "flex-col py-2" : "px-2 py-2 hover:bg-line/[0.05]")}>
             <button className="no-drag" onClick={() => navigate("/configuracoes")} title={user.name}>
               <Avatar name={user.name} hue={user.avatarHue} size={34} />
             </button>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold truncate">{user.name}</div>
+                <div className="text-footnote font-semibold truncate">{user.name}</div>
                 <div className="text-[12px] text-muted truncate">{ROLE_LABEL[user.role]}</div>
               </div>
             )}
             <button
               onClick={() => setConfirmOut(true)}
-              className="no-drag h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-danger hover:bg-danger/10 transition"
+              className="no-drag h-8 w-8 rounded-chip flex items-center justify-center text-muted hover:text-danger hover:bg-danger/10 transition"
               title="Sair da conta"
               aria-label="Sair da conta"
             >
@@ -119,7 +119,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         )}
         <button
           onClick={onToggle}
-          className="no-drag h-8 rounded-lg flex items-center justify-center gap-2 text-[12px] text-muted hover:text-fg hover:bg-line/[0.06] transition"
+          className="no-drag h-8 rounded-chip flex items-center justify-center gap-2 text-[12px] text-muted hover:text-fg hover:bg-line/[0.06] transition"
           title={collapsed ? "Expandir menu" : "Recolher menu"}
         >
           {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
