@@ -19,7 +19,7 @@ import { InstitutionSelect } from "@/components/market";
 function BankMark({ id }: { id: string }) {
   const b = bankById(id);
   return (
-    <div className="h-10 w-10 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: b?.color ?? "rgb(var(--primary))" }}>
+    <div className="h-10 w-10 rounded-chip flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: b?.color ?? "rgb(var(--primary))" }}>
       {b?.short ?? (institutionLabel(id) || "?").slice(0, 3)}
     </div>
   );
@@ -88,7 +88,7 @@ function InvoiceSheet({ open, initial, ym, suggestions, onClose }: { open: boole
           <MoneyInput value={inv.amount} onChange={(v) => setInv({ ...inv, amount: v })} />
         </Field>
         {suggested && suggested !== inv.amount ? (
-          <button type="button" className="text-[13px] text-primary font-medium -mt-2" onClick={() => setInv({ ...inv, amount: Math.round(suggested * 100) / 100 })}>
+          <button type="button" className="pressable text-footnote text-primary font-medium -mt-2" onClick={() => setInv({ ...inv, amount: Math.round(suggested * 100) / 100 })}>
             Usar {brl(suggested)}
           </button>
         ) : null}
@@ -108,10 +108,10 @@ function InvoiceSheet({ open, initial, ym, suggestions, onClose }: { open: boole
             <MoneyInput value={inv.minimumPayment ?? 0} onChange={(v) => setInv({ ...inv, minimumPayment: v || undefined })} />
           </Field>
         </div>
-        <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+        <div className="flex items-center justify-between rounded-control bg-line/[0.04] px-4 py-3">
           <div>
-            <div className="font-medium text-[14.5px]">Fatura paga</div>
-            <div className="text-[12.5px] text-muted">Faturas pagas não entram no cálculo do aperto do mês.</div>
+            <div className="font-medium text-callout">Fatura paga</div>
+            <div className="text-footnote text-muted">Faturas pagas não entram no cálculo do aperto do mês.</div>
           </div>
           <Toggle checked={inv.paid} onChange={(v) => setInv({ ...inv, paid: v })} label="Fatura paga" />
         </div>
@@ -175,13 +175,13 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
 
       {list.length > 0 ? (
         <>
-          <div className="divide-y divide-line/[0.06]">
+          <div className="divide-y divide-separator/[0.06]">
             {list.map((i) => (
               <div key={i.id} className="flex items-center gap-3 py-2.5">
                 <BankMark id={i.institution} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-[14.5px] truncate">{institutionLabel(i.institution) || "Cartão"}</div>
-                  <div className="text-[12.5px] text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <div className="font-medium text-callout truncate">{institutionLabel(i.institution) || "Cartão"}</div>
+                  <div className="text-footnote text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span>
                       {i.dueDay ? `Vence dia ${i.dueDay}` : "Sem vencimento"}
                       {i.minimumPayment ? (
@@ -194,13 +194,14 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
                     <button
                       type="button"
                       onClick={() => update("invoices", (l) => l.map((x) => (x.id === i.id ? { ...x, paid: !x.paid } : x)))}
+                      className="pressable rounded-full"
                       title={i.paid ? "Marcar como em aberto" : "Marcar como paga"}
                     >
                       <Badge tone={i.paid ? "success" : "warning"}>{i.paid ? "Paga" : "Em aberto"}</Badge>
                     </button>
                   </div>
                 </div>
-                <div className="font-semibold tabular text-[15px] text-right shrink-0" data-private="">
+                <div className="font-semibold tabular text-body text-right shrink-0" data-private="">
                   {brl(i.amount)}
                 </div>
                 <Button size="icon-sm" variant="ghost" icon={Pencil} aria-label="Editar fatura" onClick={() => setSheet({ open: true, item: i })} />
@@ -210,7 +211,7 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
 
           {income > 0 && (
             <div className="mt-3">
-              <div className="flex justify-between text-[12.5px] text-muted mb-1">
+              <div className="flex justify-between text-footnote text-muted mb-1">
                 <span>Faturas em aberto x renda do mês</span>
                 <span className="tabular">{Math.round(ratio * 100)}%</span>
               </div>
@@ -220,7 +221,7 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
         </>
       ) : (
         suggestions.size > 0 && (
-          <div className="text-[13px] text-muted">
+          <div className="text-footnote text-muted">
             Pelos seus lançamentos no crédito:{" "}
             <Private>{[...suggestions.entries()].map(([bank, v]) => `${institutionLabel(bank)} ${brl(v)}`).join(" · ")}</Private>
           </div>
@@ -230,11 +231,11 @@ export function InvoicesCard({ ym, summary }: { ym: string; summary: MonthSummar
       {(tight || heavy || list.length > 0) && (
         <div
           className={clsx(
-            "mt-4 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3",
+            "mt-4 rounded-control px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3",
             tight ? "bg-danger/10 text-danger" : heavy ? "bg-warning/10" : "bg-primary/[0.07]"
           )}
         >
-          <div className="flex items-start gap-2 flex-1 text-[14px]">
+          <div className="flex items-start gap-2 flex-1 text-callout">
             {tight ? <TriangleAlert size={18} className="shrink-0 mt-0.5" /> : <CreditCard size={18} className="shrink-0 mt-0.5 text-primary" />}
             <span className={tight ? "" : "text-fg"}>
               {tight

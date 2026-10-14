@@ -34,7 +34,7 @@ import { api, uid } from "@/lib/api";
 import { brl, dateBR, pct } from "@/lib/format";
 import { useSession, useUserData } from "@/store/session";
 import { toastError, useUi } from "@/store/ui";
-import { Card, EmptyState, PageHeader, Private, ProgressBar, SectionTitle } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Private, ProgressBar, SectionTitle, toneColor } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Chip, Field, Input, MoneyInput, SegmentedControl, Select, Toggle } from "@/components/ui/form";
 import { ConfirmDialog, Sheet } from "@/components/ui/Sheet";
@@ -146,7 +146,7 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
           ]}
         />
         {e.type === "receita" && (
-          <div className="text-[12.5px] text-muted -mt-1">Dinheiro avulso, fora do salário. Aparece à parte e não aumenta sua renda do mês.</div>
+          <div className="text-footnote text-muted -mt-1">Dinheiro avulso, fora do salário. Aparece à parte e não aumenta sua renda do mês.</div>
         )}
         <Field label={e.type === "despesa" ? "Descrição" : "Motivo"}>
           <Input autoFocus value={e.description} onChange={(ev) => setE({ ...e, description: ev.target.value })} placeholder={e.type === "despesa" ? "Ex.: Tênis novo" : "Ex.: presente da vó, freela de design…"} />
@@ -200,7 +200,7 @@ function ExpenseSheet({ open, initial, onClose, onDelete }: { open: boolean; ini
           </Field>
         )}
         {card && (
-          <div className={clsx("rounded-2xl px-4 py-3 text-[13px]", overLimit ? "bg-danger/10 text-danger" : "bg-line/[0.04] text-muted")} data-testid="limit-hint">
+          <div className={clsx("rounded-control px-4 py-3 text-footnote", overLimit ? "bg-danger/10 text-danger" : "bg-line/[0.04] text-muted")} data-testid="limit-hint">
             {overLimit ? "Passa do limite! " : ""}Limite disponível no {institutionLabel(card.institution)}: <Private>{brl(card.available)}</Private> de <Private>{brl(card.limit)}</Private>.
           </div>
         )}
@@ -214,13 +214,13 @@ function EntryRow({ entry, onClick }: { entry: MonthEntry; onClick: () => void }
   const Icon = CATEGORY_ICON[e.category] ?? (e.type === "receita" ? Wallet : Receipt);
   const color = catColor(e.category);
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-line/[0.03] text-left">
-      <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}1f`, color }}>
+    <button onClick={onClick} className="w-full flex items-center gap-3 px-5 py-3 min-h-[56px] hover:bg-line/[0.04] active:bg-line/[0.07] transition-colors text-left">
+      <div className="h-10 w-10 rounded-chip flex items-center justify-center shrink-0" style={{ background: toneColor(color, 0.14), color }}>
         <Icon size={18} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">{e.description}</div>
-        <div className="text-[12.5px] text-muted truncate">
+        <div className="text-body font-medium truncate">{e.description}</div>
+        <div className="text-footnote text-muted truncate">
           {e.category} · {PAYMENT_LABEL[e.method]}
           {e.institution ? ` · ${institutionLabel(e.institution)}` : ""}
           {entry.totalInstallments > 1 ? ` · parcela ${entry.installment}/${entry.totalInstallments}` : ""}
@@ -285,7 +285,7 @@ export function Gastos() {
         actions={
           <>
             {ai.data?.hasKey && (
-              <label className="flex items-center gap-2 text-[13px] text-muted mr-1" title="O Assistente escreve um resumo do mês com pontos de atenção e sugestões dentro do PDF ou da planilha.">
+              <label className="flex items-center gap-2 text-footnote text-muted mr-1" title="O Assistente escreve um resumo do mês com pontos de atenção e sugestões dentro do PDF ou da planilha.">
                 <Toggle checked={withAi} onChange={setWithAi} label="Incluir análise do Assistente" /> Com análise da IA
               </label>
             )}
@@ -306,7 +306,7 @@ export function Gastos() {
         <Button size="icon" variant="secondary" onClick={() => setYm(addMonthsYm(ym, -1))} aria-label="Mês anterior">
           <ChevronLeft size={18} />
         </Button>
-        <div className="min-w-[180px] text-center font-semibold text-[17px] first-letter:uppercase">{ymLabel(ym)}</div>
+        <div className="min-w-[180px] text-center font-semibold text-headline first-letter:uppercase">{ymLabel(ym)}</div>
         <Button size="icon" variant="secondary" onClick={() => setYm(addMonthsYm(ym, 1))} aria-label="Próximo mês">
           <ChevronRight size={18} />
         </Button>
@@ -333,11 +333,11 @@ export function Gastos() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Card>
-          <div className="text-[13px] text-muted">Renda do mês</div>
-          <div className="text-[22px] font-bold tabular mt-1" data-private="" data-testid="income-month">
+          <div className="text-footnote text-muted">Renda do mês</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="" data-testid="income-month">
             {brl(summary.income)}
           </div>
-          <div className="text-[12.5px] text-muted">
+          <div className="text-footnote text-muted">
             {summary.extraIncome > 0 ? (
               <>
                 salário · <Private className="text-success">+ {brl(summary.extraIncome)}</Private> extras à parte
@@ -348,17 +348,17 @@ export function Gastos() {
           </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Comprometido</div>
-          <div className="text-[22px] font-bold tabular mt-1" data-private="">
+          <div className="text-footnote text-muted">Comprometido</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
             {brl(budget.committed)}
           </div>
           <ProgressBar
             value={Math.min(1, budget.ratio)}
             className="mt-2"
             height={6}
-            color={budget.ratio > 1 ? "rgb(var(--danger))" : budget.ratio > 0.8 ? "rgb(var(--warning))" : undefined}
+            color={budget.ratio > 1 ? toneColor("danger") : budget.ratio > 0.8 ? toneColor("warning") : undefined}
           />
-          <div className="text-[12px] text-muted mt-1">
+          <div className="text-footnote text-muted mt-1">
             {pct(budget.ratio * 100, 0, false)} da renda · gastos <Private>{brl(budget.spentDirect)}</Private>
             {budget.invoices > 0 && (
               <>
@@ -375,11 +375,11 @@ export function Gastos() {
           </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Disponível para gastar</div>
-          <div className={clsx("text-[22px] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="" data-testid="available-month">
+          <div className="text-footnote text-muted">Disponível para gastar</div>
+          <div className={clsx("text-[22px] tracking-[-0.02em] font-bold tabular mt-1", budget.available >= 0 ? "text-success" : "text-danger")} data-private="" data-testid="available-month">
             {brl(budget.available)}
           </div>
-          <div className="text-[12.5px] text-muted">
+          <div className="text-footnote text-muted">
             {budget.available < 0
               ? <>passou da renda em <Private>{brl(-budget.available)}</Private></>
               : budget.perDay !== undefined
@@ -390,15 +390,15 @@ export function Gastos() {
           </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Parcelas futuras</div>
-          <div className="text-[22px] font-bold tabular mt-1" data-private="">
+          <div className="text-footnote text-muted">Parcelas futuras</div>
+          <div className="text-[22px] tracking-[-0.02em] font-bold tabular mt-1" data-private="">
             {brl(summary.futureInstallments.reduce((s, f) => s + f.total, 0))}
           </div>
-          <div className="text-[12.5px] text-muted">nos próximos 6 meses</div>
+          <div className="text-footnote text-muted">nos próximos 6 meses</div>
         </Card>
       </div>
 
-      <div className="mb-4 rounded-2xl bg-primary/[0.06] px-4 py-3 text-[13px] text-muted">
+      <div className="mb-4 rounded-control bg-primary/[0.06] px-4 py-3 text-footnote text-muted">
         <span className="text-fg font-medium">Salário não é saldo livre.</span> Disponível = salário − gastos obrigatórios
         {mandatory > 0 && (
           <>
@@ -433,8 +433,8 @@ export function Gastos() {
           <Card padded={false} className="lg:col-span-2 overflow-hidden">
             {grouped.map(([day, list]) => (
               <div key={day}>
-                <div className="px-5 pt-4 pb-1 text-[12.5px] font-semibold text-muted first-letter:uppercase">{day}</div>
-                <div className="divide-y divide-line/[0.06]">
+                <div className="px-5 pt-4 pb-1 text-footnote font-semibold text-muted first-letter:uppercase">{day}</div>
+                <div className="divide-y divide-separator/[0.06]">
                   {list.map((entry) => (
                     <EntryRow key={`${entry.expense.id}-${entry.installment}`} entry={entry} onClick={() => setSheet({ open: true, item: entry.expense })} />
                   ))}
@@ -447,13 +447,13 @@ export function Gastos() {
               <SectionTitle title="Por categoria" />
               {donut.length ? (
                 <div className="flex flex-col items-center gap-4">
-                  <Donut data={donut} size={160} center={<Private block className="text-[14px] font-bold">{brl(summary.spent).replace(/,\d+$/, "")}</Private>} />
+                  <Donut data={donut} size={160} center={<Private block className="text-callout font-bold">{brl(summary.spent).replace(/,\d+$/, "")}</Private>} />
                   <div className="w-full">
                     <Legend data={donut} format={(v) => brl(v).replace(/,\d+$/, "")} private />
                   </div>
                 </div>
               ) : (
-                <div className="text-[14px] text-muted">Sem gastos neste mês.</div>
+                <div className="text-callout text-muted">Sem gastos neste mês.</div>
               )}
             </Card>
             {summary.byInstitution.length > 0 && (
@@ -467,7 +467,7 @@ export function Gastos() {
                 <SectionTitle title="Próximas faturas (parcelas)" />
                 <div className="space-y-2">
                   {summary.futureInstallments.map((f) => (
-                    <div key={f.ym} className="flex justify-between text-[14px]">
+                    <div key={f.ym} className="flex justify-between text-callout">
                       <span className="inline-block first-letter:uppercase text-muted">{ymLabel(f.ym)}</span>
                       <Private className="font-semibold tabular">{brl(f.total)}</Private>
                     </div>

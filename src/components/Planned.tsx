@@ -105,9 +105,9 @@ function PlanView({ item }: { item: PlannedExpense }) {
     }
   };
   return (
-    <div className="mt-3 rounded-2xl bg-line/[0.04] p-3.5">
+    <div className="mt-3 rounded-control bg-line/[0.04] p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[13px] font-semibold">
+        <div className="text-footnote font-semibold">
           Plano do Assistente · {done}/{plan.steps.length} passos
         </div>
         <Button size="sm" variant="ghost" icon={FileDown} loading={exporting} onClick={() => void exportPdf()}>
@@ -119,18 +119,18 @@ function PlanView({ item }: { item: PlannedExpense }) {
         {plan.steps.map((s) => (
           <label key={s.id} className="flex items-start gap-2.5 py-1 cursor-pointer">
             <input type="checkbox" checked={s.done} onChange={() => toggle(s.id)} className="mt-1 h-4 w-4 accent-[rgb(var(--primary))]" />
-            <span className={clsx("text-[13.5px]", s.done && "line-through text-muted")}>
+            <span className={clsx("text-footnote", s.done && "line-through text-muted")}>
               {s.date && <span className="font-semibold tabular mr-1">{dateBR(s.date, { day: "2-digit", month: "2-digit" })}</span>}
               {s.text}
             </span>
           </label>
         ))}
       </div>
-      <button type="button" className="mt-2 text-[12.5px] text-primary font-medium inline-flex items-center gap-1" onClick={() => setShowText((v) => !v)}>
-        <ChevronDown size={14} className={clsx("transition", showText && "rotate-180")} /> {showText ? "Esconder" : "Ver"} o plano completo
+      <button type="button" className="pressable mt-2 text-footnote text-primary font-medium inline-flex items-center gap-1" onClick={() => setShowText((v) => !v)}>
+        <ChevronDown size={14} className={clsx("transition-transform duration-200 ease-out-strong", showText && "rotate-180")} /> {showText ? "Esconder" : "Ver"} o plano completo
       </button>
       {showText && (
-        <div className="prose-investa mt-2 text-[13.5px]">
+        <div className="prose-investa mt-2 text-footnote">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{plan.text.replace(/^\s*[-*]\s*\[( |x|X)\].*$/gm, "").trim()}</ReactMarkdown>
         </div>
       )}
@@ -191,7 +191,7 @@ export function PlannedCard() {
         }
       />
       {active.length > 0 ? (
-        <div className="divide-y divide-line/[0.06]">
+        <div className="divide-y divide-separator/[0.06]">
           {active.map((p) => {
             const months = monthsUntil(p.date);
             const perMonth = p.amount / months;
@@ -199,13 +199,13 @@ export function PlannedCard() {
             return (
               <div key={p.id} className="py-3">
                 <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => setSheet({ open: true, item: p })} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                    <div className="h-10 w-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+                  <button type="button" onClick={() => setSheet({ open: true, item: p })} className="pressable flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <div className="h-10 w-10 rounded-chip bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
                       <CalendarRange size={18} />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-medium text-[14.5px] truncate">{p.description}</div>
-                      <div className="text-[12.5px] text-muted flex flex-wrap items-center gap-x-2">
+                      <div className="font-medium text-callout truncate">{p.description}</div>
+                      <div className="text-footnote text-muted flex flex-wrap items-center gap-x-2">
                         {late ? <Badge tone="warning">Data passou</Badge> : <span>{dateBR(p.date, { day: "2-digit", month: "short", year: "numeric" })}</span>}
                         {!late && (
                           <span>
@@ -215,7 +215,7 @@ export function PlannedCard() {
                       </div>
                     </div>
                   </button>
-                  <div className="font-semibold tabular text-[15px] shrink-0" data-private="">
+                  <div className="font-semibold tabular text-body shrink-0" data-private="">
                     {brl(p.amount)}
                   </div>
                 </div>
@@ -240,12 +240,12 @@ export function PlannedCard() {
           })}
         </div>
       ) : (
-        <div className="flex items-center gap-3 text-[13.5px] text-muted">
+        <div className="flex items-center gap-3 text-footnote text-muted">
           <CalendarRange size={18} className="text-secondary shrink-0" />
           Anote os gastos que vão chegar. O app mostra quanto guardar por mês, e o Assistente monta um plano com datas que você marca e baixa em PDF.
         </div>
       )}
-      {doneList.length > 0 && <div className="mt-3 text-[12.5px] text-muted">{doneList.length} gasto(s) planejado(s) já realizado(s).</div>}
+      {doneList.length > 0 && <div className="mt-3 text-footnote text-muted">{doneList.length} gasto(s) planejado(s) já realizado(s).</div>}
       <PlannedSheet open={sheet.open} initial={sheet.item} onClose={() => setSheet({ open: false, item: null })} />
     </Card>
   );

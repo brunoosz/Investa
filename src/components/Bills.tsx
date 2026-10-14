@@ -100,17 +100,17 @@ function BillSheet({ open, initial, onClose }: { open: boolean; initial: Bill | 
             ))}
           </Select>
         </Field>
-        <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+        <div className="flex items-center justify-between rounded-control bg-line/[0.04] px-4 py-3">
           <div>
-            <div className="font-medium text-[14.5px]">Obrigatório</div>
-            <div className="text-[12.5px] text-muted">Gasto que não dá para cortar no mês (transporte, aluguel, luz). Sai do salário antes de tudo.</div>
+            <div className="font-medium text-callout">Obrigatório</div>
+            <div className="text-footnote text-muted">Gasto que não dá para cortar no mês (transporte, aluguel, luz). Sai do salário antes de tudo.</div>
           </div>
           <Toggle checked={!!bill.mandatory} onChange={(v) => setBill({ ...bill, mandatory: v })} label="Obrigatório" />
         </div>
-        <div className="flex items-center justify-between rounded-2xl bg-line/[0.04] px-4 py-3">
+        <div className="flex items-center justify-between rounded-control bg-line/[0.04] px-4 py-3">
           <div>
-            <div className="font-medium text-[14.5px]">Ativa</div>
-            <div className="text-[12.5px] text-muted">Desligue para pausar sem apagar (ex.: assinatura cancelada por um tempo).</div>
+            <div className="font-medium text-callout">Ativa</div>
+            <div className="text-footnote text-muted">Desligue para pausar sem apagar (ex.: assinatura cancelada por um tempo).</div>
           </div>
           <Toggle checked={bill.active} onChange={(v) => setBill({ ...bill, active: v })} label="Ativa" />
         </div>
@@ -169,7 +169,7 @@ export function BillsCard({ ym }: { ym: string }) {
         }
       />
       {mandatory > 0 && (
-        <div className="mb-2 rounded-2xl bg-warning/[0.08] px-4 py-2.5 text-[13.5px]" data-testid="mandatory-total">
+        <div className="mb-2 rounded-control bg-warning/[0.08] px-4 py-2.5 text-footnote" data-testid="mandatory-total">
           Gastos obrigatórios do mês: <Private className="font-semibold tabular">{brl(mandatory)}</Private>
           <span className="text-muted"> · saem do salário antes de qualquer outra coisa</span>
         </div>
@@ -177,8 +177,8 @@ export function BillsCard({ ym }: { ym: string }) {
       {active.length > 0 ? (
         groups.map((g) => (
           <div key={g.title}>
-            {groups.length > 1 && <div className="text-[12.5px] font-semibold text-muted pt-2">{g.title}</div>}
-            <div className="divide-y divide-line/[0.06]">
+            {groups.length > 1 && <div className="text-footnote font-semibold text-muted pt-2">{g.title}</div>}
+            <div className="divide-y divide-separator/[0.06]">
               {g.list.map((b) => {
                 const paid = b.paid.includes(ym);
                 const due = billDueDate(b, ym);
@@ -199,18 +199,18 @@ export function BillsCard({ ym }: { ym: string }) {
                 );
                 return (
                   <div key={b.id} className="flex items-center gap-3 py-2.5">
-                    <button type="button" onClick={() => setSheet({ open: true, item: b })} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                      <div className={clsx("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", paid ? "bg-success/15 text-success" : "bg-primary/12 text-primary")}>
+                    <button type="button" onClick={() => setSheet({ open: true, item: b })} className="pressable flex items-center gap-3 flex-1 min-w-0 text-left">
+                      <div className={clsx("h-10 w-10 rounded-chip flex items-center justify-center shrink-0", paid ? "bg-success/15 text-success" : "bg-primary/12 text-primary")}>
                         {paid ? <Check size={18} /> : <Repeat size={18} />}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-medium text-[14.5px] truncate">{b.name}</div>
-                        <div className="text-[12.5px] text-muted flex items-center gap-2">
+                        <div className="font-medium text-callout truncate">{b.name}</div>
+                        <div className="text-footnote text-muted flex items-center gap-2">
                           {status} {b.mandatory && <Badge tone="warning">Obrigatório</Badge>} <span className="truncate">{b.category}</span>
                         </div>
                       </div>
                     </button>
-                    <div className="font-semibold tabular text-[15px] shrink-0" data-private="">
+                    <div className="font-semibold tabular text-body shrink-0" data-private="">
                       {brl(b.amount)}
                     </div>
                     {paid ? (
@@ -229,7 +229,7 @@ export function BillsCard({ ym }: { ym: string }) {
           </div>
         ))
       ) : (
-        <div className="flex items-center gap-3 text-[13.5px] text-muted">
+        <div className="flex items-center gap-3 text-footnote text-muted">
           <CalendarClock size={18} className="text-primary shrink-0" />
           Cadastre uma vez e o app lembra 3 dias antes e no dia. O valor já sai do "disponível para gastar" até você marcar como paga.
         </div>
