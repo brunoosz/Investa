@@ -23,6 +23,7 @@
     "test:alerts": "node scripts/test-alerts.mjs",
     "test:groq": "node scripts/test-groq.mjs",
     "test:insight": "node scripts/test-insight.mjs",
+    "test:shopping": "node scripts/test-shopping.mjs",
     "check:plan": "node scripts/check-plan.mjs",
     "icons": "node scripts/make-icons.mjs",
     "media": "npm run build && node scripts/capture.mjs",

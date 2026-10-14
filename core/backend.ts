@@ -563,7 +563,7 @@ export class Backend {
     this.on("data:getAll", () => this.store.getAllData(this.uid()));
     this.on("data:set", (a: { key: UserDataKey; value: UserDataMap[UserDataKey] }) => {
       if (!USER_DATA_KEYS.includes(a.key)) throw new AppError("INVALID", "Dado inválido.");
-      const isArray = ["portfolio", "goals", "expenses", "alerts", "chat", "invoices", "accounts", "bills", "memory", "planned", "boxes"].includes(a.key);
+      const isArray = ["portfolio", "goals", "expenses", "alerts", "chat", "invoices", "accounts", "bills", "memory", "planned", "boxes", "shopping"].includes(a.key);
       if (isArray !== Array.isArray(a.value) || a.value === null || typeof a.value !== "object") throw new AppError("INVALID", "Formato inválido.");
       this.store.setData(this.uid(), a.key, a.value);
       this.cloud.schedulePush(this.uid(), [a.key]);

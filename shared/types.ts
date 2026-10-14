@@ -305,6 +305,26 @@ export interface UserDataMap {
   planned: PlannedExpense[];
   wealth: WealthState;
   boxes: SavingBox[];
+  shopping: ShoppingItem[];
+}
+
+export type ShoppingCategory = "alimentos" | "bebidas" | "limpeza" | "higiene" | "casa" | "eletronicos" | "jogos" | "roupas" | "outros";
+
+/** Item da lista de compras. Preço vazio = usa o preço médio do catálogo (estimativa). */
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  quantity: number;
+  category: ShoppingCategory;
+  /** Preço unitário informado pelo usuário (sempre vale mais que o do catálogo). */
+  price?: number;
+  status: "pendente" | "comprado";
+  /** Quando foi comprado e quanto foi pago no total (vem do gasto lançado, se houver). */
+  boughtAt?: string;
+  paid?: number;
+  /** Gasto que riscou o item, para poder desfazer. */
+  expenseId?: string;
+  createdAt: string;
 }
 
 /** Caixinha: guarda um valor todo mês num dia fixo, até a meta. */
@@ -431,6 +451,7 @@ export const USER_DATA_KEYS: UserDataKey[] = [
   "planned",
   "wealth",
   "boxes",
+  "shopping",
 ];
 
 export interface Quote {
