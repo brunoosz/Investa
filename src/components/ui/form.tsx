@@ -57,6 +57,7 @@ export function MoneyInput({
   autoFocus,
   prefix = "R$",
   decimals = 2,
+  allowNegative,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -65,6 +66,8 @@ export function MoneyInput({
   autoFocus?: boolean;
   prefix?: string;
   decimals?: number;
+  /** Saldo de conta pode ficar negativo (cheque especial). */
+  allowNegative?: boolean;
 }) {
   const [text, setText] = useState(value ? num(value, decimals) : "");
   useEffect(() => {
@@ -81,9 +84,11 @@ export function MoneyInput({
         autoFocus={autoFocus}
         value={text}
         onChange={(e) => {
-          const t = e.target.value.replace(/[^\d.,-]/g, "");
+          // Só dígitos e separadores, até 15 caracteres; valor impossível (NaN, negativo ou acima de 1 trilhão) vira 0 ou o teto.
+          const t = e.target.value.replace(/[^\d.,-]/g, "").slice(0, 15);
           setText(t);
-          onChange(parseMoney(t));
+          const v = parseMoney(t);
+          onChange(Number.isFinite(v) ? Math.min(Math.max(v, allowNegative ? -1e12 : 0), 1e12) : 0);
         }}
         onBlur={() => setText(value ? num(value, decimals) : "")}
       />

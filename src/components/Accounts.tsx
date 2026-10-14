@@ -84,7 +84,7 @@ function AccountSheet({ open, initial, onClose }: { open: boolean; initial: Bank
         </div>
         {!acc.cardOnly && (
           <Field label="Saldo atual" hint="O valor que aparece no app do banco. Pode ser negativo se estiver usando o cheque especial.">
-            <MoneyInput value={acc.balance} onChange={(v) => setAcc({ ...acc, balance: v })} />
+            <MoneyInput allowNegative value={acc.balance} onChange={(v) => setAcc({ ...acc, balance: v })} />
           </Field>
         )}
         <Field label="Limite do cartão de crédito (opcional)" hint="O limite total. O app desconta faturas e parcelas e mostra quanto ainda dá para usar.">
