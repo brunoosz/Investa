@@ -251,27 +251,16 @@ html:not([data-overlay]) [data-overlay-frame] {
   .pressable:active {
     transform: scale(0.97);
   }
-  /* Risco do item comprado: a linha cresce da esquerda (transform, não width). */
+  /* Risco do item comprado: a linha é um fundo que cresce da esquerda e acompanha o nome em duas linhas. */
   .strike {
-    position: relative;
-    width: fit-content;
-    max-width: 100%;
+    background-image: linear-gradient(currentColor, currentColor);
+    background-repeat: no-repeat;
+    background-position: 0 56%;
+    background-size: 0% 1.5px;
+    transition: background-size 260ms var(--ease-out);
   }
-  .strike::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 52%;
-    height: 1.5px;
-    border-radius: 1px;
-    background: currentColor;
-    transform: scaleX(0);
-    transform-origin: left center;
-    transition: transform 240ms var(--ease-out);
-  }
-  .strike[data-done]::after {
-    transform: scaleX(1);
+  .strike[data-done] {
+    background-size: 100% 1.5px;
   }
   .scroll-edge {
     mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
@@ -467,7 +456,7 @@ html.privacy [data-private] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .strike::after {
+  .strike {
     transition: none;
   }
   .pressable,

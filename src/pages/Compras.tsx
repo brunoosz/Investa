@@ -47,10 +47,9 @@ function TotalsLine({ t }: { t: ShoppingTotals }) {
   if (t.noPrice) parts.push(<span key="n">{t.noPrice} sem preço</span>);
   if (!parts.length) return null;
   return (
-    <span className="flex flex-wrap gap-x-2 gap-y-0.5">
+    <span className="flex flex-wrap gap-x-3 gap-y-0.5">
       {parts.map((p, i) => (
         <span key={i} className="whitespace-nowrap">
-          {i > 0 && <span className="mr-2 text-muted/50">·</span>}
           {p}
         </span>
       ))}
@@ -106,8 +105,10 @@ function ItemRow({ item, onToggle, onOpen, animate }: { item: ShoppingItem; onTo
       <CheckCircle done={done} category={item.category} onToggle={onToggle} label={done ? `Desmarcar ${item.name}` : `Marcar ${item.name} como comprado`} />
       <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-left flex items-center gap-3 py-1 outline-none rounded-lg focus-visible:ring-2 focus-visible:ring-primary/60">
         <span className="flex-1 min-w-0">
-          <span className={clsx("strike t-body block truncate transition-colors duration-200", done ? "text-muted" : "text-fg")} data-done={done || undefined}>
-            {item.name}
+          <span className={clsx("t-body line-clamp-2 break-words transition-colors duration-200", done ? "text-muted" : "text-fg")} title={item.name}>
+            <span className="strike" data-done={done || undefined}>
+              {item.name}
+            </span>
           </span>
           <span className="t-footnote text-muted block truncate">
             {item.quantity > 1 && <span className="tabular">{item.quantity}× · </span>}
@@ -195,7 +196,7 @@ function QuickAdd({ onAdd }: { onAdd: (name: string, qty: number, catalog?: Cata
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 120)}
           onKeyDown={onKey}
-          placeholder="Adicionar item (ex.: leite, detergente, fone)"
+          placeholder="Adicionar item"
           aria-label="Nome do item"
           aria-autocomplete="list"
           aria-expanded={open}
@@ -223,8 +224,8 @@ function QuickAdd({ onAdd }: { onAdd: (name: string, qty: number, catalog?: Cata
             <Plus size={15} />
           </button>
         </div>
-        <Button size="sm" onClick={() => submit()} disabled={!name.trim()} className="shrink-0">
-          Adicionar
+        <Button size="sm" icon={Plus} onClick={() => submit()} disabled={!name.trim()} className="shrink-0" aria-label="Adicionar item">
+          <span className="hidden sm:inline">Adicionar</span>
         </Button>
       </div>
       <AnimatePresence>
@@ -505,9 +506,11 @@ export function Compras() {
         <section className="group-card p-5 mb-4" aria-label="Total da lista">
           <div className="t-caption text-muted">Falta comprar</div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <Private className="text-[34px] leading-none font-bold tracking-[-0.025em] tabular">
-              {summary.pending.estimated ? "~" : ""}
-              {brl(pendingTotal)}
+            <Private className="block max-w-full">
+              <span data-fit="" className="block text-[34px] leading-none font-bold tracking-[-0.025em] tabular">
+                {summary.pending.estimated ? "~" : ""}
+                {brl(pendingTotal)}
+              </span>
             </Private>
             <span className="t-footnote text-muted">
               {summary.pending.count} {summary.pending.count === 1 ? "item" : "itens"}

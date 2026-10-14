@@ -3,7 +3,7 @@
 // os números (.tabular e títulos de valor) e ajusta quando o conteúdo ou o
 // tamanho da tela muda.
 const MIN_PX = 12;
-const SELECTOR = '.surface .tabular, .surface [data-fit], .surface [class*="text-[2"], .surface [class*="text-[3"]';
+const SELECTOR = '.surface .tabular, .surface [data-fit], .group-card [data-fit], .surface [class*="text-[2"], .surface [class*="text-[3"]';
 
 function fit(el: HTMLElement): void {
   if (!el.isConnected) return;
@@ -38,7 +38,7 @@ export function installAutoFit(): void {
   const seen = new WeakSet<Element>();
   const visit = (el: HTMLElement) => {
     fit(el);
-    const card = el.closest(".surface");
+    const card = el.closest(".surface, .group-card");
     if (card && !seen.has(card)) {
       seen.add(card);
       resize.observe(card);
@@ -54,7 +54,7 @@ export function installAutoFit(): void {
     dirty.clear();
     for (const root of roots) {
       if (!root.isConnected) continue;
-      const scope = root.closest(".surface") ?? root;
+      const scope = root.closest(".surface, .group-card") ?? root;
       if (scope.matches(SELECTOR)) visit(scope as HTMLElement);
       for (const el of scope.querySelectorAll<HTMLElement>(SELECTOR)) visit(el);
     }
