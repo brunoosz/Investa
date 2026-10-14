@@ -58,7 +58,9 @@ export function errorMessage(err: unknown): { code: string; message: string } {
   if (/fetch failed|failed to fetch|ENOTFOUND|ECONN|ETIMEDOUT|aborted|network|HTTP 5\d\d/i.test(msg)) {
     return { code: "NETWORK", message: "Não foi possível buscar os dados agora. Verifique sua conexão com a internet." };
   }
-  return { code: "ERROR", message: msg || "Algo deu errado." };
+  // Erro inesperado: o detalhe (caminho, consulta, pilha) fica só no log interno, nunca na tela.
+  console.error("[investa]", msg);
+  return { code: "ERROR", message: "Algo deu errado. Tente de novo." };
 }
 
 /** Só abre fora do app endereços https comuns (sem usuário e senha embutidos). */
