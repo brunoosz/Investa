@@ -94,23 +94,23 @@ export function Simulador() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Card>
-          <div className="text-[13px] text-muted">Patrimônio virtual</div>
-          <div className="text-[24px] font-bold tracking-tight mt-1">
+          <div className="text-footnote text-muted">Patrimônio virtual</div>
+          <div className="text-[24px] font-bold tracking-[-0.02em] mt-1 tabular">
             <AnimatedNumber value={equity} format={brl} />
           </div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Saldo disponível</div>
-          <div className="text-[24px] font-bold tracking-tight mt-1 tabular">{brl(sim.cash)}</div>
+          <div className="text-footnote text-muted">Saldo disponível</div>
+          <div className="text-[24px] font-bold tracking-[-0.02em] mt-1 tabular">{brl(sim.cash)}</div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Investido</div>
-          <div className="text-[24px] font-bold tracking-tight mt-1 tabular">{brl(posValue)}</div>
+          <div className="text-footnote text-muted">Investido</div>
+          <div className="text-[24px] font-bold tracking-[-0.02em] mt-1 tabular">{brl(posValue)}</div>
         </Card>
         <Card>
-          <div className="text-[13px] text-muted">Resultado</div>
-          <div className={clsx("text-[24px] font-bold tracking-tight mt-1 tabular", toneClass(ret))}>{pct((ret / SIMULATOR_START_CASH) * 100)}</div>
-          <div className={clsx("text-[13px] tabular", toneClass(ret))}>
+          <div className="text-footnote text-muted">Resultado</div>
+          <div className={clsx("text-[24px] font-bold tracking-[-0.02em] mt-1 tabular", toneClass(ret))}>{pct((ret / SIMULATOR_START_CASH) * 100)}</div>
+          <div className={clsx("text-footnote tabular", toneClass(ret))}>
             {ret >= 0 ? "+" : ""}
             {brl(ret)}
           </div>
@@ -134,26 +134,26 @@ export function Simulador() {
               <AssetPicker value={symbol} onSelect={(r) => setSymbol(r.symbol)} />
             </Field>
             {symbol && (
-              <div className="rounded-2xl bg-line/[0.04] border border-line/10 px-4 py-3 flex items-center gap-3">
+              <div className="rounded-control bg-separator/[0.04] border border-separator/10 px-4 py-3 flex items-center gap-3">
                 <AssetAvatar symbol={symbol} size={36} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold">{displaySymbol(symbol)}</div>
-                  <div className="text-[12.5px] text-muted truncate">{q?.name ?? "Carregando…"}</div>
+                  <div className="text-headline">{displaySymbol(symbol)}</div>
+                  <div className="text-footnote text-muted truncate">{q?.name ?? "Carregando…"}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold tabular">{q ? money(q.price, q.currency) : "—"}</div>
-                  <div className={clsx("text-[12.5px] tabular", toneClass(q?.changePercent))}>{q ? pct(q.changePercent) : ""}</div>
+                  <div className="text-headline tabular">{q ? money(q.price, q.currency) : "—"}</div>
+                  <div className={clsx("text-footnote tabular", toneClass(q?.changePercent))}>{q ? pct(q.changePercent) : ""}</div>
                 </div>
               </div>
             )}
             <Field label="Quantidade" hint={position ? `Você tem ${num(position.quantity, position.quantity % 1 ? 4 : 0)} na carteira simulada.` : undefined}>
               <NumberInput value={qty} onChange={setQty} min={0} decimals={catalogAsset(symbol ?? "")?.category === "cripto" ? 6 : 0} />
             </Field>
-            <div className="flex items-center justify-between text-[14px]">
+            <div className="flex items-center justify-between text-callout">
               <span className="text-muted">Total estimado</span>
-              <span className="font-bold tabular text-[18px]">{brl(total)}</span>
+              <span className="text-title tabular">{brl(total)}</span>
             </div>
-            {q && q.currency !== "BRL" && <div className="text-[12px] text-muted -mt-2">Convertido pelo câmbio atual ({q.currency}/BRL {num(rate, 4)}).</div>}
+            {q && q.currency !== "BRL" && <div className="text-footnote text-muted -mt-2">Convertido pelo câmbio atual ({q.currency}/BRL {num(rate, 4)}).</div>}
             <Button block size="lg" variant={side === "compra" ? "primary" : "danger"} disabled={!symbol || !q || qty <= 0} loading={busy} onClick={() => void execute()}>
               {side === "compra" ? "Comprar" : "Vender"} {symbol ? displaySymbol(symbol) : ""}
             </Button>
@@ -168,24 +168,24 @@ export function Simulador() {
             {sim.positions.length === 0 ? (
               <EmptyState icon={Gamepad2} title="Nenhuma posição" description="Escolha um ativo e faça sua primeira compra virtual." />
             ) : (
-              <div className="divide-y divide-line/[0.07]">
+              <div className="divide-y divide-separator/[0.07]">
                 {sim.positions.map((p) => {
                   const pq = quotes[p.symbol];
                   const r = fx(p.currency, quotes) || 1;
                   const value = p.quantity * (pq?.price ?? p.avgPrice) * r;
                   const g = ((pq?.price ?? p.avgPrice) - p.avgPrice) / p.avgPrice;
                   return (
-                    <button key={p.symbol} onClick={() => setSymbol(p.symbol)} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-line/[0.03] text-left">
+                    <button key={p.symbol} onClick={() => setSymbol(p.symbol)} className="pressable w-full flex items-center gap-3 px-5 py-3 hover:bg-separator/[0.03] text-left">
                       <AssetAvatar symbol={p.symbol} size={38} />
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold">{displaySymbol(p.symbol)}</div>
-                        <div className="text-[12.5px] text-muted">
+                        <div className="text-headline">{displaySymbol(p.symbol)}</div>
+                        <div className="text-footnote text-muted">
                           {num(p.quantity, p.quantity % 1 ? 4 : 0)} × {money(p.avgPrice, p.currency)}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold tabular">{brl(value)}</div>
-                        <div className={clsx("text-[12.5px] tabular", toneClass(g))}>{pct(g * 100)}</div>
+                        <div className="text-headline tabular">{brl(value)}</div>
+                        <div className={clsx("text-footnote tabular", toneClass(g))}>{pct(g * 100)}</div>
                       </div>
                       <ChangePill value={pq?.changePercent} size="sm" />
                     </button>
@@ -201,20 +201,20 @@ export function Simulador() {
               <History size={18} className="text-muted" />
             </div>
             {sim.history.length === 0 ? (
-              <div className="px-5 pb-5 text-[14px] text-muted">Suas ordens aparecem aqui.</div>
+              <div className="px-5 pb-5 text-callout text-muted">Suas ordens aparecem aqui.</div>
             ) : (
-              <div className="divide-y divide-line/[0.07] max-h-[360px] overflow-y-auto">
+              <div className="divide-y divide-separator/[0.07] max-h-[360px] overflow-y-auto">
                 {sim.history.map((t) => (
                   <div key={t.id} className="flex items-center gap-3 px-5 py-2.5">
                     <Badge tone={t.side === "compra" ? "success" : "danger"}>{t.side === "compra" ? "Compra" : "Venda"}</Badge>
-                    <button className="font-semibold" onClick={() => navigate(`/mercado/${encodeURIComponent(t.symbol)}`)}>
+                    <button className="pressable text-headline hover:text-primary transition-[color,transform] duration-150" onClick={() => navigate(`/mercado/${encodeURIComponent(t.symbol)}`)}>
                       {displaySymbol(t.symbol)}
                     </button>
-                    <span className="text-[13px] text-muted">
+                    <span className="text-footnote text-muted tabular">
                       {num(t.quantity, t.quantity % 1 ? 4 : 0)} × {num(t.price)}
                     </span>
                     <span className="flex-1" />
-                    <span className="text-[12px] text-muted">
+                    <span className="text-footnote text-muted tabular">
                       {dateBR(t.date, { day: "2-digit", month: "short" })} {timeBR(t.date)}
                     </span>
                   </div>
