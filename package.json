@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "description": "Investa — Aprenda, invista e evolua.",
   "main": "dist-electron/main.js",
-  "author": "Bruno",
+  "author": "Bruno Camperlingo",
   "license": "MIT",
+  "repository": "github:brunoosz/Investa",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -35,7 +36,7 @@
   "build": {
     "appId": "com.investa.app",
     "productName": "Investa",
-    "copyright": "Copyright © 2026 Investa",
+    "copyright": "Copyright © 2026 Bruno Camperlingo",
     "directories": {
       "output": "release",
       "buildResources": "build"

@@ -20,7 +20,7 @@ Não inclua senhas, chaves ou dados reais de outras pessoas no relato. Se precis
 - As regras da nuvem em [`supabase/schema.sql`](supabase/schema.sql).
 - Os workflows em `.github/workflows/`.
 
-Ficam de fora problemas nos serviços de terceiros (NVIDIA, Groq, Supabase, Yahoo Finance, Banco Central etc.). Esses devem ser avisados a eles.
+Ficam de fora problemas nos serviços de terceiros que o app usa (provedores de IA, banco de dados, Yahoo Finance, Banco Central etc.). Esses devem ser avisados a eles.
 
 ## Versões com correção
 
