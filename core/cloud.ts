@@ -181,7 +181,7 @@ export class CloudService {
   }
 
   private async profile(userId: string, token: string): Promise<CloudProfile | null> {
-    const rows = await this.request<CloudProfile[]>(`/rest/v1/profiles?id=eq.${userId}&select=*`, { token });
+    const rows = await this.request<CloudProfile[]>(`/rest/v1/profiles?id=eq.${uuid(userId)}&select=*`, { token });
     return rows[0] ?? null;
   }
 
@@ -266,7 +266,7 @@ export class CloudService {
       this.markDirty(user.id, [...Object.keys(this.store.rawData(user.id)), INBOX_KEY]);
     }
     await this.pull(user.id, p).catch(() => undefined);
-    void this.request(`/rest/v1/profiles?id=eq.${user.id}`, { method: "PATCH", token: tokens.access, body: { last_login_at: new Date().toISOString() } }).catch(() => undefined);
+    void this.request(`/rest/v1/profiles?id=eq.${uuid(user.id)}`, { method: "PATCH", token: tokens.access, body: { last_login_at: new Date().toISOString() } }).catch(() => undefined);
     return user;
   }
 
@@ -366,7 +366,7 @@ export class CloudService {
       // O documento da nuvem é trocado inteiro, então os avisos vão sempre junto.
       const data = { ...this.store.rawData(userId), [INBOX_KEY]: pruneInbox(this.store.inbox(userId)) };
       const rows = await this.request<CloudProfile[]>(
-        `/rest/v1/profiles?id=eq.${userId}&data_updated_at=eq.${encodeURIComponent(synced)}&select=data_updated_at`,
+        `/rest/v1/profiles?id=eq.${uuid(userId)}&data_updated_at=eq.${encodeURIComponent(synced)}&select=data_updated_at`,
         { method: "PATCH", token, prefer: "return=representation", body: { data, data_updated_at: new Date().toISOString() } }
       );
       if (!rows.length) {
@@ -496,7 +496,7 @@ export class CloudService {
     if (patch.status) body.status = patch.status;
     const args = { target: id, new_name: body.name ?? null, new_email: patch.email === undefined ? null : patch.email.trim(), new_role: body.role ?? null, new_status: body.status ?? null };
     await this.rpcOr("admin_update_user", token, args, async () => {
-      const rows = await this.request<unknown[]>(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", token, body, prefer: "return=representation" });
+      const rows = await this.request<unknown[]>(`/rest/v1/profiles?id=eq.${uuid(id)}`, { method: "PATCH", token, body, prefer: "return=representation" });
       if (!rows.length) throw new AppError("FORBIDDEN", "Você não pode alterar esta conta.");
     });
   }
@@ -553,4 +553,10 @@ function translate(msg: string): string {
   if (m.includes("rate limit")) return "Muitas tentativas. Aguarde um pouco e tente de novo.";
   if (m.includes("jwt expired")) return "Sua sessão expirou. Entre novamente.";
   return msg;
+}
+
+/** IDs vão na URL da API: só aceita UUID, para ninguém enfiar filtros extras na consulta. */
+function uuid(id: string): string {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new AppError("INVALID", "Conta inválida.");
+  return id;
 }
