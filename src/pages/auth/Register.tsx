@@ -79,15 +79,15 @@ export function Register() {
 
   return (
     <AuthLayout>
-      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}>
         <div className="lg:hidden flex justify-center mb-6">
           <AppIcon size={64} />
         </div>
-        <h1 className="text-[30px] font-bold tracking-tight">Criar conta</h1>
-        <p className="text-muted mt-1.5">Leva menos de um minuto.</p>
+        <h1 className="text-large-title">Criar conta</h1>
+        <p className="text-body text-muted mt-1.5">Leva menos de um minuto.</p>
 
         {firstRun && (
-          <div className="mt-5 rounded-2xl bg-warning/10 border border-warning/25 px-4 py-3 text-[13.5px] flex gap-2.5">
+          <div className="mt-5 rounded-card bg-warning/10 border border-warning/25 px-4 py-3 text-footnote flex gap-2.5">
             <Crown size={18} className="text-warning shrink-0 mt-0.5" />
             <div>
               Esta será a conta <strong>Dono</strong> do aplicativo, com controle total sobre usuários e configurações.
@@ -111,10 +111,10 @@ export function Register() {
               <div className="mt-2 flex items-center gap-2">
                 <div className="flex-1 grid grid-cols-5 gap-1">
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <div key={i} className={clsx("h-1.5 rounded-full transition-colors", i < st.score ? "" : "bg-line/15")} style={i < st.score ? { background: st.color } : undefined} />
+                    <div key={i} className={clsx("h-1.5 rounded-full transition-colors duration-200", i < st.score ? "" : "bg-separator/15")} style={i < st.score ? { background: st.color } : undefined} />
                   ))}
                 </div>
-                <span className="text-[12px] font-medium" style={{ color: st.color }}>
+                <span className="text-footnote font-medium" style={{ color: st.color }}>
                   {st.label}
                 </span>
               </div>
@@ -126,7 +126,7 @@ export function Register() {
 
           <ErrorBanner message={error} shakeKey={shake} />
 
-          <label className="flex items-center gap-3 text-[14px] text-muted cursor-pointer select-none pt-1">
+          <label className="flex items-center gap-3 text-callout text-muted cursor-pointer select-none pt-1">
             <Toggle checked={remember} onChange={setRemember} label="Manter conectado" />
             Manter conectado
           </label>
@@ -136,13 +136,13 @@ export function Register() {
           </Button>
         </form>
 
-        <p className="text-center text-[14px] text-muted mt-6">
+        <p className="text-center text-callout text-muted mt-6">
           Já tem conta?{" "}
-          <Link to="/" className="text-primary font-semibold">
+          <Link to="/" className="pressable inline-block text-primary font-semibold">
             Entrar
           </Link>
         </p>
-        {!firstRun && <p className="text-center text-[12px] text-muted/70 mt-6">Novas contas começam com o cargo Usuário. O Dono pode promover para Administrador.</p>}
+        {!firstRun && <p className="text-center text-footnote text-muted/70 mt-6">Novas contas começam com o cargo Usuário. O Dono pode promover para Administrador.</p>}
       </motion.div>
     </AuthLayout>
   );
