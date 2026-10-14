@@ -76,36 +76,36 @@ export function BestActionCard() {
     <Card>
       <SectionTitle title="Sua melhor próxima ação" subtitle="Pelo seu perfil e pelos seus dados" />
       <div className="flex gap-3">
-        <div className={clsx("h-10 w-10 shrink-0 rounded-2xl grid place-items-center", TONE[action.tone])}>
+        <div className={clsx("h-10 w-10 shrink-0 rounded-control grid place-items-center", TONE[action.tone])}>
           <Compass size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-semibold text-[15.5px] leading-snug">{action.title}</div>
-          <div className="text-[13.5px] mt-1">
+          <div className="text-headline">{action.title}</div>
+          <div className="text-footnote mt-1">
             <PrivateAmounts text={action.detail} />
           </div>
-          <div className="text-[13px] text-muted mt-1.5">
+          <div className="text-footnote text-muted mt-1.5">
             <span className="font-medium text-fg/80">Por quê: </span>
             {action.why}
           </div>
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-line/[0.05] p-3.5">
-        <div className="flex items-center gap-1.5 text-[12.5px] text-muted font-medium">
+      <div className="mt-4 rounded-card bg-line/[0.05] p-3.5">
+        <div className="flex items-center gap-1.5 text-footnote text-muted font-medium">
           <Newspaper size={14} /> Análise do dia (IA)
           {today && <span className="ml-auto font-normal">{relativeTime(today.at)}</span>}
         </div>
         {today ? (
           <>
-            <div className="font-semibold text-[14.5px] mt-1">Hoje: {today.title}</div>
-            {today.why && <div className="text-[13px] text-muted mt-0.5">Por quê: {today.why.replace(/^porque\s+/i, "")}</div>}
-            <div className="text-[11.5px] text-muted mt-1.5">{INSIGHT_DISCLAIMER}</div>
+            <div className="text-callout font-semibold mt-1">Hoje: {today.title}</div>
+            {today.why && <div className="text-footnote text-muted mt-0.5">Por quê: {today.why.replace(/^porque\s+/i, "")}</div>}
+            <div className="text-caption font-normal tracking-normal text-muted mt-1.5">{INSIGHT_DISCLAIMER}</div>
           </>
         ) : (
-          <div className="text-[13px] text-muted mt-1">
+          <div className="text-footnote text-muted mt-1">
             {failed ? "Não deu para gerar agora. Tente de novo mais tarde." : "A IA lê as notícias e manda uma ideia por dia na hora que você escolher em Configurações."}
-            <button className="block text-primary font-semibold mt-1.5 disabled:opacity-60" disabled={generating} onClick={() => void generate()}>
+            <button className="pressable block text-primary font-semibold mt-1.5 disabled:opacity-60 transition-opacity duration-150" disabled={generating} onClick={() => void generate()}>
               {generating ? "Analisando as notícias…" : "Gerar a análise de hoje"}
             </button>
           </div>
