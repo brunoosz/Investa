@@ -17,23 +17,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Chave de assinatura do APK. Sem os secrets ANDROID_KEYSTORE_*, usa a chave
-    // do repositório (só serve para instalar fora da Play Store; as atualizações
-    // instalam por cima porque a assinatura é sempre a mesma).
+    // Chave de assinatura do APK, vinda dos secrets ANDROID_KEYSTORE_* no CI.
     signingConfigs {
         investa {
-            storeFile file(System.getenv("ANDROID_KEYSTORE_FILE") ?: "investa.keystore")
-            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "investa-android"
-            keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "investa"
-            keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: "investa-android"
+            def ks = System.getenv("ANDROID_KEYSTORE_FILE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
         }
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.investa
+            signingConfig System.getenv("ANDROID_KEYSTORE_FILE") ? signingConfigs.investa : signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.investa
+            signingConfig System.getenv("ANDROID_KEYSTORE_FILE") ? signingConfigs.investa : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

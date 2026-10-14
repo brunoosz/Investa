@@ -50,9 +50,8 @@ investa.config.json
 # ícones temporários
 /.icons-*
 
-# chaves de assinatura (a investa.keystore é pública de propósito, para builds sem segredos)
+# chaves de assinatura
 *.keystore
 *.jks
 *.p12
-!android/app/investa.keystore
 .env.*

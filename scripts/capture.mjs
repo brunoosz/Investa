@@ -547,7 +547,7 @@ log(`saída: ${path.relative(root, OUT) || OUT}`);
 // 1. Prints em 2x
 let { app, win } = await launch(STILL);
 await win.getByText("Criar agora").waitFor({ timeout: 30_000 });
-await invoke(win, "auth:register", { name: "Marina Costa", username: "marina", password: "demo-investa", remember: true });
+await invoke(win, "auth:register", { name: "Investa", username: "investa", password: "demoInvesta2026", remember: true });
 const SYMBOLS = [...STOCKS.map((s) => s.symbol), "VALE3.SA", "BBAS3.SA", "IVVB11.SA", "USDBRL=X"];
 const quotes = await invoke(win, "market:quotes", { symbols: SYMBOLS }).catch((e) => {
   log(`sem cotações (${e.message}); a carteira fica só com renda fixa`);
